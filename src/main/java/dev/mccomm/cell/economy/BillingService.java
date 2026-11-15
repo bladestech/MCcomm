@@ -993,6 +993,33 @@ public final class BillingService implements Listener {
         plugin.store().markDirty();
     }
 
+    // ============================================================== timewarp
+
+    /**
+     * Admin/testing: fast-forwards the economy by {@code ms}, in steps, as if that time had passed.
+     * Every schedule (plan charges, upkeep, decay, agreements, simulated revenue) is moved back by
+     * each step and a billing tick runs.
+     */
+    public int timewarp(long ms, long step) {
+        int ticks = 0;
+        for (long done = 0; done < ms; done += step) {
+            long d = Math.min(step, ms - done);
+            for (Carrier c : plugin.store().carriers()) {
+                if (c.nextUpkeep() > 0) c.nextUpkeep(c.nextUpkeep() - d);
+                if (c.unpaidSince() > 0) c.unpaidSince(c.unpaidSince() - d);
+                for (var a : c.agreements().values()) if (a.endsAt() > 0) a.endsAt(a.endsAt() - d);
+            }
+            for (PlayerProfile p : plugin.store().profiles()) {
+                for (Subscription sub : p.subs().values()) sub.nextBill(sub.nextBill() - d);
+            }
+            plugin.simulation().shift(d);
+            tick();
+            ticks++;
+        }
+        plugin.store().markDirty();
+        return ticks;
+    }
+
     // =============================================================== helpers
 
     /** Sends now if online, otherwise saves it for their next join. */

@@ -235,17 +235,35 @@ public final class CommCommands {
                     plugin.billing().usePhone(target, model);
                     Msg.send(s, "<green>Gave <white><m></white> to <white><p></white>.", Msg.p("m", model.name()), Msg.p("p", target.getName()));
                 }
+                case "timewarp" -> {
+                    double days;
+                    try {
+                        days = Double.parseDouble(args.length > 1 ? args[1] : "");
+                    } catch (NumberFormatException e) {
+                        Msg.send(s, "<red>Usage: /celladmin timewarp <days>");
+                        return;
+                    }
+                    if (days <= 0 || days > 3650) {
+                        Msg.send(s, "<red>Days must be between 0 and 3650.");
+                        return;
+                    }
+                    int ticks = plugin.billing().timewarp(Math.round(days * 86_400_000L), 3_600_000L);
+                    plugin.store().save();
+                    plugin.towers().refreshAll();
+                    Msg.send(s, "<green>Fast-forwarded the economy <white><d></white> days (<white><t></white> hourly steps).",
+                            Msg.p("d", "" + days), Msg.p("t", "" + ticks));
+                }
                 case "billing" -> {
                     plugin.billing().tick();
                     Msg.send(s, "<green>Billing check ran.");
                 }
-                default -> Msg.send(s, "<red>Usage: /celladmin reload | save | credits | carriercredits | givephone | billing");
+                default -> Msg.send(s, "<red>Usage: /celladmin reload | save | credits | carriercredits | givephone | billing | timewarp");
             }
         }
 
         @Override
         public Collection<String> suggest(CommandSourceStack src, String[] args) {
-            if (args.length <= 1) return filter(List.of("reload", "save", "credits", "carriercredits", "givephone", "billing"), args.length == 0 ? "" : args[0]);
+            if (args.length <= 1) return filter(List.of("reload", "save", "credits", "carriercredits", "givephone", "billing", "timewarp"), args.length == 0 ? "" : args[0]);
             String sub = args[0].toLowerCase(Locale.ROOT);
             if (args.length == 2 && (sub.equals("credits") || sub.equals("givephone"))) return filter(onlineNames(), args[1]);
             if (args.length == 2 && sub.equals("carriercredits")) return filter(carrierNames(), args[1]);

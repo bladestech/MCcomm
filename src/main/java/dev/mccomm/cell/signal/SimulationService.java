@@ -99,9 +99,15 @@ public final class SimulationService {
     private final Map<String, Long> lastPaid = new java.util.HashMap<>();
     private final Map<String, Double> accrued = new java.util.HashMap<>();
 
+    /** Timewarp support: moves the last payout times back by {@code ms}. */
+    public void shift(long ms) {
+        lastPaid.replaceAll((k, v) -> v - ms);
+    }
+
     /** Credits per day a carrier's simulated users would pay (0 when revenue is off). */
     public double revenuePerDay(Carrier c) {
         if (!plugin.store().simulatedRevenue() || c.simulatedUsers() <= 0) return 0;
+        if (network(c).isEmpty()) return 0; // no working towers: simulated users get no service and don't pay
         double perDay = 0;
         for (var e : planCounts(c).entrySet()) {
             Plan plan = c.plans().get(e.getKey());

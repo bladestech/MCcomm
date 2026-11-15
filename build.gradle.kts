@@ -40,3 +40,11 @@ tasks {
         jvmArgs("-Xms2G", "-Xmx2G", "-Dcom.mojang.eula.agree=true")
     }
 }
+
+// A second local test server (superflat, port 25566) in run-flat/.
+tasks.register<xyz.jpenilla.runpaper.task.RunServer>("runFlat") {
+    minecraftVersion("26.3")
+    runDirectory(file("run-flat"))
+    pluginJars(tasks.jar.flatMap { it.archiveFile })
+    jvmArgs("-Xms2G", "-Xmx2G", "-Dcom.mojang.eula.agree=true")
+}
