@@ -120,16 +120,16 @@ generations:
     model: "CT-100 Classic"
   2:
     model: "CT-200 Edge"
-    upgrade-cost: { material: IRON_BLOCK, amount: 4 }
+    upgrade-cost: { material: IRON_BLOCK, amount: 2 }
   3:
     model: "CT-300 LTE-A"
-    upgrade-cost: { material: GOLD_BLOCK, amount: 4 }
+    upgrade-cost: { material: GOLD_BLOCK, amount: 2 }
   4:
     model: "CT-400 NR"
-    upgrade-cost: { material: DIAMOND_BLOCK, amount: 3 }
+    upgrade-cost: { material: DIAMOND, amount: 14 }   # 1.5 diamond blocks, rounded up
   5:
     model: "CT-500 NR-X"
-    upgrade-cost: { material: NETHERITE_INGOT, amount: 2 }
+    upgrade-cost: { material: NETHERITE_INGOT, amount: 1 }
 
 # Backhaul block placed in the tower GUI. Once installed it is locked: it can
 # only be discarded (destroyed), never taken back. Without one the tower is offline.
