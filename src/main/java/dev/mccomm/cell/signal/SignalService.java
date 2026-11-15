@@ -92,7 +92,8 @@ public final class SignalService {
 
     private final CellPlugin plugin;
     private final Map<UUID, Status> status = new ConcurrentHashMap<>();
-    private Map<Integer, EnumMap<Band, Integer>> usage = new HashMap<>();
+    private Map<Integer, EnumMap<Band, Integer>> usage = new HashMap<>();     // real players
+    private Map<Integer, EnumMap<Band, Integer>> simUsage = new HashMap<>();  // simulated users
     private final Map<Integer, Integer> shownUsers = new HashMap<>();
 
     public SignalService(CellPlugin plugin) {
@@ -128,8 +129,33 @@ public final class SignalService {
         return m == null ? 0 : m.getOrDefault(b, 0);
     }
 
+    /** Simulated users on a tower (all bands). */
+    public int simOn(Tower t) {
+        EnumMap<Band, Integer> m = simUsage.get(t.id());
+        if (m == null) return 0;
+        int sum = 0;
+        for (int v : m.values()) sum += v;
+        return sum;
+    }
+
+    public int simOn(Tower t, Band b) {
+        EnumMap<Band, Integer> m = simUsage.get(t.id());
+        return m == null ? 0 : m.getOrDefault(b, 0);
+    }
+
+    /** Load on one band for congestion: real users plus simulated users at their (much lighter) weight. */
+    public double load(Tower t, Band b) {
+        return usersOn(t, b) + simOn(t, b) * s().simulationWeight;
+    }
+
+    /** Load on the whole tower (for the load meter). */
+    public double load(Tower t) {
+        return usersOn(t) + simOn(t) * s().simulationWeight;
+    }
+
     public void forget(Tower t) {
         usage.remove(t.id());
+        simUsage.remove(t.id());
         shownUsers.remove(t.id());
     }
 
@@ -148,12 +174,14 @@ public final class SignalService {
             plugin.hud().update(p, st);
             plugin.phone().refreshIfOpen(p);
         }
-        plugin.simulation().addTo(newUsage);
+        Map<Integer, EnumMap<Band, Integer>> newSim = new HashMap<>();
+        plugin.simulation().addTo(newSim);
         usage = newUsage;
+        simUsage = newSim;
 
-        // Refresh screens whose user count changed.
+        // Refresh screens whose user counts changed.
         for (Tower t : plugin.store().towers()) {
-            int now = usersOn(t);
+            int now = usersOn(t) * 100_003 + simOn(t);
             Integer before = shownUsers.put(t.id(), now);
             if (before != null && before != now) plugin.towers().refresh(t);
             else if (before == null && now != 0) plugin.towers().refresh(t);
@@ -377,9 +405,9 @@ public final class SignalService {
     /** Download speed in Mbps for this link, after backhaul, signal and congestion. */
     public double downloadMbps(Link l) {
         BandSpec spec = s().spec(l.band());
-        int users = Math.max(1, usersOn(l.tower(), l.band()));
+        double users = Math.max(1, load(l.tower(), l.band()));
         int cap = s().capacity(l.tower().generation());
-        double share = users <= cap ? 1 : (double) cap / users;
+        double share = users <= cap ? 1 : cap / users;
         return spec.maxMbps() * backhaulMultiplier(l.tower()) * signalFactor(l.dbm()) * share
                 * plugin.billing().decaySpeed(l.tower());
     }
@@ -393,7 +421,7 @@ public final class SignalService {
         double d = downloadMbps(sim.link());
         if (sim.plan() != null && sim.plan().speedCapMbps() > 0) d = Math.min(d, sim.plan().speedCapMbps());
         if (sim.throttled()) d = Math.min(d, s().throttleMbps);
-        if (sim.deprioritized() && usersOn(sim.link().tower(), sim.link().band()) > s().capacity(sim.link().tower().generation())) d *= s().deprioritizedSpeed;
+        if (sim.deprioritized() && load(sim.link().tower(), sim.link().band()) > s().capacity(sim.link().tower().generation())) d *= s().deprioritizedSpeed;
         return d;
     }
 
@@ -402,7 +430,7 @@ public final class SignalService {
         double u = uploadMbps(sim.link());
         if (sim.plan() != null && sim.plan().speedCapMbps() > 0) u = Math.min(u, sim.plan().speedCapMbps() * ratio);
         if (sim.throttled()) u = Math.min(u, s().throttleMbps * ratio);
-        if (sim.deprioritized() && usersOn(sim.link().tower(), sim.link().band()) > s().capacity(sim.link().tower().generation())) u *= s().deprioritizedSpeed;
+        if (sim.deprioritized() && load(sim.link().tower(), sim.link().band()) > s().capacity(sim.link().tower().generation())) u *= s().deprioritizedSpeed;
         return u;
     }
 

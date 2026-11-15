@@ -106,7 +106,8 @@ public final class TowerGui implements Listener {
                 "<gray>Location: <white>" + t.x() + ", " + t.y() + ", " + t.z(),
                 "<gray>Height: <white>" + Math.round(t.heightAboveGround()) + " blocks <dark_gray>(+" + bonusPct(t) + "% range)",
                 "<gray>Status: " + (t.online() ? "<green>Online" : "<red>Offline"),
-                "<gray>Users: <white>" + plugin.signal().usersOn(t))));
+                "<gray>Users: <white>" + plugin.signal().usersOn(t)
+                        + (plugin.signal().simOn(t) > 0 ? " <dark_gray>+ " + plugin.signal().simOn(t) + " simulated" : ""))));
 
         int slot = FIRST_BAND;
         for (Band b : Band.values()) {

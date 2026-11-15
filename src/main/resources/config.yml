@@ -305,6 +305,11 @@ companies:
   # Valuations include this many days of net income.
   valuation-income-days: 30
 
+# Simulated users (/cellsim) for roleplay. They're counted separately from real
+# users; for tower load and congestion this many count as one real player.
+simulation:
+  users-per-real-user: 500
+
 # Roaming agreements and MVNOs (virtual carriers without towers).
 partners:
   # When either side ends an agreement it keeps working this long.

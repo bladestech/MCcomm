@@ -841,7 +841,8 @@ public final class CarrierMenu {
             lore.add("<gray>Made by: " + (maker == null ? "<white>?" : maker.styled()));
             lore.add("<gray>Backhaul: <white>" + (t.backhaul() == null ? "<red>none" : DepositMenu.TowerGuiNames.pretty(t.backhaul())));
             lore.add("<gray>Height: <white>" + Math.round(t.heightAboveGround()) + " blocks");
-            lore.add("<gray>Users now: <white>" + plugin.signal().usersOn(t));
+            lore.add("<gray>Users now: <white>" + plugin.signal().usersOn(t)
+                    + (plugin.signal().simOn(t) > 0 ? " <dark_gray>+ " + plugin.signal().simOn(t) + " simulated" : ""));
             lore.add("<gray>Upkeep: <white>" + plugin.settings().money(plugin.settings().upkeepCost(t)) + " <gray>per "
                     + BillingService.period(plugin.settings().upkeepPeriodHours));
             lore.add("<gray>Location: <white>" + world + " " + t.x() + ", " + t.y() + ", " + t.z());

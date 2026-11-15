@@ -91,8 +91,8 @@ public final class SimulationMenu {
                 ? " <dark_gray>(~" + Math.max(1, c.simulatedUsers() / towers) + " each)" : ""));
         info.addAll(split(c));
         info.add("");
-        info.add("<gray>They load towers and slow real users");
-        info.add("<gray>down like real subscribers.");
+        info.add("<gray>" + Math.round(1 / plugin.settings().simulationWeight) + " simulated users load a tower");
+        info.add("<gray>like 1 real player (counted separately).");
         info.add(plugin.store().simulatedRevenue() ? "<green>They pay their plans (revenue is on)." : "<gray>They don't pay (revenue is off).");
         m.set(4, Items.glow(Items.of(Material.PLAYER_HEAD, "<b>" + c.styled(), info)));
         int[] deltas = {-100, -10, -1, 1, 10, 100};

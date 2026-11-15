@@ -251,12 +251,13 @@ public final class TowerScreen {
             }
             default -> {
                 int users = plugin.signal().usersOn(t);
+                int sims = plugin.signal().simOn(t);
                 int capacity = Math.max(1, s().capacity(t.generation()) * Math.max(1, t.enabledBands().size()));
-                int lit = Math.min(5, (int) Math.ceil(5.0 * users / capacity));
+                int lit = Math.min(5, (int) Math.ceil(5.0 * plugin.signal().load(t) / capacity));
                 String barCol = lit >= 4 ? "<#FF8A5C>" : lit >= 3 ? "<#FFD86B>" : "<#5EE38A>";
                 StringBuilder bars = new StringBuilder("<b>");
                 for (int i = 0; i < 5; i++) bars.append(i < lit ? barCol : "<#3A3D45>").append('|');
-                left = bars + "</b> <#C8CCD4>" + users + (users == 1 ? " user" : " users");
+                left = bars + "</b> <#C8CCD4>" + users + (users == 1 ? " user" : " users") + (sims > 0 ? " <#7A7F8A>· " + sims + " sim" : "");
                 BackhaulSpec bh = s().backhaul.get(t.backhaul());
                 int bonus = (int) Math.round((s().rangeMultiplier(t.heightAboveGround()) - 1) * 100);
                 String bhName = bh == null ? t.backhaul().name() : bh.name();
