@@ -211,6 +211,11 @@ public final class CarrierMenu {
                 plugin.manufacturerMenu().stock(p, c);
             });
         }
+        m.set(36, Items.of(Material.GOLD_INGOT, "<gold>Company", "<gray>Valuation " + plugin.settings().money(plugin.companies().valuation(c).total()),
+                "<gray>Withdraw, add money, sell or liquidate."), e -> {
+            click(p);
+            plugin.companyMenu().carrier(p, c);
+        });
         m.set(40, Items.of(Material.BARRIER, "<red>Close"), e -> p.closeInventory());
         m.open(p);
     }

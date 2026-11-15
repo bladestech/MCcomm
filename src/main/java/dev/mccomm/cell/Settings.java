@@ -77,6 +77,10 @@ public final class Settings {
     public final java.util.EnumMap<Band, Long> researchBandCost = new java.util.EnumMap<>(Band.class);
     public final Map<Integer, Long> researchGenCost = new java.util.TreeMap<>();
     public final int maxManufacturersPerPlayer;
+    // companies
+    public final double transferFeePercent, liquidationFeePercent, mvnoFarewellPercent, towerScrapPercent,
+            stockRefundPercent, paperweightPercent;
+    public final int valuationDays;
     public final double deprioritizedSpeed;
 
     /** Sign board geometry, in blocks, relative to the sign block's centre. */
@@ -264,6 +268,13 @@ public final class Settings {
             } catch (NumberFormatException ignored) {
             }
         }
+        transferFeePercent = Math.clamp(c.getDouble("companies.transfer-fee-percent", 5), 0, 100);
+        liquidationFeePercent = Math.clamp(c.getDouble("companies.liquidation-fee-percent", 10), 0, 100);
+        mvnoFarewellPercent = Math.clamp(c.getDouble("companies.mvno-farewell-percent", 20), 0, 100);
+        towerScrapPercent = Math.clamp(c.getDouble("companies.tower-scrap-percent", 30), 0, 100);
+        stockRefundPercent = Math.clamp(c.getDouble("companies.stock-refund-percent", 50), 0, 100);
+        paperweightPercent = Math.clamp(c.getDouble("companies.paperweight-resale-percent", 5), 0, 100);
+        valuationDays = Math.max(0, c.getInt("companies.valuation-income-days", 30));
         noticeHours = Math.max(0, c.getInt("partners.notice-hours", 24));
         deprioritizedSpeed = Math.clamp(c.getDouble("partners.deprioritized-speed", 0.5), 0.05, 1.0);
         mvnoGraceHours = Math.max(0, c.getInt("partners.mvno-grace-hours", 24));
@@ -308,7 +319,7 @@ public final class Settings {
 
     /** What the eShop pays when you sell this phone back. */
     public long resaleValue(PhoneModel m) {
-        return Math.round(m.price() * resalePercent / 100.0);
+        return (long) Math.floor(m.price() * resalePercent / 100.0);
     }
 
     public PhoneModel phone(String id) {

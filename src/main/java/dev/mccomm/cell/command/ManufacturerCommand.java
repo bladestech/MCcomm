@@ -16,7 +16,7 @@ import java.util.Locale;
 
 /** /manufacturer — create and run a tower manufacturer. */
 public final class ManufacturerCommand extends Cmd {
-    private static final List<String> SUBS = List.of("manage", "create", "delete", "list", "color", "employee");
+    private static final List<String> SUBS = List.of("manage", "company", "create", "delete", "list", "color", "employee");
 
     public ManufacturerCommand(CellPlugin plugin) {
         super(plugin);
@@ -66,6 +66,18 @@ public final class ManufacturerCommand extends Cmd {
                     }
                 }
                 if (m != null) plugin.manufacturerMenu().open(p, m);
+            }
+            case "company" -> {
+                Player p = player(s);
+                if (p == null) return;
+                Manufacturer m = null;
+                if (args.length >= 2) m = arg(p, args[1]);
+                else for (Manufacturer x : plugin.store().manufacturers()) if (p.getUniqueId().equals(x.owner())) { m = x; break; }
+                if (m == null) {
+                    if (args.length < 2) Msg.send(p, "<red>Usage: /manufacturer company <name>");
+                    return;
+                }
+                plugin.companyMenu().manufacturer(p, m);
             }
             case "create" -> {
                 Player p = player(s);
@@ -157,6 +169,7 @@ public final class ManufacturerCommand extends Cmd {
         Msg.raw(s, "<dark_gray>━━━ <gold>/manufacturer</gold> ━━━");
         Msg.raw(s, "<white>/manufacturer create <name> <gray>— found a tower manufacturer");
         Msg.raw(s, "<white>/manufacturer manage [name] <gray>— research, models, wallet");
+        Msg.raw(s, "<white>/manufacturer company [name] <gray>— valuation, withdraw, sell, liquidate");
         Msg.raw(s, "<white>/manufacturer list · color · employee · delete");
     }
 
@@ -164,7 +177,7 @@ public final class ManufacturerCommand extends Cmd {
     public Collection<String> suggest(CommandSourceStack src, String[] args) {
         if (args.length <= 1) return filter(SUBS, args.length == 0 ? "" : args[0]);
         String sub = args[0].toLowerCase(Locale.ROOT);
-        if (args.length == 2 && List.of("manage", "delete", "color").contains(sub)) return filter(names(), args[1]);
+        if (args.length == 2 && List.of("manage", "company", "delete", "color").contains(sub)) return filter(names(), args[1]);
         if (sub.equals("employee")) {
             if (args.length == 2) return filter(List.of("add", "remove"), args[1]);
             if (args.length == 3) return filter(names(), args[2]);

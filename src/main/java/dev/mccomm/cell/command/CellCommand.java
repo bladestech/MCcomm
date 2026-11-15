@@ -19,7 +19,7 @@ import java.util.Locale;
 
 /** /cell — opens the phone; subcommands are shortcuts (status, speedtest, SIMs, numbers, towers, HUD). */
 public final class CellCommand extends Cmd {
-    private static final List<String> SUBS = List.of("status", "eshop", "wallet", "plan", "speedtest", "subscribe", "unsubscribe", "activate",
+    private static final List<String> SUBS = List.of("status", "eshop", "wallet", "pay", "plan", "speedtest", "subscribe", "unsubscribe", "activate",
             "deactivate", "data", "number", "contacts", "messages", "sims", "towers", "carriers", "hud", "help");
 
     public CellCommand(CellPlugin plugin) {
@@ -91,6 +91,24 @@ public final class CellCommand extends Cmd {
                 if (c != null) plugin.sims().setDataSim(p, c);
             }
             case "status" -> status(p);
+            case "pay" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "<red>Usage: /cell pay <player> <amount>");
+                    return;
+                }
+                org.bukkit.OfflinePlayer to = org.bukkit.Bukkit.getOfflinePlayerIfCached(args[1]);
+                if (to == null) {
+                    Msg.send(p, "<red>Unknown player <white><n></white>.", Msg.p("n", args[1]));
+                    return;
+                }
+                try {
+                    plugin.companies().pay(p, to, Long.parseLong(args[2].replace(",", "")));
+                } catch (NumberFormatException ex) {
+                    Msg.send(p, "<red>Enter a whole number.");
+                }
+            }
+            case "acceptsale" -> plugin.companies().acceptSale(p);
+            case "declinesale" -> plugin.companies().declineSale(p);
             case "eshop", "shop" -> plugin.phone().eshop(p);
             case "wallet", "balance" -> plugin.phone().wallet(p);
             case "plan", "plans" -> {
@@ -139,6 +157,7 @@ public final class CellCommand extends Cmd {
         Msg.raw(s, "<white>/cell status <gray>— your connection in chat");
         Msg.raw(s, "<white>/cell eshop <gray>— buy phones · <white>/cell wallet <gray>— balance, plans");
         Msg.raw(s, "<white>/cell plan <carrier> <gray>— pick or change a plan");
+        Msg.raw(s, "<white>/cell pay <player> <amount> <gray>— send credits (free)");
         Msg.raw(s, "<white>/cell number <gray>— your phone numbers");
         Msg.raw(s, "<white>/cell contacts <gray>· <white>/cell messages");
         Msg.raw(s, "<white>/cell speedtest [slot] <gray>— test your speed");
@@ -254,6 +273,7 @@ public final class CellCommand extends Cmd {
             PlayerProfile prof = plugin.store().profile(p.getUniqueId());
             List<String> opts = switch (sub) {
                 case "subscribe", "plan" -> carrierNames();
+                case "pay" -> onlineNames();
                 case "unsubscribe" -> names(prof.active(), prof.inactive());
                 case "activate" -> names(prof.inactive());
                 case "deactivate" -> names(prof.active());

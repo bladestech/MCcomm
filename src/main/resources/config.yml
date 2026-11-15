@@ -284,6 +284,25 @@ manufacturing:
     enabled: true
     margin-percent: 40
 
+# Owning companies: moving money, valuations, selling and liquidating.
+companies:
+  # Fee on moving money between yourself and your carrier/manufacturer (either way).
+  # Sending money between players is free.
+  transfer-fee-percent: 5
+  # Liquidating a company pays out to the owner's wallet minus this fee.
+  liquidation-fee-percent: 10
+  # Share of a liquidated carrier's value paid to the MVNOs it hosted, split evenly.
+  mvno-farewell-percent: 20
+  # A liquidated carrier's towers are worth this share of what they cost to build;
+  # its unused tower stock this share of the purchase price.
+  tower-scrap-percent: 30
+  stock-refund-percent: 50
+  # Phones still being paid off to a carrier that closed stay locked to it for good
+  # ("paperweights") and sell back for this share of their price.
+  paperweight-resale-percent: 5
+  # Valuations include this many days of net income.
+  valuation-income-days: 30
+
 # Roaming agreements and MVNOs (virtual carriers without towers).
 partners:
   # When either side ends an agreement it keeps working this long.

@@ -20,7 +20,7 @@ import java.util.UUID;
 
 /** /carrier — create and run a telecom company. */
 public final class CarrierCommand extends Cmd {
-    private static final List<String> SUBS = List.of("manage", "create", "delete", "info", "list", "color", "employee");
+    private static final List<String> SUBS = List.of("manage", "company", "create", "delete", "info", "list", "color", "employee");
 
     public CarrierCommand(CellPlugin plugin) {
         super(plugin);
@@ -65,6 +65,16 @@ public final class CarrierCommand extends Cmd {
                 }
                 if (c != null) plugin.carrierMenu().open(p, c);
             }
+            case "company" -> {
+                Player p = player(s);
+                if (p == null) return;
+                Carrier c = args.length >= 2 ? carrierArg(p, args[1]) : plugin.store().carriersOwnedBy(p.getUniqueId()).stream().findFirst().orElse(null);
+                if (c == null) {
+                    if (args.length < 2) Msg.send(p, "<red>Usage: /carrier company <name>");
+                    return;
+                }
+                plugin.companyMenu().carrier(p, c);
+            }
             case "create" -> create(s, args);
             case "delete" -> delete(s, args);
             case "info" -> info(s, args);
@@ -78,6 +88,7 @@ public final class CarrierCommand extends Cmd {
     private void help(CommandSender s) {
         Msg.raw(s, "<dark_gray>━━━ <aqua>/carrier</aqua> ━━━");
         Msg.raw(s, "<white>/carrier manage [name] <gray>— wallet, upkeep, plans, towers");
+        Msg.raw(s, "<white>/carrier company [name] <gray>— valuation, withdraw, sell, liquidate");
         Msg.raw(s, "<white>/carrier create <name> [mvno] <gray>— mvno = virtual carrier without towers");
         Msg.raw(s, "<white>/carrier delete <name> confirm");
         Msg.raw(s, "<white>/carrier info [name]");

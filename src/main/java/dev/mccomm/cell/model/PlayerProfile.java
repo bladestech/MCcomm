@@ -39,6 +39,9 @@ public final class PlayerProfile {
     private final Map<String, String> phoneLocks = new LinkedHashMap<>();
     /** phoneId -> carrierId that blacklisted it for a defaulted financing. */
     private final Map<String, String> blacklist = new LinkedHashMap<>();
+    /** Phones received for free (starter phone, admin gifts): worth nothing when sold or traded in. */
+    private final Set<String> giftedPhones = new LinkedHashSet<>();
+    private boolean starterGiven;
 
     public PlayerProfile(UUID player) {
         this.player = player;
@@ -60,6 +63,9 @@ public final class PlayerProfile {
     public Map<String, Long> overdue() { return overdue; }
     public Map<String, String> phoneLocks() { return phoneLocks; }
     public Map<String, String> blacklist() { return blacklist; }
+    public Set<String> giftedPhones() { return giftedPhones; }
+    public boolean starterGiven() { return starterGiven; }
+    public void starterGiven(boolean v) { this.starterGiven = v; }
     public Map<String, Subscription> subs() { return subs; }
     public List<String> notices() { return notices; }
 
@@ -108,6 +114,6 @@ public final class PlayerProfile {
 
     public boolean isEmpty() {
         return active.isEmpty() && inactive.isEmpty() && hud == null && !dnd && dataSim == null && contacts.isEmpty() && inbox.isEmpty()
-                && phone == null && ownedPhones.isEmpty() && balance == 0 && overdue.isEmpty() && notices.isEmpty() && ledger.isEmpty() && phoneLocks.isEmpty() && blacklist.isEmpty();
+                && phone == null && ownedPhones.isEmpty() && balance == 0 && overdue.isEmpty() && notices.isEmpty() && ledger.isEmpty() && phoneLocks.isEmpty() && blacklist.isEmpty() && giftedPhones.isEmpty() && !starterGiven;
     }
 }

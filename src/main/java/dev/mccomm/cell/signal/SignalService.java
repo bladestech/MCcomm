@@ -179,6 +179,7 @@ public final class SignalService {
             if (c == null) continue;
             String issue = null;
             if (phone == null) issue = "No phone";
+            else if (plugin.billing().paperweight(prof, phone)) issue = "Phone is a paperweight";
             else if (blacklisted) issue = "Phone blacklisted";
             else if (lock != null && !lock.equals(id)) {
                 Carrier lc = plugin.store().carrier(lock);

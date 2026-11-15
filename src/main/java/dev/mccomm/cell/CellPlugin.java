@@ -11,6 +11,8 @@ import dev.mccomm.cell.comm.SmsService;
 import dev.mccomm.cell.economy.BillingService;
 import dev.mccomm.cell.economy.PartnerService;
 import dev.mccomm.cell.economy.ManufacturerService;
+import dev.mccomm.cell.economy.CompanyService;
+import dev.mccomm.cell.gui.CompanyMenu;
 import dev.mccomm.cell.gui.ManufacturerMenu;
 import dev.mccomm.cell.gui.CarrierMenu;
 import dev.mccomm.cell.gui.ChatPrompt;
@@ -51,6 +53,8 @@ public final class CellPlugin extends JavaPlugin {
     private BillingService billing;
     private PartnerService partners;
     private ManufacturerService manufacturers;
+    private CompanyService companies;
+    private CompanyMenu companyMenu;
     private ManufacturerMenu manufacturerMenu;
     private DepositMenu deposit;
     private CarrierMenu carrierMenu;
@@ -80,6 +84,8 @@ public final class CellPlugin extends JavaPlugin {
         billing = new BillingService(this);
         partners = new PartnerService(this);
         manufacturers = new ManufacturerService(this);
+        companies = new CompanyService(this);
+        companyMenu = new CompanyMenu(this);
         manufacturerMenu = new ManufacturerMenu(this);
         deposit = new DepositMenu(this);
         carrierMenu = new CarrierMenu(this);
@@ -155,6 +161,8 @@ public final class CellPlugin extends JavaPlugin {
     public BillingService billing() { return billing; }
     public PartnerService partners() { return partners; }
     public ManufacturerService manufacturers() { return manufacturers; }
+    public CompanyService companies() { return companies; }
+    public CompanyMenu companyMenu() { return companyMenu; }
     public ManufacturerMenu manufacturerMenu() { return manufacturerMenu; }
     public DepositMenu deposit() { return deposit; }
     public CarrierMenu carrierMenu() { return carrierMenu; }

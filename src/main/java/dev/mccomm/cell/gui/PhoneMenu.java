@@ -713,7 +713,9 @@ public final class PhoneMenu {
             lore.add("");
             String lock = prof.phoneLocks().get(pm.id());
             String bl = prof.blacklist().get(pm.id());
-            if (bl != null) {
+            if (owned && plugin.billing().paperweight(prof, pm)) {
+                lore.add("<dark_red>Paperweight: locked to a carrier that closed");
+            } else if (bl != null) {
                 Carrier bc = plugin.store().carrier(bl);
                 lore.add("<dark_red>Blacklisted by " + Items.esc(bc == null ? bl : bc.name()) + " until your debt is paid");
             } else if (lock != null) {
@@ -722,7 +724,7 @@ public final class PhoneMenu {
             }
             lore.add(using ? "<green>In use" : owned ? "<yellow>Owned · click to use" : "<yellow>Click to buy");
             boolean sellable = owned && plugin.billing().cantPart(prof, pm) == null;
-            if (sellable) lore.add("<yellow>Shift-right-click <gray>sell for " + plugin.settings().money(plugin.settings().resaleValue(pm)));
+            if (sellable) lore.add("<yellow>Shift-right-click <gray>sell for " + plugin.settings().money(plugin.billing().sellValue(prof, pm)));
             ItemStack it = Items.of(pm.icon(), (using ? "<green><b>" : "<white><b>") + Items.esc(pm.name()), lore);
             m.set(slotFor(i++), using ? Items.glow(it) : it, e -> {
                 click(p);
@@ -734,7 +736,7 @@ public final class PhoneMenu {
                         plugin.billing().sellPhone(p, pm);
                     } else {
                         Msg.send(p, "<yellow>Shift-right-click again within 5 seconds to sell your <white><n></white> for <white><v></white>.",
-                                Msg.p("n", pm.name()), Msg.p("v", plugin.settings().money(plugin.settings().resaleValue(pm))));
+                                Msg.p("n", pm.name()), Msg.p("v", plugin.settings().money(plugin.billing().sellValue(prof, pm))));
                     }
                 } else if (!using) {
                     plugin.billing().buyOrUse(p, pm);
@@ -937,6 +939,23 @@ public final class PhoneMenu {
         m.set(40, Items.of(Material.EMERALD, "<green>Carrier store"), e -> {
             click(p);
             store(p);
+        });
+        m.set(44, Items.of(Material.PAPER, "<aqua>Send credits", "<gray>To another player. Free."), e -> {
+            click(p);
+            plugin.prompt().ask(p, "<aqua>Send credits to which player?", who -> {
+                org.bukkit.OfflinePlayer to = Bukkit.getOfflinePlayerIfCached(who);
+                if (to == null) {
+                    Msg.send(p, "<red>Unknown player <white><n></white>.", Msg.p("n", who));
+                    return;
+                }
+                plugin.prompt().ask(p, "<aqua>How many credits to <white>" + Items.esc(to.getName()) + "</white>?", in -> {
+                    try {
+                        plugin.companies().pay(p, to, Long.parseLong(in.replace(",", "").trim()));
+                    } catch (NumberFormatException ex) {
+                        Msg.send(p, "<red>Enter a whole number.");
+                    }
+                });
+            });
         });
         m.open(p);
     }

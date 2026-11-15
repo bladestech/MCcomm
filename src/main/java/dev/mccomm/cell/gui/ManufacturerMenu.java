@@ -138,6 +138,11 @@ public final class ManufacturerMenu {
         staff.add("");
         staff.add("<dark_gray>/manufacturer employee add|remove " + Items.esc(m.name()) + " <player>");
         menu.set(33, Items.of(Material.PLAYER_HEAD, "<white>Staff", staff));
+        menu.set(36, Items.of(Material.GOLD_INGOT, "<gold>Company", "<gray>Valuation " + s().money(plugin.companies().valuation(m).total()),
+                "<gray>Withdraw, add money, sell or liquidate."), e -> {
+            click(p);
+            plugin.companyMenu().manufacturer(p, m);
+        });
         menu.set(40, Items.of(Material.BARRIER, "<red>Close"), e -> p.closeInventory());
         menu.open(p);
     }

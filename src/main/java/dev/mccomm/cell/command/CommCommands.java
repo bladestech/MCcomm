@@ -213,7 +213,8 @@ public final class CommCommands {
                         Msg.send(s, "<red>Player must be online; models: <white><m>", Msg.p("m", String.join(", ", plugin.settings().phones.keySet())));
                         return;
                     }
-                    plugin.store().profile(target.getUniqueId()).ownedPhones().add(model.id());
+                    var tp = plugin.store().profile(target.getUniqueId());
+                    if (tp.ownedPhones().add(model.id())) tp.giftedPhones().add(model.id());
                     plugin.billing().usePhone(target, model);
                     Msg.send(s, "<green>Gave <white><m></white> to <white><p></white>.", Msg.p("m", model.name()), Msg.p("p", target.getName()));
                 }

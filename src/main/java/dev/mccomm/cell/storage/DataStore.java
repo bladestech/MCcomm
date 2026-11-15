@@ -360,6 +360,8 @@ public final class DataStore {
                         }
                     }
                     p.notices().addAll(s.getStringList("notices"));
+                    p.giftedPhones().addAll(s.getStringList("gifted-phones"));
+                    p.starterGiven(s.getBoolean("starter-given", false));
                     ConfigurationSection lk = s.getConfigurationSection("phone-locks");
                     if (lk != null) for (String k : lk.getKeys(false)) p.phoneLocks().put(k, lk.getString(k));
                     ConfigurationSection bl = s.getConfigurationSection("blacklist");
@@ -590,6 +592,8 @@ public final class DataStore {
                 if (e.getValue().grandfathered() != null) writePlan(py, p + "subs." + e.getKey() + ".grandfathered.", e.getValue().grandfathered());
             }
             if (!pr.notices().isEmpty()) py.set(p + "notices", new ArrayList<>(pr.notices()));
+            if (!pr.giftedPhones().isEmpty()) py.set(p + "gifted-phones", new ArrayList<>(pr.giftedPhones()));
+            if (pr.starterGiven()) py.set(p + "starter-given", true);
             for (Map.Entry<String, String> e : pr.phoneLocks().entrySet()) py.set(p + "phone-locks." + e.getKey(), e.getValue());
             for (Map.Entry<String, String> e : pr.blacklist().entrySet()) py.set(p + "blacklist." + e.getKey(), e.getValue());
             writeLedger(py, p + "ledger", pr.ledger());

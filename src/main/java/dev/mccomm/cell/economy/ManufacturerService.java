@@ -237,7 +237,7 @@ public final class ManufacturerService {
         Map<String, Long> shares = new HashMap<>();
         for (Tower t : plugin.store().towersOf(c.id())) {
             if (t.manufacturerId() == null) continue;
-            long share = Math.round(s().upkeepCost(t) * s().upkeepSharePercent / 100.0);
+            long share = (long) Math.floor(s().upkeepCost(t) * s().upkeepSharePercent / 100.0);
             if (share > 0) shares.merge(t.manufacturerId(), share, Long::sum);
         }
         for (var e : shares.entrySet()) {
@@ -253,7 +253,7 @@ public final class ManufacturerService {
     public long upkeepIncome(Manufacturer m) {
         long sum = 0;
         for (Tower t : plugin.store().towers()) {
-            if (m.id().equals(t.manufacturerId())) sum += Math.round(s().upkeepCost(t) * s().upkeepSharePercent / 100.0);
+            if (m.id().equals(t.manufacturerId())) sum += (long) Math.floor(s().upkeepCost(t) * s().upkeepSharePercent / 100.0);
         }
         return sum;
     }

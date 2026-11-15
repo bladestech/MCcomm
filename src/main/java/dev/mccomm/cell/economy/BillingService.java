@@ -147,14 +147,18 @@ public final class BillingService implements Listener {
         c.log(amount, "Deposit by " + who.getName());
         Msg.send(who, "<green>Deposited <white><a></white> into <white><c></white>. Balance: <white><b></white>.",
                 Msg.p("a", s().money(amount)), Msg.p("c", c.name()), Msg.p("b", s().money(c.balance())));
-        if (c.unpaidSince() != 0) {
-            chargeUpkeep(c, System.currentTimeMillis(), true);
-            if (c.unpaidSince() == 0) {
-                lastStage.put(c.id(), 0);
-                for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
-            }
-        }
+        retryUpkeep(c);
         plugin.store().markDirty();
+    }
+
+    /** If a carrier is behind on upkeep, tries to pay it now (after money came in) and repairs its towers. */
+    public void retryUpkeep(Carrier c) {
+        if (c.unpaidSince() == 0) return;
+        chargeUpkeep(c, System.currentTimeMillis(), true);
+        if (c.unpaidSince() == 0) {
+            lastStage.put(c.id(), 0);
+            for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
+        }
     }
 
     // ================================================================ phones
@@ -200,9 +204,23 @@ public final class BillingService implements Listener {
     /** Why this phone can't be sold or traded in, or null if it can. */
     public String cantPart(PlayerProfile prof, PhoneModel m) {
         if (!prof.ownedPhones().contains(m.id())) return "You don't own a " + m.name() + ".";
+        if (paperweight(prof, m)) return null; // worthless, but you can get rid of it
         if (prof.phoneLocks().containsKey(m.id())) return "You're still paying off your " + m.name() + ".";
         if (prof.blacklist().containsKey(m.id())) return "Your " + m.name() + " is blacklisted.";
         return null;
+    }
+
+    /** A phone locked or blacklisted by a carrier that no longer exists: it'll never work again. */
+    public boolean paperweight(PlayerProfile prof, PhoneModel m) {
+        String lock = prof.phoneLocks().get(m.id());
+        String bl = prof.blacklist().get(m.id());
+        return (lock != null && plugin.store().carrier(lock) == null) || (bl != null && plugin.store().carrier(bl) == null);
+    }
+
+    /** What selling this phone back pays: the resale value, or almost nothing for a paperweight. */
+    public long sellValue(PlayerProfile prof, PhoneModel m) {
+        if (prof.giftedPhones().contains(m.id())) return 0; // you didn't pay for it
+        return paperweight(prof, m) ? (long) Math.floor(m.price() * s().paperweightPercent / 100.0) : s().resaleValue(m);
     }
 
     private void removePhone(Player p, PlayerProfile prof, PhoneModel m) {
@@ -222,8 +240,11 @@ public final class BillingService implements Listener {
             Msg.send(p, "<red>" + Msg.escape(why));
             return;
         }
-        long value = s().resaleValue(m);
+        long value = sellValue(prof, m);
         removePhone(p, prof, m);
+        prof.phoneLocks().remove(m.id());
+        prof.blacklist().remove(m.id());
+        prof.giftedPhones().remove(m.id());
         prof.balance(prof.balance() + value);
         prof.log(value, "Sold " + m.name());
         p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
@@ -252,6 +273,7 @@ public final class BillingService implements Listener {
             return;
         }
         String why = cantPart(prof, m);
+        if (why == null && paperweight(prof, m)) why = "A paperweight phone is worthless as a trade-in.";
         if (why != null) {
             Msg.send(p, "<red>" + Msg.escape(why));
             return;
@@ -259,7 +281,7 @@ public final class BillingService implements Listener {
         long value = Math.min(tradeInValue(c, m), sub.financeRemaining());
         long paymentsLeft = Math.max(1, (sub.financeRemaining() + sub.financeInstallment() - 1) / Math.max(1, sub.financeInstallment()));
         removePhone(p, prof, m);
-        long resale = s().resaleValue(m);
+        long resale = prof.giftedPhones().remove(m.id()) ? 0 : s().resaleValue(m);
         c.balance(c.balance() + resale);
         c.log(resale, "Resold traded-in " + m.name());
         c.log(-value, "Trade-in credit · " + p.getName());
@@ -352,7 +374,7 @@ public final class BillingService implements Listener {
         transfer(player, c, amount, note);
         if (amount > 0 && c.mvno()) {
             var deal = plugin.partners().mvnoHost(c);
-            if (deal != null) c.mvnoOwed(c.mvnoOwed() + Math.round(amount * deal.agreement().sharePercent() / 100.0));
+            if (deal != null) c.mvnoOwed(c.mvnoOwed() + (long) Math.ceil(amount * deal.agreement().sharePercent() / 100.0));
         }
     }
 
@@ -989,7 +1011,9 @@ public final class BillingService implements Listener {
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
         PlayerProfile prof = prof(p.getUniqueId());
-        if (s().starterPhone != null && prof.ownedPhones().isEmpty()) {
+        if (s().starterPhone != null && prof.ownedPhones().isEmpty() && !prof.starterGiven()) {
+            prof.starterGiven(true);
+            prof.giftedPhones().add(s().starterPhone);
             prof.ownedPhones().add(s().starterPhone);
             prof.phone(s().starterPhone);
             plugin.store().markDirty();
