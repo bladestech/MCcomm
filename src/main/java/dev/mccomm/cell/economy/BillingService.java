@@ -891,6 +891,7 @@ public final class BillingService implements Listener {
         long now = System.currentTimeMillis();
 
         plugin.partners().tick();
+        plugin.simulation().payRevenue();
         flushPlanNotices(now);
         for (Carrier c : new ArrayList<>(plugin.store().carriers())) {
             if (c.nextUpkeep() == 0) c.nextUpkeep(now + s().upkeepPeriodHours * HOUR);

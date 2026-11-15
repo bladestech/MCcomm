@@ -148,6 +148,7 @@ public final class SignalService {
             plugin.hud().update(p, st);
             plugin.phone().refreshIfOpen(p);
         }
+        plugin.simulation().addTo(newUsage);
         usage = newUsage;
 
         // Refresh screens whose user count changed.
@@ -377,7 +378,8 @@ public final class SignalService {
     public double downloadMbps(Link l) {
         BandSpec spec = s().spec(l.band());
         int users = Math.max(1, usersOn(l.tower(), l.band()));
-        double share = users <= s().usersBeforeSlowdown ? 1 : (double) s().usersBeforeSlowdown / users;
+        int cap = s().capacity(l.tower().generation());
+        double share = users <= cap ? 1 : (double) cap / users;
         return spec.maxMbps() * backhaulMultiplier(l.tower()) * signalFactor(l.dbm()) * share
                 * plugin.billing().decaySpeed(l.tower());
     }
@@ -391,7 +393,7 @@ public final class SignalService {
         double d = downloadMbps(sim.link());
         if (sim.plan() != null && sim.plan().speedCapMbps() > 0) d = Math.min(d, sim.plan().speedCapMbps());
         if (sim.throttled()) d = Math.min(d, s().throttleMbps);
-        if (sim.deprioritized() && usersOn(sim.link().tower(), sim.link().band()) > s().usersBeforeSlowdown) d *= s().deprioritizedSpeed;
+        if (sim.deprioritized() && usersOn(sim.link().tower(), sim.link().band()) > s().capacity(sim.link().tower().generation())) d *= s().deprioritizedSpeed;
         return d;
     }
 
@@ -400,7 +402,7 @@ public final class SignalService {
         double u = uploadMbps(sim.link());
         if (sim.plan() != null && sim.plan().speedCapMbps() > 0) u = Math.min(u, sim.plan().speedCapMbps() * ratio);
         if (sim.throttled()) u = Math.min(u, s().throttleMbps * ratio);
-        if (sim.deprioritized() && usersOn(sim.link().tower(), sim.link().band()) > s().usersBeforeSlowdown) u *= s().deprioritizedSpeed;
+        if (sim.deprioritized() && usersOn(sim.link().tower(), sim.link().band()) > s().capacity(sim.link().tower().generation())) u *= s().deprioritizedSpeed;
         return u;
     }
 

@@ -13,6 +13,7 @@ import dev.mccomm.cell.economy.PartnerService;
 import dev.mccomm.cell.economy.ManufacturerService;
 import dev.mccomm.cell.economy.CompanyService;
 import dev.mccomm.cell.gui.CompanyMenu;
+import dev.mccomm.cell.gui.SimulationMenu;
 import dev.mccomm.cell.gui.ManufacturerMenu;
 import dev.mccomm.cell.gui.CarrierMenu;
 import dev.mccomm.cell.gui.ChatPrompt;
@@ -21,6 +22,7 @@ import dev.mccomm.cell.gui.Menu;
 import dev.mccomm.cell.gui.PhoneMenu;
 import dev.mccomm.cell.signal.HudService;
 import dev.mccomm.cell.signal.SignalService;
+import dev.mccomm.cell.signal.SimulationService;
 import dev.mccomm.cell.signal.SpeedTest;
 import dev.mccomm.cell.storage.DataStore;
 import dev.mccomm.cell.tower.TowerGui;
@@ -44,6 +46,7 @@ public final class CellPlugin extends JavaPlugin {
     private TowerListener towerListener;
     private SignalService signal;
     private HudService hud;
+    private SimulationService simulation;
     private SpeedTest speedTest;
     private SmsService sms;
     private CallService calls;
@@ -55,6 +58,7 @@ public final class CellPlugin extends JavaPlugin {
     private ManufacturerService manufacturers;
     private CompanyService companies;
     private CompanyMenu companyMenu;
+    private SimulationMenu simulationMenu;
     private ManufacturerMenu manufacturerMenu;
     private DepositMenu deposit;
     private CarrierMenu carrierMenu;
@@ -75,6 +79,7 @@ public final class CellPlugin extends JavaPlugin {
         towerListener = new TowerListener(this);
         signal = new SignalService(this);
         hud = new HudService(this);
+        simulation = new SimulationService(this);
         speedTest = new SpeedTest(this);
         sms = new SmsService(this);
         calls = new CallService(this);
@@ -86,6 +91,7 @@ public final class CellPlugin extends JavaPlugin {
         manufacturers = new ManufacturerService(this);
         companies = new CompanyService(this);
         companyMenu = new CompanyMenu(this);
+        simulationMenu = new SimulationMenu(this);
         manufacturerMenu = new ManufacturerMenu(this);
         deposit = new DepositMenu(this);
         carrierMenu = new CarrierMenu(this);
@@ -111,6 +117,7 @@ public final class CellPlugin extends JavaPlugin {
             r.register("text", "Send an SMS to a player", List.of("sms"), new CommCommands.Text(this));
             r.register("internet", "Chat on the internet (uses mobile data)", List.of("net"), new CommCommands.Internet(this));
             r.register("call", "Start, accept or end a call", List.of(), new CommCommands.Call(this));
+            r.register("cellsim", "Simulated users for roleplay", List.of(), new CommCommands.Sim(this));
             r.register("celladmin", "MCcomm admin tools", List.of(), new CommCommands.Admin(this));
         });
 
@@ -152,6 +159,7 @@ public final class CellPlugin extends JavaPlugin {
     public TowerListener towerListener() { return towerListener; }
     public SignalService signal() { return signal; }
     public HudService hud() { return hud; }
+    public SimulationService simulation() { return simulation; }
     public SpeedTest speedTest() { return speedTest; }
     public SmsService sms() { return sms; }
     public CallService calls() { return calls; }
@@ -163,6 +171,7 @@ public final class CellPlugin extends JavaPlugin {
     public ManufacturerService manufacturers() { return manufacturers; }
     public CompanyService companies() { return companies; }
     public CompanyMenu companyMenu() { return companyMenu; }
+    public SimulationMenu simulationMenu() { return simulationMenu; }
     public ManufacturerMenu manufacturerMenu() { return manufacturerMenu; }
     public DepositMenu deposit() { return deposit; }
     public CarrierMenu carrierMenu() { return carrierMenu; }

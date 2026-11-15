@@ -101,8 +101,11 @@ public final class CarrierMenu {
         }
         double upkeepPerDay = upkeep * 24.0 / plugin.settings().upkeepPeriodHours;
         double net = perDay - upkeepPerDay;
+        double simDay = plugin.simulation().revenuePerDay(c);
+        perDay += simDay;
+        net = perDay - upkeepPerDay;
         m.set(14, Items.of(Material.EMERALD, "<green>Income",
-                "<gray>Paying subscribers: <white>" + subs,
+                "<gray>Paying subscribers: <white>" + subs + (c.simulatedUsers() > 0 ? " <dark_gray>+ " + c.simulatedUsers() + " simulated" : ""),
                 "<gray>Plan income: <green>+" + plugin.settings().money(Math.round(perDay)) + "</green> /day",
                 "<gray>Upkeep: <red>-" + plugin.settings().money(Math.round(upkeepPerDay)) + "</red> /day",
                 "<gray>Net: " + (net >= 0 ? "<green>+" : "<red>-") + plugin.settings().money(Math.round(Math.abs(net))) + " /day"));
@@ -229,7 +232,8 @@ public final class CarrierMenu {
         for (Plan plan : new ArrayList<>(c.plans().values())) {
             if (slot >= 27) break;
             List<String> lore = new ArrayList<>(plugin.phone().planLore(plan));
-            lore.add("<gray>Subscribers: <white>" + plugin.billing().subscribers(c, plan));
+            int simOnPlan = plugin.simulation().planCounts(c).getOrDefault(plan.id(), 0);
+            lore.add("<gray>Subscribers: <white>" + plugin.billing().subscribers(c, plan) + (simOnPlan > 0 ? " <dark_gray>+ " + simOnPlan + " simulated" : ""));
             if (owner) {
                 lore.add("");
                 lore.add("<yellow>Click <gray>edit · <yellow>Shift-right <gray>delete");

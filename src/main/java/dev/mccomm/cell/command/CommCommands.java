@@ -138,6 +138,23 @@ public final class CommCommands {
         }
     }
 
+    public static final class Sim extends Cmd {
+        public Sim(CellPlugin plugin) {
+            super(plugin);
+        }
+
+        @Override
+        public String permission() {
+            return "mccomm.simulate";
+        }
+
+        @Override
+        public void execute(CommandSourceStack src, String[] args) {
+            Player p = player(src.getSender());
+            if (p != null) plugin.simulationMenu().open(p);
+        }
+    }
+
     public static final class Admin extends Cmd {
         public Admin(CellPlugin plugin) {
             super(plugin);

@@ -29,6 +29,8 @@ Requires Java 25 and Paper (or Purpur) 26.1+.
 - **Companies:** move money between yourself and your carrier or manufacturer (5% fee). Sending credits between players is free (`/cell pay`). Each company has a valuation, and can be sold to another player or liquidated: towers are scrapped, subscribers lose their SIMs, hosted MVNOs get farewell money, phones still being paid off become paperweights, and the owner gets the rest minus a fee.
 - **Roaming agreements:** a host lets another carrier's subscribers use its towers where their own network has no coverage. The home carrier pays the host per GB. Plans decide whether roaming is allowed and set an optional per-GB surcharge.
 - **MVNOs:** `/carrier create <name> mvno` creates a virtual carrier with no towers. It runs on a host network for a share of its revenue, and its subscribers are suspended if it doesn't pay. Hosts can cap bands and deprioritize partner users.
+- **Simulated users (roleplay):** `/cellsim` (permission `mccomm.simulate`) injects simulated users per carrier. They're spread evenly across its towers, each on a random plan, and they load towers and cause congestion like real users. A server-wide toggle decides whether they also pay their plans (off by default, since it creates money).
+- **Tower capacity by generation:** each band serves more users at full speed on newer towers (4 at Gen 1 up to 18 at Gen 5).
 - **Branding:** carrier and plan names can have a solid colour or a 2-4 colour gradient. Pick from presets or type your own on the Branding page in `/carrier manage`, or use `/carrier color`.
 - **Signal sidebar HUD** with each SIM's carrier and plan in their styles, plus bars, band, tower, data left, your phone and the in-game time.
 

@@ -24,6 +24,7 @@ public final class Carrier {
     private long unpaidSince;  // when upkeep first failed (epoch ms), 0 = paid up
     private boolean tradeIn;   // trade-in program on/off
     private boolean mvno;      // virtual carrier: no towers, runs on a host network
+    private int simulatedUsers; // roleplay users (cosmetic: load and congestion only, never pay)
     private long mvnoOwed;     // revenue share owed to the host, settled with upkeep
     /** Deals where this carrier is the host (key = Agreement.key()). */
     private final Map<String, Agreement> agreements = new LinkedHashMap<>();
@@ -65,6 +66,8 @@ public final class Carrier {
     public void prefix(String prefix) { this.prefix = prefix; }
     public Map<String, Plan> plans() { return plans; }
     public Map<String, Integer> stock() { return stock; }
+    public int simulatedUsers() { return simulatedUsers; }
+    public void simulatedUsers(int n) { this.simulatedUsers = Math.max(0, n); }
     public boolean mvno() { return mvno; }
     public void mvno(boolean v) { this.mvno = v; }
     public long mvnoOwed() { return mvnoOwed; }

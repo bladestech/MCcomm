@@ -34,6 +34,7 @@ public final class Settings {
     public final double rainDb, thunderDb, undergroundGrace, undergroundDbPerBlock, undergroundMaxDb, antennaHeight;
 
     public final int usersBeforeSlowdown;
+    private final List<Integer> capacityPerGen;
     public final int speedtestCooldown;
     public final double jitterPercent, minSignalFactor;
 
@@ -172,6 +173,8 @@ public final class Settings {
         antennaHeight = c.getDouble("signal.antenna-height", 1.5);
 
         usersBeforeSlowdown = Math.max(1, c.getInt("congestion.users-before-slowdown", 4));
+        List<Integer> cap = c.getIntegerList("congestion.capacity-per-generation");
+        capacityPerGen = cap.isEmpty() ? List.of(4, 6, 9, 13, 18) : cap;
         speedtestCooldown = c.getInt("speedtest.cooldown-seconds", 10);
         jitterPercent = c.getDouble("speedtest.jitter-percent", 10);
         minSignalFactor = c.getDouble("speedtest.min-signal-factor", 0.15);
@@ -324,6 +327,13 @@ public final class Settings {
 
     public PhoneModel phone(String id) {
         return id == null ? null : phones.get(id);
+    }
+
+    /** Users one band of a tower of this generation serves at full speed before slowing down. */
+    public int capacity(int generation) {
+        if (generation < 1) return usersBeforeSlowdown;
+        int idx = Math.min(generation, capacityPerGen.size()) - 1;
+        return Math.max(1, capacityPerGen.get(idx));
     }
 
     public BandSpec spec(Band b) {

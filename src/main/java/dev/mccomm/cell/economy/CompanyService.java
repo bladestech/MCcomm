@@ -197,6 +197,7 @@ public final class CompanyService {
             if (plan == null || plan.prepaid()) continue;
             income += plan.price() * 24.0 / plan.periodHours();
         }
+        income += plugin.simulation().revenuePerDay(c);
         double upkeep = (plugin.billing().upkeepCost(c) + c.mvnoOwed()) * 24.0 / s().upkeepPeriodHours;
         return Math.round(income - upkeep);
     }

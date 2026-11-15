@@ -12,6 +12,9 @@ permissions:
   mccomm.carrier.create:
     description: Create your own carrier.
     default: true
+  mccomm.simulate:
+    description: Inject simulated users into carriers (roleplay; cosmetic only).
+    default: op
   mccomm.use:
     description: Use /cell, /text and /call.
     default: true

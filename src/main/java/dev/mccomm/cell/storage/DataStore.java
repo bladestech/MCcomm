@@ -34,6 +34,7 @@ public final class DataStore {
     private final Map<String, dev.mccomm.cell.model.Manufacturer> manufacturers = new LinkedHashMap<>();
     private final Map<String, NumberOwner> numberIndex = new ConcurrentHashMap<>();
     private int nextTowerId = 1;
+    private boolean simulatedRevenue; // simulated users pay their plans (server-wide, toggled in the simulation menu)
     private boolean dirty;
 
     public DataStore(JavaPlugin plugin) {
@@ -151,6 +152,13 @@ public final class DataStore {
 
     public Collection<PlayerProfile> profiles() { return profiles.values(); }
 
+    public boolean simulatedRevenue() { return simulatedRevenue; }
+
+    public void simulatedRevenue(boolean v) {
+        simulatedRevenue = v;
+        markDirty();
+    }
+
     // ------------------------------------------------------------ manufacturers
 
     public Collection<dev.mccomm.cell.model.Manufacturer> manufacturers() { return manufacturers.values(); }
@@ -207,6 +215,7 @@ public final class DataStore {
                     ConfigurationSection st0 = s.getConfigurationSection("stock");
                     if (st0 != null) for (String k : st0.getKeys(false)) c.stock().put(k.replace("~", ":"), st0.getInt(k));
                     c.mvno(s.getBoolean("mvno", false));
+                    c.simulatedUsers(s.getInt("simulated-users", 0));
                     c.mvnoOwed(s.getLong("mvno-owed", 0));
                     readAgreements(s.getConfigurationSection("agreements"), c.agreements());
                     readAgreements(s.getConfigurationSection("offers"), c.offers());
@@ -227,6 +236,9 @@ public final class DataStore {
                 }
             }
         }
+
+        YamlConfiguration sy = YamlConfiguration.loadConfiguration(new File(dir, "server.yml"));
+        simulatedRevenue = sy.getBoolean("simulated-revenue", false);
 
         YamlConfiguration my = YamlConfiguration.loadConfiguration(new File(dir, "manufacturers.yml"));
         ConfigurationSection ms = my.getConfigurationSection("manufacturers");
@@ -533,6 +545,7 @@ public final class DataStore {
             cy.set(p + "trade-in", c.tradeIn());
             for (var e : c.stock().entrySet()) if (e.getValue() > 0) cy.set(p + "stock." + e.getKey().replace(":", "~"), e.getValue());
             cy.set(p + "mvno", c.mvno());
+            if (c.simulatedUsers() > 0) cy.set(p + "simulated-users", c.simulatedUsers());
             cy.set(p + "mvno-owed", c.mvnoOwed());
             writeAgreements(cy, p + "agreements", c.agreements());
             writeAgreements(cy, p + "offers", c.offers());
@@ -637,7 +650,11 @@ public final class DataStore {
             writeLedger(my, p + "ledger", m.ledger());
         }
 
+        YamlConfiguration sy = new YamlConfiguration();
+        sy.set("simulated-revenue", simulatedRevenue);
+
         try {
+            sy.save(new File(dir, "server.yml"));
             my.save(new File(dir, "manufacturers.yml"));
             cy.save(new File(dir, "carriers.yml"));
             ty.save(new File(dir, "towers.yml"));

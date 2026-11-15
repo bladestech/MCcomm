@@ -162,9 +162,11 @@ signal:
   antenna-height: 1.5
 
 congestion:
-  # This many users can share one band on one tower at full speed. Beyond that
-  # the speed is divided between them.
-  users-before-slowdown: 4
+  # Users one band of a tower serves at full speed, by tower generation (Gen 1..5).
+  # Beyond that the band's speed is divided between them, so newer towers hold up
+  # better under load.
+  capacity-per-generation: [4, 6, 9, 13, 18]
+  users-before-slowdown: 4   # fallback if the list above is missing
 
 speedtest:
   cooldown-seconds: 10

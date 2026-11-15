@@ -251,7 +251,7 @@ public final class TowerScreen {
             }
             default -> {
                 int users = plugin.signal().usersOn(t);
-                int capacity = Math.max(1, s().usersBeforeSlowdown * Math.max(1, t.enabledBands().size()));
+                int capacity = Math.max(1, s().capacity(t.generation()) * Math.max(1, t.enabledBands().size()));
                 int lit = Math.min(5, (int) Math.ceil(5.0 * users / capacity));
                 String barCol = lit >= 4 ? "<#FF8A5C>" : lit >= 3 ? "<#FFD86B>" : "<#5EE38A>";
                 StringBuilder bars = new StringBuilder("<b>");
