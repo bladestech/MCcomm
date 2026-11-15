@@ -2,7 +2,7 @@
 
 A Paper/Purpur 26.x plugin that adds a mobile network to Minecraft: carriers build cell towers, players buy phones, subscribe to plans, text, call, and chat over the "internet". Signal, bands, data and money all matter.
 
-> **Status: 1.1.0 Alpha.** Feature-complete for a first test, but expect bugs and balance changes.
+> **Status: 1.2.0 Alpha.** Feature-complete for a first test, but expect bugs and balance changes.
 
 Requires Java 25 and Paper (or Purpur) 26.1+.
 
