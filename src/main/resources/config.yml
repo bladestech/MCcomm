@@ -310,6 +310,17 @@ companies:
 simulation:
   users-per-real-user: 500
 
+# squaremap integration (used only if squaremap is installed).
+squaremap:
+  enabled: true
+  update-seconds: 30
+  icon-size: 20
+  # Coverage layers, one per carrier, toggleable in the map's layer menu.
+  coverage: true
+  # max = one circle per tower (its furthest band); bands = a ring for every enabled band.
+  coverage-style: max
+  coverage-hidden-by-default: false
+
 # Roaming agreements and MVNOs (virtual carriers without towers).
 partners:
   # When either side ends an agreement it keeps working this long.

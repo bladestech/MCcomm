@@ -36,6 +36,8 @@ public final class Settings {
     public final int usersBeforeSlowdown;
     private final List<Integer> capacityPerGen;
     public final double simulationWeight;
+    public final boolean squaremapEnabled, squaremapCoverage, squaremapPerBand, squaremapCoverageHidden;
+    public final int squaremapIntervalSeconds, squaremapIconSize;
     public final int speedtestCooldown;
     public final double jitterPercent, minSignalFactor;
 
@@ -176,6 +178,12 @@ public final class Settings {
         usersBeforeSlowdown = Math.max(1, c.getInt("congestion.users-before-slowdown", 4));
         List<Integer> cap = c.getIntegerList("congestion.capacity-per-generation");
         simulationWeight = 1.0 / Math.max(1, c.getDouble("simulation.users-per-real-user", 500));
+        squaremapEnabled = c.getBoolean("squaremap.enabled", true);
+        squaremapCoverage = c.getBoolean("squaremap.coverage", true);
+        squaremapPerBand = "bands".equalsIgnoreCase(c.getString("squaremap.coverage-style", "max"));
+        squaremapCoverageHidden = c.getBoolean("squaremap.coverage-hidden-by-default", false);
+        squaremapIntervalSeconds = Math.max(5, c.getInt("squaremap.update-seconds", 30));
+        squaremapIconSize = Math.clamp(c.getInt("squaremap.icon-size", 20), 8, 64);
         capacityPerGen = cap.isEmpty() ? List.of(4, 6, 9, 13, 18) : cap;
         speedtestCooldown = c.getInt("speedtest.cooldown-seconds", 10);
         jitterPercent = c.getDouble("speedtest.jitter-percent", 10);

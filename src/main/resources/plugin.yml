@@ -2,6 +2,7 @@ name: MCcomm
 version: '${version}'
 main: dev.mccomm.cell.CellPlugin
 api-version: '26.1'
+softdepend: [squaremap]
 description: Cell towers, carriers, bands, signal, SMS and calls.
 author: MCcomm
 

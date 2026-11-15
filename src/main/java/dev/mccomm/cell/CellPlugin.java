@@ -64,6 +64,7 @@ public final class CellPlugin extends JavaPlugin {
     private CarrierMenu carrierMenu;
     private InternetService internet;
     private BukkitTask signalTask;
+    private Object squaremap; // SquaremapHook when squaremap is installed (kept as Object so the class only loads then)
 
     @Override
     public void onEnable() {
@@ -127,7 +128,25 @@ public final class CellPlugin extends JavaPlugin {
         Bukkit.getScheduler().runTaskTimer(this, store::saveIfDirty, 1200L, 1200L);
         long bill = settings.billingCheckSeconds * 20L;
         Bukkit.getScheduler().runTaskTimer(this, billing::tick, 100L, bill);
+        startSquaremap();
         getLogger().info("Loaded " + store.carriers().size() + " carriers and " + store.towers().size() + " towers.");
+    }
+
+    private void startSquaremap() {
+        stopSquaremap();
+        if (!settings.squaremapEnabled || !Bukkit.getPluginManager().isPluginEnabled("squaremap")) return;
+        try {
+            var hook = new dev.mccomm.cell.integration.SquaremapHook(this);
+            hook.start();
+            squaremap = hook;
+        } catch (Throwable t) {
+            getLogger().warning("Couldn't hook into squaremap (" + t + "). The map integration is off.");
+        }
+    }
+
+    private void stopSquaremap() {
+        if (squaremap instanceof dev.mccomm.cell.integration.SquaremapHook hook) hook.stop();
+        squaremap = null;
     }
 
     private void startSignalTask() {
@@ -139,6 +158,7 @@ public final class CellPlugin extends JavaPlugin {
     public void onDisable() {
         if (speedTest != null) speedTest.shutdown();
         if (hud != null) hud.shutdown();
+        stopSquaremap();
         if (store != null) store.save();
     }
 
@@ -149,6 +169,7 @@ public final class CellPlugin extends JavaPlugin {
         startSignalTask();
         manufacturers.setup();
         towers.refreshAll();
+        startSquaremap();
     }
 
     public Settings settings() { return settings; }

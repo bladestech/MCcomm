@@ -32,6 +32,7 @@ Requires Java 25 and Paper (or Purpur) 26.1+.
 - **Simulated users (roleplay):** `/cellsim` (permission `mccomm.simulate`) injects simulated users per carrier. They're spread evenly across its towers, each on a random plan, and they load towers and cause congestion like real users. A server-wide toggle decides whether they also pay their plans (off by default, since it creates money).
 - **Tower capacity by generation:** each band serves more users at full speed on newer towers (4 at Gen 1 up to 18 at Gen 5).
 - **Branding:** carrier and plan names can have a solid colour or a 2-4 colour gradient. Pick from presets or type your own on the Branding page in `/carrier manage`, or use `/carrier color`.
+- **squaremap support** (optional): a "Cell towers" layer with a mast icon per tower in its carrier's colour (grey when down), with popups showing model, bands, status, users and height. There's also a coverage layer per carrier showing each tower's reach. Configured under `squaremap:`.
 - **Signal sidebar HUD** with each SIM's carrier and plan in their styles, plus bars, band, tower, data left, your phone and the in-game time.
 
 ## Quick start

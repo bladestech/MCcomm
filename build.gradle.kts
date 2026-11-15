@@ -14,6 +14,7 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.3.build.248-stable")
+    compileOnly("xyz.jpenilla:squaremap-api:1.3.6") // optional map integration
 }
 
 java {
