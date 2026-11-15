@@ -91,7 +91,7 @@ public final class TowerManager {
     }
 
     public boolean canManage(Player p, Tower t) {
-        if (p.hasPermission("celltowers.admin")) return true;
+        if (p.hasPermission("mccomm.admin")) return true;
         Carrier c = plugin.store().carrier(t.carrierId());
         return c != null && c.isStaff(p.getUniqueId());
     }

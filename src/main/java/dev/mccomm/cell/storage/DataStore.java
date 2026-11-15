@@ -464,7 +464,7 @@ public final class DataStore {
             py.save(new File(dir, "players.yml"));
             dirty = false;
         } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to save CellTowers data", e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to save MCcomm data", e);
         }
     }
 }

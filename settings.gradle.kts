@@ -1,1 +1,1 @@
-rootProject.name = "celltowers"
+rootProject.name = "mccomm"

@@ -33,7 +33,7 @@ public final class SpeedTest {
         }
         long now = System.currentTimeMillis();
         Long until = cooldown.get(id);
-        if (until != null && until > now && !p.hasPermission("celltowers.admin")) {
+        if (until != null && until > now && !p.hasPermission("mccomm.admin")) {
             Msg.send(p, "<red>Wait <white><secs>s</white> before testing again.", Msg.p("secs", "" + ((until - now) / 1000 + 1)));
             return;
         }

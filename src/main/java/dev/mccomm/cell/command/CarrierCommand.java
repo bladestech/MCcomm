@@ -28,18 +28,18 @@ public final class CarrierCommand extends Cmd {
 
     @Override
     public String permission() {
-        return "celltowers.use";
+        return "mccomm.use";
     }
 
     private boolean canManage(CommandSender s, Carrier c) {
-        if (s.hasPermission("celltowers.admin")) return true;
+        if (s.hasPermission("mccomm.admin")) return true;
         if (s instanceof Player p && c.isStaff(p.getUniqueId())) return true;
         Msg.send(s, "<red>You don't manage <white><c></white>.", Msg.p("c", c.name()));
         return false;
     }
 
     private boolean isOwner(CommandSender s, Carrier c) {
-        if (s.hasPermission("celltowers.admin")) return true;
+        if (s.hasPermission("mccomm.admin")) return true;
         if (s instanceof Player p && c.owner().equals(p.getUniqueId())) return true;
         Msg.send(s, "<red>Only the owner of <white><c></white> can do that.", Msg.p("c", c.name()));
         return false;
@@ -89,7 +89,7 @@ public final class CarrierCommand extends Cmd {
     private void create(CommandSender s, String[] args) {
         Player p = player(s);
         if (p == null) return;
-        if (!p.hasPermission("celltowers.carrier.create")) {
+        if (!p.hasPermission("mccomm.carrier.create")) {
             Msg.send(p, "<red>You can't create carriers.");
             return;
         }
@@ -107,7 +107,7 @@ public final class CarrierCommand extends Cmd {
             return;
         }
         int max = plugin.settings().maxCarriersPerPlayer;
-        if (max >= 0 && !p.hasPermission("celltowers.admin") && plugin.store().carriersOwnedBy(p.getUniqueId()).size() >= max) {
+        if (max >= 0 && !p.hasPermission("mccomm.admin") && plugin.store().carriersOwnedBy(p.getUniqueId()).size() >= max) {
             Msg.send(p, "<red>You already own the maximum number of carriers (<n>).", Msg.p("n", "" + max));
             return;
         }

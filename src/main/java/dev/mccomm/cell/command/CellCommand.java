@@ -28,7 +28,7 @@ public final class CellCommand extends Cmd {
 
     @Override
     public String permission() {
-        return "celltowers.use";
+        return "mccomm.use";
     }
 
     @Override

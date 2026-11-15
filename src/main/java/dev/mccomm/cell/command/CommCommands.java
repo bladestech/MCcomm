@@ -19,7 +19,7 @@ public final class CommCommands {
     /** Contact names plus online player names, for tab completion. */
     private static List<String> targets(CommandSourceStack src) {
         List<String> out = new java.util.ArrayList<>(Cmd.onlineNames());
-        if (src.getSender() instanceof Player p && org.bukkit.Bukkit.getPluginManager().getPlugin("CellTowers") instanceof CellPlugin cp) {
+        if (src.getSender() instanceof Player p && org.bukkit.Bukkit.getPluginManager().getPlugin("MCcomm") instanceof CellPlugin cp) {
             for (String name : cp.store().profile(p.getUniqueId()).contacts().values()) {
                 if (!name.contains(" ")) out.add(name);
             }
@@ -34,7 +34,7 @@ public final class CommCommands {
 
         @Override
         public String permission() {
-            return "celltowers.use";
+            return "mccomm.use";
         }
 
         @Override
@@ -66,7 +66,7 @@ public final class CommCommands {
 
         @Override
         public String permission() {
-            return "celltowers.use";
+            return "mccomm.use";
         }
 
         @Override
@@ -85,7 +85,7 @@ public final class CommCommands {
 
         @Override
         public String permission() {
-            return "celltowers.use";
+            return "mccomm.use";
         }
 
         @Override
@@ -145,7 +145,7 @@ public final class CommCommands {
 
         @Override
         public String permission() {
-            return "celltowers.admin";
+            return "mccomm.admin";
         }
 
         @Override

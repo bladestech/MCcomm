@@ -27,7 +27,7 @@ public final class TowerCommand extends Cmd {
 
     @Override
     public String permission() {
-        return "celltowers.use";
+        return "mccomm.use";
     }
 
     private Block target(Player p) {
@@ -97,7 +97,7 @@ public final class TowerCommand extends Cmd {
                 plugin.gui().open(p, t);
             }
             case "setgen" -> {
-                if (!p.hasPermission("celltowers.admin")) {
+                if (!p.hasPermission("mccomm.admin")) {
                     Msg.send(p, "<red>Admins only.");
                     return;
                 }
@@ -120,7 +120,7 @@ public final class TowerCommand extends Cmd {
                 Msg.send(p, "<green>Tower <id> set to Gen <g>.", Msg.p("id", t.name()), Msg.p("g", "" + gen));
             }
             case "tp" -> {
-                if (!p.hasPermission("celltowers.admin")) {
+                if (!p.hasPermission("mccomm.admin")) {
                     Msg.send(p, "<red>Admins only.");
                     return;
                 }
@@ -165,7 +165,7 @@ public final class TowerCommand extends Cmd {
         Msg.raw(s, "<white>/tower manage <gray>— open the tower GUI (or right-click the sign)");
         Msg.raw(s, "<white>/tower info <gray>· <white>/tower rename <name> <gray>· <white>/tower remove");
         Msg.raw(s, "<white>/tower list [carrier]");
-        if (s.hasPermission("celltowers.admin")) Msg.raw(s, "<white>/tower setgen <gen> <gray>· <white>/tower tp <name>");
+        if (s.hasPermission("mccomm.admin")) Msg.raw(s, "<white>/tower setgen <gen> <gray>· <white>/tower tp <name>");
     }
 
     private void create(Player p, String[] args) {
@@ -177,7 +177,7 @@ public final class TowerCommand extends Cmd {
         if (!validName(p, name)) return;
         Carrier c = carrierArg(p, args[1]);
         if (c == null) return;
-        if (!p.hasPermission("celltowers.admin") && !c.isStaff(p.getUniqueId())) {
+        if (!p.hasPermission("mccomm.admin") && !c.isStaff(p.getUniqueId())) {
             Msg.send(p, "<red>You don't work for <white><c></white>.", Msg.p("c", c.name()));
             return;
         }
@@ -191,12 +191,12 @@ public final class TowerCommand extends Cmd {
             return;
         }
         int max = plugin.settings().maxTowersPerCarrier;
-        if (max >= 0 && !p.hasPermission("celltowers.admin") && plugin.store().towersOf(c.id()).size() >= max) {
+        if (max >= 0 && !p.hasPermission("mccomm.admin") && plugin.store().towersOf(c.id()).size() >= max) {
             Msg.send(p, "<red><c> already has the maximum of <n> towers.", Msg.p("c", c.name()), Msg.p("n", "" + max));
             return;
         }
         long cost = plugin.settings().towerCost;
-        boolean free = p.hasPermission("celltowers.admin");
+        boolean free = p.hasPermission("mccomm.admin");
         if (!free && cost > 0) {
             if (c.balance() < cost) {
                 Msg.send(p, "<red>Building a tower costs <white><cost></white> from <white><c></white>'s wallet, which has <white><b></white>. Deposit in <white>/carrier manage</white>.",
@@ -245,7 +245,7 @@ public final class TowerCommand extends Cmd {
         if (args.length <= 1) return filter(SUBS, args.length == 0 ? "" : args[0]);
         String sub = args[0].toLowerCase(Locale.ROOT);
         if (args.length == 2 && (sub.equals("create") || sub.equals("list"))) {
-            if (sub.equals("create") && src.getSender() instanceof Player p && !p.hasPermission("celltowers.admin")) {
+            if (sub.equals("create") && src.getSender() instanceof Player p && !p.hasPermission("mccomm.admin")) {
                 List<String> mine = new ArrayList<>();
                 for (Carrier c : plugin.store().carriers()) if (c.isStaff(p.getUniqueId())) mine.add(c.name());
                 return filter(mine, args[1]);

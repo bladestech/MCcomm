@@ -42,11 +42,11 @@ public final class CarrierMenu {
     }
 
     private boolean isOwner(Player p, Carrier c) {
-        return p.hasPermission("celltowers.admin") || c.owner().equals(p.getUniqueId());
+        return p.hasPermission("mccomm.admin") || c.owner().equals(p.getUniqueId());
     }
 
     public boolean canView(Player p, Carrier c) {
-        return p.hasPermission("celltowers.admin") || c.isStaff(p.getUniqueId());
+        return p.hasPermission("mccomm.admin") || c.isStaff(p.getUniqueId());
     }
 
     // ================================================================ overview

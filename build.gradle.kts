@@ -32,7 +32,7 @@ tasks {
         }
     }
     jar {
-        archiveBaseName.set("CellTowers")
+        archiveBaseName.set("MCcomm")
     }
     runServer {
         minecraftVersion("26.3")

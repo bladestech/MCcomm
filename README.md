@@ -1,4 +1,4 @@
-# CellTowers
+# MCcomm
 
 A Paper/Purpur 26.x plugin that adds a mobile network to Minecraft: carriers build cell towers, players buy phones, subscribe to plans, text, call, and chat over the "internet". Signal, bands, data and money all matter.
 
@@ -47,9 +47,9 @@ Requires Java 25 and Paper (or Purpur) 26.1+.
 
 ## Permissions
 
-- `celltowers.use` (default: everyone)
-- `celltowers.carrier.create` (default: everyone)
-- `celltowers.admin` (default: op)
+- `mccomm.use` (default: everyone)
+- `mccomm.carrier.create` (default: everyone)
+- `mccomm.admin` (default: op)
 
 ## Building
 

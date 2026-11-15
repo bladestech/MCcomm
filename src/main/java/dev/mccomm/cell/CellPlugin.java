@@ -91,7 +91,7 @@ public final class CellPlugin extends JavaPlugin {
             r.register("text", "Send an SMS to a player", List.of("sms"), new CommCommands.Text(this));
             r.register("internet", "Chat on the internet (uses mobile data)", List.of("net"), new CommCommands.Internet(this));
             r.register("call", "Start, accept or end a call", List.of(), new CommCommands.Call(this));
-            r.register("celladmin", "CellTowers admin tools", List.of(), new CommCommands.Admin(this));
+            r.register("celladmin", "MCcomm admin tools", List.of(), new CommCommands.Admin(this));
         });
 
         startSignalTask();

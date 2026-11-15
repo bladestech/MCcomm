@@ -1,4 +1,4 @@
-name: CellTowers
+name: MCcomm
 version: '${version}'
 main: dev.mccomm.cell.CellPlugin
 api-version: '26.1'
@@ -6,12 +6,12 @@ description: Cell towers, carriers, bands, signal, SMS and calls.
 author: MCcomm
 
 permissions:
-  celltowers.admin:
+  mccomm.admin:
     description: Manage every carrier and tower, reload config.
     default: op
-  celltowers.carrier.create:
+  mccomm.carrier.create:
     description: Create your own carrier.
     default: true
-  celltowers.use:
+  mccomm.use:
     description: Use /cell, /text and /call.
     default: true

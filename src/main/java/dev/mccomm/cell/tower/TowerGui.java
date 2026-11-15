@@ -284,7 +284,7 @@ public final class TowerGui implements Listener {
     private void upgrade(Player p, Tower t) {
         Generation next = s().generations.get(t.generation() + 1);
         if (next == null) return;
-        boolean free = p.hasPermission("celltowers.admin");
+        boolean free = p.hasPermission("mccomm.admin");
         if (!free && next.upgradeMaterial() != null) {
             ItemStack cost = new ItemStack(next.upgradeMaterial(), next.upgradeAmount());
             if (!p.getInventory().containsAtLeast(cost, next.upgradeAmount())) {

@@ -1,7 +1,7 @@
 name: Release
 
 # When a GitHub release is published, build the jar with the release's version
-# (tag v1.2.3-alpha -> CellTowers-1.2.3-alpha.jar) and attach it to the release.
+# (tag v1.2.3-alpha -> MCcomm-1.2.3-alpha.jar) and attach it to the release.
 # Can also be run by hand for an existing tag to rebuild and replace its jar.
 on:
   release:
@@ -43,4 +43,4 @@ jobs:
       - name: Attach jar to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" build/libs/CellTowers-*.jar --clobber --repo "$GITHUB_REPOSITORY"
+        run: gh release upload "$TAG" build/libs/MCcomm-*.jar --clobber --repo "$GITHUB_REPOSITORY"
