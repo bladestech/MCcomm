@@ -320,6 +320,10 @@ squaremap:
   # max = one circle per tower (its furthest band); bands = a ring for every enabled band.
   coverage-style: max
   coverage-hidden-by-default: false
+  # One layer per band ("Band · 5G Mid"...) in its own colour, showing every
+  # tower's reach on that band. Toggle bands individually in the layer menu.
+  band-layers: true
+  band-layers-hidden-by-default: true
 
 # Roaming agreements and MVNOs (virtual carriers without towers).
 partners:

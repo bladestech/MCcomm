@@ -136,6 +136,24 @@ public final class SquaremapHook {
                         }
                     }
                 }
+                // One layer per band (toggle bands individually), each in its own colour.
+                if (s().squaremapBandLayers) {
+                    for (Band b : Band.values()) {
+                        Key key = Key.of("mccomm_band_" + safe(b.key().replace("+", "plus")));
+                        keep.add(key);
+                        SimpleLayerProvider bl = layer(mw, mine, key, "Band · " + s().spec(b).name(), 30 + b.ordinal(), 200, s().squaremapBandLayersHidden);
+                        bl.clearMarkers();
+                        Color col = new Color(BAND_COLORS[b.ordinal()]);
+                        for (Tower t : towers) {
+                            if (!working(t) || !t.enabledBands().contains(b) || !plugin.towers().available(t, b)) continue;
+                            Carrier c = plugin.store().carrier(t.carrierId());
+                            double r = s().spec(b).range() * s().rangeMultiplier(t.heightAboveGround());
+                            bl.addMarker(Key.of("b" + t.id()), Marker.circle(Point.of(t.x() + 0.5, t.z() + 0.5), r).markerOptions(MarkerOptions.builder()
+                                    .fillColor(col).fillOpacity(0.07).strokeColor(col).strokeOpacity(0.9).strokeWeight(2)
+                                    .hoverTooltip(esc(s().spec(b).name() + " · " + t.name() + " (" + (c == null ? "?" : c.name()) + ") · " + Math.round(r) + " blocks"))));
+                        }
+                    }
+                }
                 // Remove coverage layers of carriers that no longer have towers here.
                 for (Key k : new ArrayList<>(mine.keySet())) {
                     if (!keep.contains(k)) {
@@ -146,6 +164,9 @@ public final class SquaremapHook {
             }
         }
     }
+
+    /** 2G grey, 3G orange, 4G yellow, 4G+ lime, 5G Low cyan, 5G Mid blue, 5G High purple, mmWave magenta. */
+    private static final int[] BAND_COLORS = {0x9E9E9E, 0xFF9800, 0xFFEB3B, 0x8BC34A, 0x00BCD4, 0x2196F3, 0x9C27B0, 0xE91E63};
 
     private Marker circle(Tower t, double radius, Color col, double opacity, String tip) {
         return Marker.circle(Point.of(t.x() + 0.5, t.z() + 0.5), radius).markerOptions(MarkerOptions.builder()

@@ -36,7 +36,8 @@ public final class Settings {
     public final int usersBeforeSlowdown;
     private final List<Integer> capacityPerGen;
     public final double simulationWeight;
-    public final boolean squaremapEnabled, squaremapCoverage, squaremapPerBand, squaremapCoverageHidden;
+    public final boolean squaremapEnabled, squaremapCoverage, squaremapPerBand, squaremapCoverageHidden,
+            squaremapBandLayers, squaremapBandLayersHidden;
     public final int squaremapIntervalSeconds, squaremapIconSize;
     public final int speedtestCooldown;
     public final double jitterPercent, minSignalFactor;
@@ -182,6 +183,8 @@ public final class Settings {
         squaremapCoverage = c.getBoolean("squaremap.coverage", true);
         squaremapPerBand = "bands".equalsIgnoreCase(c.getString("squaremap.coverage-style", "max"));
         squaremapCoverageHidden = c.getBoolean("squaremap.coverage-hidden-by-default", false);
+        squaremapBandLayers = c.getBoolean("squaremap.band-layers", true);
+        squaremapBandLayersHidden = c.getBoolean("squaremap.band-layers-hidden-by-default", true);
         squaremapIntervalSeconds = Math.max(5, c.getInt("squaremap.update-seconds", 30));
         squaremapIconSize = Math.clamp(c.getInt("squaremap.icon-size", 20), 8, 64);
         capacityPerGen = cap.isEmpty() ? List.of(4, 6, 9, 13, 18) : cap;
