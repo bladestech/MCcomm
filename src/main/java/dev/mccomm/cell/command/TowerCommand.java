@@ -19,7 +19,7 @@ import java.util.Locale;
 
 /** /tower — build and manage towers. Most subcommands act on the wall sign you are looking at. */
 public final class TowerCommand extends Cmd {
-    private static final List<String> SUBS = List.of("create", "rename", "remove", "info", "manage", "list", "setgen", "tp");
+    private static final List<String> SUBS = List.of("install", "rename", "remove", "info", "manage", "list", "setgen", "tp");
 
     public TowerCommand(CellPlugin plugin) {
         super(plugin);
@@ -55,7 +55,7 @@ public final class TowerCommand extends Cmd {
         Player p = player(s);
         if (p == null) return;
         switch (sub) {
-            case "create" -> create(p, args);
+            case "install", "create" -> install(p, args);
             case "remove" -> {
                 Tower t = lookedAt(p);
                 if (t == null) return;
@@ -115,7 +115,9 @@ public final class TowerCommand extends Cmd {
                     return;
                 }
                 t.generation(gen);
-                t.enabledBands().removeIf(b -> !plugin.settings().supports(gen, b));
+                t.modelBands().clear();
+                for (Band band : Band.values()) if (plugin.settings().supports(gen, band)) t.modelBands().add(band);
+                t.enabledBands().removeIf(band -> !plugin.settings().supports(gen, band));
                 plugin.towers().refresh(t);
                 Msg.send(p, "<green>Tower <id> set to Gen <g>.", Msg.p("id", t.name()), Msg.p("g", "" + gen));
             }
@@ -161,30 +163,44 @@ public final class TowerCommand extends Cmd {
 
     private void help(CommandSender s) {
         Msg.raw(s, "<dark_gray>━━━ <aqua>/tower</aqua> ━━━");
-        Msg.raw(s, "<white>/tower create <carrier> <name> <gray>— while looking at a wall sign (name like LF1)");
+        Msg.raw(s, "<white>/tower install <name> [carrier] <gray>— put a tower from your stock on the wall sign you look at");
+        Msg.raw(s, "<gray>Buy tower models in <white>/carrier manage</white> → Tower shop.");
         Msg.raw(s, "<white>/tower manage <gray>— open the tower GUI (or right-click the sign)");
         Msg.raw(s, "<white>/tower info <gray>· <white>/tower rename <name> <gray>· <white>/tower remove");
         Msg.raw(s, "<white>/tower list [carrier]");
         if (s.hasPermission("mccomm.admin")) Msg.raw(s, "<white>/tower setgen <gen> <gray>· <white>/tower tp <name>");
     }
 
-    private void create(Player p, String[] args) {
-        if (args.length < 3) {
-            Msg.send(p, "<red>Usage: /tower create <carrier> <name> <gray>(look at a wall sign, name like LF1)");
+    /** /tower install <name> [carrier]: pick a model from the carrier's stock and put it on the sign you look at. */
+    private void install(Player p, String[] args) {
+        if (args.length < 2) {
+            Msg.send(p, "<red>Usage: /tower install <name> [carrier] <gray>(look at a wall sign, name like LF1)");
             return;
         }
-        String name = args[2];
-        if (!validName(p, name)) return;
-        Carrier c = carrierArg(p, args[1]);
-        if (c == null) return;
+        String name = args[1];
+        Carrier c;
+        if (args.length >= 3) {
+            c = carrierArg(p, args[2]);
+            if (c == null) return;
+        } else {
+            List<Carrier> mine = new ArrayList<>();
+            for (Carrier x : plugin.store().carriers()) if (x.isStaff(p.getUniqueId()) && !x.mvno()) mine.add(x);
+            if (mine.size() != 1) {
+                Msg.send(p, mine.isEmpty() ? "<red>You don't run a carrier with towers."
+                        : "<red>You work for several carriers: <white>/tower install <name> <carrier>");
+                return;
+            }
+            c = mine.getFirst();
+        }
         if (!p.hasPermission("mccomm.admin") && !c.isStaff(p.getUniqueId())) {
             Msg.send(p, "<red>You don't work for <white><c></white>.", Msg.p("c", c.name()));
             return;
         }
         if (c.mvno()) {
-            Msg.send(p, "<red><white><c></white> is an MVNO: it runs on a host network and can't build towers.", Msg.p("c", c.name()));
+            Msg.send(p, "<red><white><c></white> is an MVNO: it runs on a host network and can't install towers.", Msg.p("c", c.name()));
             return;
         }
+        if (!validName(p, name)) return;
         Block b = target(p);
         if (b == null || !TowerManager.isWallSign(b)) {
             Msg.send(p, "<red>Look at a wall sign (standing and hanging signs can't be towers).");
@@ -199,25 +215,41 @@ public final class TowerCommand extends Cmd {
             Msg.send(p, "<red><c> already has the maximum of <n> towers.", Msg.p("c", c.name()), Msg.p("n", "" + max));
             return;
         }
+        final Carrier carrier = c;
+        plugin.manufacturerMenu().pickStock(p, c, name, ref -> finishInstall(p, carrier, b, name, ref));
+    }
+
+    private void finishInstall(Player p, Carrier c, Block b, String name, String ref) {
+        // Re-check: things may have changed while the menu was open.
+        if (!TowerManager.isWallSign(b) || plugin.towers().towerAt(b) != null || plugin.store().towerByName(name) != null) {
+            Msg.send(p, "<red>That sign or name is no longer available.");
+            return;
+        }
+        int have = c.stock().getOrDefault(ref, 0);
+        var maker = plugin.manufacturers().maker(ref);
+        var model = plugin.manufacturers().model(ref);
+        if (have <= 0 || maker == null || model == null) {
+            Msg.send(p, "<red>That model is no longer in stock.");
+            return;
+        }
         long cost = plugin.settings().towerCost;
-        boolean free = p.hasPermission("mccomm.admin");
-        if (!free && cost > 0) {
+        if (cost > 0 && !p.hasPermission("mccomm.admin")) {
             if (c.balance() < cost) {
-                Msg.send(p, "<red>Building a tower costs <white><cost></white> from <white><c></white>'s wallet, which has <white><b></white>. Deposit in <white>/carrier manage</white>.",
+                Msg.send(p, "<red>Installing costs <white><cost></white>; <c>'s wallet has <white><b></white>.",
                         Msg.p("cost", plugin.settings().money(cost)), Msg.p("c", c.name()), Msg.p("b", plugin.settings().money(c.balance())));
                 return;
             }
             c.balance(c.balance() - cost);
-            c.log(-cost, "Built tower " + name);
+            c.log(-cost, "Installed tower " + name);
         }
-        Tower t = plugin.towers().create(p, b, c, name);
+        if (have == 1) c.stock().remove(ref);
+        else c.stock().put(ref, have - 1);
+        Tower t = plugin.towers().create(p, b, c, name, maker, model);
         List<String> bands = new ArrayList<>();
         for (Band band : t.enabledBands()) bands.add(plugin.settings().spec(band).name());
-        Msg.send(p, "<green>Tower <id> built for <white><c></white> (<model>, bands <bands>).",
-                Msg.p("id", t.name()), Msg.p("c", c.name()),
-                Msg.p("model", plugin.settings().generation(1).model()), Msg.p("bands", String.join(", ", bands)));
-        if (!free && cost > 0) Msg.send(p, "<gray>Paid <white><cost></white> from <white><c></white>'s wallet.",
-                Msg.p("cost", plugin.settings().money(cost)), Msg.p("c", c.name()));
+        Msg.send(p, "<green>Installed <white><id></white> for <white><c></white>: <model> by <maker> (<bands>).",
+                Msg.p("id", t.name()), Msg.p("c", c.name()), Msg.p("model", model.name()), Msg.p("maker", maker.name()),
+                Msg.p("bands", String.join(", ", bands)));
         Msg.send(p, "<yellow>It's offline until you install a backhaul block. Right-click the sign to open the GUI.");
     }
 
@@ -248,20 +280,14 @@ public final class TowerCommand extends Cmd {
     public Collection<String> suggest(CommandSourceStack src, String[] args) {
         if (args.length <= 1) return filter(SUBS, args.length == 0 ? "" : args[0]);
         String sub = args[0].toLowerCase(Locale.ROOT);
-        if (args.length == 2 && (sub.equals("create") || sub.equals("list"))) {
-            if (sub.equals("create") && src.getSender() instanceof Player p && !p.hasPermission("mccomm.admin")) {
-                List<String> mine = new ArrayList<>();
-                for (Carrier c : plugin.store().carriers()) if (c.isStaff(p.getUniqueId())) mine.add(c.name());
-                return filter(mine, args[1]);
-            }
-            return filter(carrierNames(), args[1]);
-        }
+        if (args.length == 2 && (sub.equals("install") || sub.equals("create"))) return List.of("<name>");
+        if (args.length == 3 && (sub.equals("install") || sub.equals("create"))) return filter(carrierNames(), args[2]);
+        if (args.length == 2 && sub.equals("list")) return filter(carrierNames(), args[1]);
         if (args.length == 2 && sub.equals("tp")) {
             List<String> names = new ArrayList<>();
             for (Tower t : plugin.store().towers()) names.add(t.name());
             return filter(names, args[1]);
         }
-        if (args.length == 3 && sub.equals("create")) return List.of("<name>");
         if (args.length == 2 && sub.equals("setgen")) {
             List<String> g = new ArrayList<>();
             for (int k : plugin.settings().generations.keySet()) g.add("" + k);

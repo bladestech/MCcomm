@@ -69,6 +69,14 @@ public final class Settings {
     public final double throttleMbps, mbPerCharSend, mbPerCharReceive;
     public final int internetMaxLength;
     public final int noticeHours, mvnoGraceHours;
+    // manufacturing
+    public final boolean genericEnabled;
+    public final double genericMargin, upkeepSharePercent, rpPerCredit;
+    public final long mfgBase, mfgPerGen;
+    public final java.util.EnumMap<Band, Long> mfgBandCost = new java.util.EnumMap<>(Band.class);
+    public final java.util.EnumMap<Band, Long> researchBandCost = new java.util.EnumMap<>(Band.class);
+    public final Map<Integer, Long> researchGenCost = new java.util.TreeMap<>();
+    public final int maxManufacturersPerPlayer;
     public final double deprioritizedSpeed;
 
     /** Sign board geometry, in blocks, relative to the sign block's centre. */
@@ -168,7 +176,7 @@ public final class Settings {
         maxTowersPerCarrier = c.getInt("carriers.max-towers-per-carrier", -1);
         carrierNamePattern = Pattern.compile(c.getString("carriers.name-pattern", "^[A-Za-z0-9_&.\\-]{2,20}$"));
         towerNamePattern = Pattern.compile(c.getString("towers.name-pattern", "^[A-Za-z0-9_\\-]{1,12}$"));
-        towerCost = Math.max(0, c.getLong("towers.creation-cost", 25));
+        towerCost = Math.max(0, c.getLong("towers.creation-cost", 0));
         heightBonus = c.getBoolean("towers.height-bonus.enabled", true);
         heightFree = Math.max(0, c.getDouble("towers.height-bonus.free-blocks", 4));
         heightPerBlock = Math.max(0, c.getDouble("towers.height-bonus.percent-per-block", 1.0)) / 100.0;
@@ -238,6 +246,24 @@ public final class Settings {
         throttleMbps = Math.max(0.01, c.getDouble("data.throttle-mbps", 0.5));
         mbPerCharSend = Math.max(0, c.getDouble("internet.mb-per-char-send", 1.0));
         mbPerCharReceive = Math.max(0, c.getDouble("internet.mb-per-char-receive", 0.1));
+        genericEnabled = c.getBoolean("manufacturing.generic.enabled", true);
+        genericMargin = c.getDouble("manufacturing.generic.margin-percent", 40);
+        upkeepSharePercent = Math.clamp(c.getDouble("manufacturing.upkeep-share-percent", 10), 0, 100);
+        rpPerCredit = Math.max(0.01, c.getDouble("manufacturing.research-points-per-credit", 1));
+        mfgBase = Math.max(0, c.getLong("manufacturing.cost.base", 20));
+        mfgPerGen = Math.max(0, c.getLong("manufacturing.cost.per-generation", 15));
+        maxManufacturersPerPlayer = c.getInt("manufacturing.max-per-player", 1);
+        for (Band b : Band.values()) {
+            mfgBandCost.put(b, Math.max(0, c.getLong("manufacturing.cost.bands." + b.key(), 5)));
+            researchBandCost.put(b, Math.max(0, c.getLong("manufacturing.research.bands." + b.key(), 0)));
+        }
+        ConfigurationSection rg = c.getConfigurationSection("manufacturing.research.generations");
+        if (rg != null) for (String k : rg.getKeys(false)) {
+            try {
+                researchGenCost.put(Integer.parseInt(k), Math.max(0, rg.getLong(k)));
+            } catch (NumberFormatException ignored) {
+            }
+        }
         noticeHours = Math.max(0, c.getInt("partners.notice-hours", 24));
         deprioritizedSpeed = Math.clamp(c.getDouble("partners.deprioritized-speed", 0.5), 0.05, 1.0);
         mvnoGraceHours = Math.max(0, c.getInt("partners.mvno-grace-hours", 24));

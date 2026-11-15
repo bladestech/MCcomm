@@ -31,6 +31,8 @@ public final class Carrier {
     private final Map<String, Agreement> offers = new LinkedHashMap<>();
     private double tradeInPercent = 60;
     private final List<LedgerEntry> ledger = new ArrayList<>();
+    /** Tower models bought and not yet installed: "manufacturer:model" -> count. */
+    private final Map<String, Integer> stock = new LinkedHashMap<>();
     private final long createdAt;
 
     public Carrier(String name, UUID owner, TextColor color, long createdAt) {
@@ -62,6 +64,7 @@ public final class Carrier {
     public String prefix() { return prefix; }
     public void prefix(String prefix) { this.prefix = prefix; }
     public Map<String, Plan> plans() { return plans; }
+    public Map<String, Integer> stock() { return stock; }
     public boolean mvno() { return mvno; }
     public void mvno(boolean v) { this.mvno = v; }
     public long mvnoOwed() { return mvnoOwed; }

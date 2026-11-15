@@ -179,7 +179,7 @@ carriers:
 
 towers:
   # Paid from the carrier's wallet when a tower is built (admins build free).
-  creation-cost: 25
+  creation-cost: 0     # extra fee on top of buying the tower model
   # Towers get a name at creation, like LF1 (Layford 1) or GH2 (Greene Hill 2).
   # Names are unique across the server, case-insensitive.
   name-pattern: "^[A-Za-z0-9_\\-]{1,12}$"
@@ -258,6 +258,31 @@ internet:
   mb-per-char-send: 1.0     # the sender pays this per character
   mb-per-char-receive: 0.1  # every receiver pays this per character
   max-length: 200
+
+# Tower manufacturers research generations and bands, design tower models
+# (their own names, any subset of bands) and sell them to carriers.
+manufacturing:
+  max-per-player: 1
+  # Share of every tower's upkeep that goes to the manufacturer that built it.
+  upkeep-share-percent: 10
+  # Research points gained per credit (or credit's worth of ores) spent on research.
+  research-points-per-credit: 1
+  # What one tower costs the manufacturer to make: base + per generation above 1
+  # + each included band. Sale price = cost + the manufacturer's margin.
+  cost:
+    base: 20
+    per-generation: 15
+    bands: { 2g: 3, 3g: 5, 4g: 8, 4g+: 12, 5g-low: 12, 5g-mid: 18, 5g-high: 25, 5g-mmwave: 40 }
+  # Research costs in points. Generation 1 with 2G/3G is known from the start.
+  # A band can only be researched once its generation is.
+  research:
+    generations: { 2: 150, 3: 350, 4: 700, 5: 1400 }
+    bands: { 2g: 0, 3g: 0, 4g: 80, 4g+: 160, 5g-low: 160, 5g-mid: 280, 5g-high: 420, 5g-mmwave: 700 }
+  # The server-run "Generic" manufacturer: always sells full-band models of every
+  # generation (named after the generations section) at cost + this margin.
+  generic:
+    enabled: true
+    margin-percent: 40
 
 # Roaming agreements and MVNOs (virtual carriers without towers).
 partners:

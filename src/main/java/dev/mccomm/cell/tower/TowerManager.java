@@ -98,11 +98,16 @@ public final class TowerManager {
 
     // ------------------------------------------------------------- lifecycle
 
-    public Tower create(Player creator, Block sign, Carrier carrier, String name) {
+    public Tower create(Player creator, Block sign, Carrier carrier, String name,
+                        dev.mccomm.cell.model.Manufacturer maker, dev.mccomm.cell.model.TowerModel model) {
         Tower t = new Tower(plugin.store().allocateTowerId(), carrier.id(), sign.getWorld().getUID(),
                 sign.getX(), sign.getY(), sign.getZ(), 1, creator.getUniqueId(), System.currentTimeMillis());
         t.name(name);
-        for (Band b : Band.values()) if (s().supports(1, b)) t.enabledBands().add(b);
+        t.manufacturerId(maker.id());
+        t.modelName(model.name());
+        t.generation(model.generation());
+        t.modelBands().addAll(model.bands());
+        t.enabledBands().addAll(model.bands());
         plugin.store().addTower(t);
         refresh(t);
         return t;
@@ -156,12 +161,13 @@ public final class TowerManager {
 
     /** The model name shown for this tower. */
     public String modelName(Tower t) {
-        return s().generation(t.generation()).model();
+        return t.modelName() != null ? t.modelName() : s().generation(t.generation()).model();
     }
 
     /** True if this tower's model includes the band (it can be switched on). */
     public boolean available(Tower t, Band b) {
-        return s().supports(t.generation(), b);
+        if (!s().supports(t.generation(), b)) return false;
+        return t.modelBands().isEmpty() || t.modelBands().contains(b);
     }
 
     private void writeSign(Tower t, Block b) {

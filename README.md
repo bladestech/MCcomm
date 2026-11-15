@@ -8,10 +8,11 @@ Requires Java 25 and Paper (or Purpur) 26.1+.
 
 ## Features
 
-- **Cell towers on wall signs:** `/tower create <carrier> <name>` while looking at a wall sign (e.g. `LF1`). A screen exactly the size of the sign shows the carrier, model, bands and status.
+- **Cell towers on wall signs:** buy tower models in the Tower shop, then `/tower install <name>` while looking at a wall sign (e.g. `LF1`). A layered screen exactly the size of the sign shows the carrier, status, tower, model, band chips and load.
+- **Tower manufacturers:** `/manufacturer create <name>`. Fund research with ores to unlock generations and bands, design models with your own names and any set of bands, set your margin (with a live profit preview), and sell to carriers. Manufacturers earn 10% of upkeep on every tower they built. A server-run Generic manufacturer always sells standard towers.
 - **8 bands:** 2G, 3G, 4G, 4G+, 5G Low, 5G Mid, 5G High and 5G mmWave. Each has its own range, speed and ping. You fall back to lower bands as you move away.
 - **Signal:** distance, nearby walls, depth underground and weather affect signal. Taller towers get up to +50% range.
-- **Tower GUI:** toggle bands, upgrade the generation (Gen 1-5 unlock bands) and install a locked backhaul block (Netherite to Copper) that sets capacity.
+- **Tower GUI:** toggle the bands the model includes, and install a locked backhaul block (Netherite to Copper) that sets capacity. Towers are fixed models: install a newer model to upgrade.
 - **Phones:** Connect (3G), Explorer (4G+) and Pilot (all bands), each with a `+` dual-SIM version, bought in the eShop.
 - **Phone GUI (`/cell`):**
   - Messages, contacts, dialer and speedtest.
@@ -33,7 +34,7 @@ Requires Java 25 and Paper (or Purpur) 26.1+.
 ## Quick start
 
 1. `/carrier create NovaMobile`, then `/carrier manage` to deposit ores into the carrier wallet.
-2. Look at a wall sign and run `/tower create NovaMobile NM1`. Right-click the sign and install a backhaul block.
+2. In `/carrier manage` open the Tower shop and buy a tower model, then look at a wall sign and run `/tower install NM1`. Right-click the sign and install a backhaul block.
 3. `/cell eshop` to buy a phone, `/cell wallet` to deposit ores, then subscribe in the Carrier store.
 
 ## Commands
@@ -45,7 +46,8 @@ Requires Java 25 and Paper (or Purpur) 26.1+.
 | `/call start <number\|contact\|player\|909>` · `accept` · `deny` · `end` | Calls |
 | `/internet [msg]` | Toggle internet chat mode, or send one message |
 | `/carrier manage\|create\|delete\|info\|list\|color\|employee` | Run a carrier |
-| `/tower create <carrier> <name>` · `manage` · `info` · `rename` · `remove` · `list` | Towers |
+| `/tower install <name> [carrier]` · `manage` · `info` · `rename` · `remove` · `list` | Towers |
+| `/manufacturer create\|manage\|list\|color\|employee\|delete` | Run a tower manufacturer |
 | `/tower setgen <n>` · `/tower tp <name>` | Admin |
 | `/celladmin reload\|save\|credits\|carriercredits\|givephone\|billing` | Admin |
 

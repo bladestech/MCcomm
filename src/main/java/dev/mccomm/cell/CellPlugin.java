@@ -10,6 +10,8 @@ import dev.mccomm.cell.comm.SimService;
 import dev.mccomm.cell.comm.SmsService;
 import dev.mccomm.cell.economy.BillingService;
 import dev.mccomm.cell.economy.PartnerService;
+import dev.mccomm.cell.economy.ManufacturerService;
+import dev.mccomm.cell.gui.ManufacturerMenu;
 import dev.mccomm.cell.gui.CarrierMenu;
 import dev.mccomm.cell.gui.ChatPrompt;
 import dev.mccomm.cell.gui.DepositMenu;
@@ -48,6 +50,8 @@ public final class CellPlugin extends JavaPlugin {
     private PhoneMenu phone;
     private BillingService billing;
     private PartnerService partners;
+    private ManufacturerService manufacturers;
+    private ManufacturerMenu manufacturerMenu;
     private DepositMenu deposit;
     private CarrierMenu carrierMenu;
     private InternetService internet;
@@ -75,10 +79,13 @@ public final class CellPlugin extends JavaPlugin {
         phone = new PhoneMenu(this);
         billing = new BillingService(this);
         partners = new PartnerService(this);
+        manufacturers = new ManufacturerService(this);
+        manufacturerMenu = new ManufacturerMenu(this);
         deposit = new DepositMenu(this);
         carrierMenu = new CarrierMenu(this);
         internet = new InternetService(this);
         billing.ensureDefaults();
+        manufacturers.setup();
 
         Bukkit.getPluginManager().registerEvents(gui, this);
         Bukkit.getPluginManager().registerEvents(towerListener, this);
@@ -93,7 +100,8 @@ public final class CellPlugin extends JavaPlugin {
             var r = e.registrar();
             r.register("cell", "Open your phone", List.of("phone"), new CellCommand(this));
             r.register("carrier", "Create and manage a carrier", List.of("telecom"), new CarrierCommand(this));
-            r.register("tower", "Build and manage cell towers", List.of(), new TowerCommand(this));
+            r.register("tower", "Install and manage cell towers", List.of(), new TowerCommand(this));
+            r.register("manufacturer", "Run a tower manufacturer", List.of("mfr"), new dev.mccomm.cell.command.ManufacturerCommand(this));
             r.register("text", "Send an SMS to a player", List.of("sms"), new CommCommands.Text(this));
             r.register("internet", "Chat on the internet (uses mobile data)", List.of("net"), new CommCommands.Internet(this));
             r.register("call", "Start, accept or end a call", List.of(), new CommCommands.Call(this));
@@ -126,6 +134,7 @@ public final class CellPlugin extends JavaPlugin {
         settings = new Settings(getConfig(), getLogger());
         Msg.prefix(settings.prefix);
         startSignalTask();
+        manufacturers.setup();
         towers.refreshAll();
     }
 
@@ -145,6 +154,8 @@ public final class CellPlugin extends JavaPlugin {
     public PhoneMenu phone() { return phone; }
     public BillingService billing() { return billing; }
     public PartnerService partners() { return partners; }
+    public ManufacturerService manufacturers() { return manufacturers; }
+    public ManufacturerMenu manufacturerMenu() { return manufacturerMenu; }
     public DepositMenu deposit() { return deposit; }
     public CarrierMenu carrierMenu() { return carrierMenu; }
     public InternetService internet() { return internet; }

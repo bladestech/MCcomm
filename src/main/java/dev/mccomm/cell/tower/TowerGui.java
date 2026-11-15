@@ -120,8 +120,8 @@ public final class TowerGui implements Listener {
             lore.add("<gray>Ping: <white>" + spec.pingMs() + " ms");
             lore.add("");
             ItemStack it;
-            if (!s().supports(t.generation(), b)) {
-                lore.add("<red>Requires Gen " + spec.minGeneration());
+            if (!plugin.towers().available(t, b)) {
+                lore.add("<red>Not in this model");
                 it = item(Material.BARRIER, "<dark_gray>" + esc(spec.name()), lore);
             } else if (t.enabledBands().contains(b)) {
                 lore.add("<green>Enabled <dark_gray>· click to disable");
@@ -154,22 +154,11 @@ public final class TowerGui implements Listener {
                     "", "<yellow>Click twice to confirm")));
         }
 
-        Generation next = s().generations.get(t.generation() + 1);
-        if (next == null) {
-            inv.setItem(SLOT_UPGRADE, item(Material.NETHER_STAR, "<gold>Max generation", List.of("<gray>This tower is fully upgraded.")));
-        } else {
-            List<String> lore = new ArrayList<>();
-            lore.add("<gray>Upgrade to <white>" + esc(next.model()) + " <gray>(Gen " + next.level() + ")");
-            List<String> unlocks = new ArrayList<>();
-            for (Band b : Band.values()) if (s().spec(b).minGeneration() == next.level()) unlocks.add(s().spec(b).name());
-            if (!unlocks.isEmpty()) lore.add("<gray>Unlocks: <white>" + esc(String.join(", ", unlocks)));
-            if (next.upgradeMaterial() != null) {
-                lore.add("<gray>Cost: <white>" + next.upgradeAmount() + "× " + pretty(next.upgradeMaterial()));
-            }
-            lore.add("");
-            lore.add("<yellow>Click to upgrade");
-            inv.setItem(SLOT_UPGRADE, item(Material.EXPERIENCE_BOTTLE, "<gold>Upgrade tower", lore));
-        }
+        // Towers are fixed models: no upgrades. Show what this one is.
+        inv.setItem(SLOT_UPGRADE, item(Material.LIGHTNING_ROD, "<gold>" + esc(plugin.towers().modelName(t)), List.of(
+                "<gray>Generation: <white>" + t.generation(),
+                "<gray>Made by: <white>" + esc(makerName(t)),
+                "<gray>Fixed model: install a newer one to upgrade.")));
 
         inv.setItem(SLOT_CLOSE, item(Material.BARRIER, "<red>Close", List.of()));
     }
@@ -248,8 +237,6 @@ public final class TowerGui implements Listener {
                 h.discardConfirm.put(p.getUniqueId(), now + CONFIRM_MS);
                 Msg.send(p, "<yellow>Click discard again within 5 seconds to destroy the backhaul block.");
             }
-        } else if (slot == SLOT_UPGRADE) {
-            upgrade(p, t);
         }
     }
 
@@ -271,9 +258,8 @@ public final class TowerGui implements Listener {
     }
 
     private void toggleBand(Player p, Tower t, Band b) {
-        if (!s().supports(t.generation(), b)) {
-            Msg.send(p, "<red><band> needs a Gen <gen> tower.", Msg.p("band", s().spec(b).name()),
-                    Msg.p("gen", "" + s().spec(b).minGeneration()));
+        if (!plugin.towers().available(t, b)) {
+            Msg.send(p, "<red>This tower model doesn't include <band>.", Msg.p("band", s().spec(b).name()));
             return;
         }
         if (!t.enabledBands().remove(b)) t.enabledBands().add(b);
@@ -317,6 +303,11 @@ public final class TowerGui implements Listener {
 
     private static String esc(String s) {
         return net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(s);
+    }
+
+    private String makerName(Tower t) {
+        var m = plugin.store().manufacturer(t.manufacturerId());
+        return m == null ? "Unknown" : m.name();
     }
 
     public static String pretty(Material m) {

@@ -198,6 +198,19 @@ public final class CarrierMenu {
         staff.add("<dark_gray>/carrier employee add|remove " + Items.esc(c.name()) + " <player>");
         m.set(34, Items.of(Material.PLAYER_HEAD, "<white>Staff", staff));
 
+        if (!c.mvno()) {
+            m.set(38, Items.of(Material.EMERALD, "<green>Tower shop", "<gray>Buy tower models from manufacturers,",
+                    "<gray>one at a time or in bulk."), e -> {
+                click(p);
+                plugin.manufacturerMenu().shop(p, c);
+            });
+            int stock = plugin.manufacturerMenu().stockCount(c);
+            m.set(42, Items.amount(Items.of(Material.CHEST, "<white>Tower stock", "<gray>" + stock + " tower(s) bought, not installed.",
+                    "<gray>Install with <white>/tower install <name>"), Math.max(1, stock)), e -> {
+                click(p);
+                plugin.manufacturerMenu().stock(p, c);
+            });
+        }
         m.set(40, Items.of(Material.BARRIER, "<red>Close"), e -> p.closeInventory());
         m.open(p);
     }
@@ -814,7 +827,9 @@ public final class CarrierMenu {
             if (slot >= 45) break;
             String world = t.world() == null ? "?" : t.world().getName();
             List<String> lore = new ArrayList<>();
-            lore.add("<gray>Model: <white>" + Items.esc(plugin.settings().generation(t.generation()).model()) + " <dark_gray>(Gen " + t.generation() + ")");
+            var maker = plugin.store().manufacturer(t.manufacturerId());
+            lore.add("<gray>Model: <white>" + Items.esc(plugin.towers().modelName(t)) + " <dark_gray>(Gen " + t.generation() + ")");
+            lore.add("<gray>Made by: " + (maker == null ? "<white>?" : maker.styled()));
             lore.add("<gray>Backhaul: <white>" + (t.backhaul() == null ? "<red>none" : DepositMenu.TowerGuiNames.pretty(t.backhaul())));
             lore.add("<gray>Height: <white>" + Math.round(t.heightAboveGround()) + " blocks");
             lore.add("<gray>Users now: <white>" + plugin.signal().usersOn(t));

@@ -31,6 +31,7 @@ public final class DataStore {
     private final Map<Integer, Tower> towers = new LinkedHashMap<>();
     private final Map<BlockKey, Tower> towersByBlock = new HashMap<>();
     private final Map<UUID, PlayerProfile> profiles = new ConcurrentHashMap<>();
+    private final Map<String, dev.mccomm.cell.model.Manufacturer> manufacturers = new LinkedHashMap<>();
     private final Map<String, NumberOwner> numberIndex = new ConcurrentHashMap<>();
     private int nextTowerId = 1;
     private boolean dirty;
@@ -150,6 +151,24 @@ public final class DataStore {
 
     public Collection<PlayerProfile> profiles() { return profiles.values(); }
 
+    // ------------------------------------------------------------ manufacturers
+
+    public Collection<dev.mccomm.cell.model.Manufacturer> manufacturers() { return manufacturers.values(); }
+
+    public dev.mccomm.cell.model.Manufacturer manufacturer(String nameOrId) {
+        return nameOrId == null ? null : manufacturers.get(dev.mccomm.cell.model.Manufacturer.idOf(nameOrId));
+    }
+
+    public void addManufacturer(dev.mccomm.cell.model.Manufacturer m) {
+        manufacturers.put(m.id(), m);
+        markDirty();
+    }
+
+    public void removeManufacturer(dev.mccomm.cell.model.Manufacturer m) {
+        manufacturers.remove(m.id());
+        markDirty();
+    }
+
     public PlayerProfile profile(UUID player) {
         return profiles.computeIfAbsent(player, PlayerProfile::new);
     }
@@ -185,6 +204,8 @@ public final class DataStore {
                     c.nextUpkeep(s.getLong("next-upkeep", 0));
                     c.unpaidSince(s.getLong("unpaid-since", 0));
                     c.tradeIn(s.getBoolean("trade-in", false));
+                    ConfigurationSection st0 = s.getConfigurationSection("stock");
+                    if (st0 != null) for (String k : st0.getKeys(false)) c.stock().put(k.replace("~", ":"), st0.getInt(k));
                     c.mvno(s.getBoolean("mvno", false));
                     c.mvnoOwed(s.getLong("mvno-owed", 0));
                     readAgreements(s.getConfigurationSection("agreements"), c.agreements());
@@ -203,6 +224,51 @@ public final class DataStore {
                     carriers.put(c.id(), c);
                 } catch (Exception ex) {
                     plugin.getLogger().log(Level.WARNING, "Skipping broken carrier entry " + id, ex);
+                }
+            }
+        }
+
+        YamlConfiguration my = YamlConfiguration.loadConfiguration(new File(dir, "manufacturers.yml"));
+        ConfigurationSection ms = my.getConfigurationSection("manufacturers");
+        if (ms != null) {
+            for (String id : ms.getKeys(false)) {
+                ConfigurationSection s = ms.getConfigurationSection(id);
+                if (s == null) continue;
+                try {
+                    String own = s.getString("owner");
+                    dev.mccomm.cell.model.Manufacturer m = new dev.mccomm.cell.model.Manufacturer(s.getString("name", id),
+                            own == null ? null : UUID.fromString(own), s.getBoolean("system", false));
+                    for (String e : s.getStringList("employees")) m.employees().add(UUID.fromString(e));
+                    List<TextColor> cols = dev.mccomm.cell.util.Style.fromHex(s.getStringList("colors"));
+                    if (!cols.isEmpty()) m.colors(cols);
+                    m.balance(s.getLong("balance", 0));
+                    m.researchPoints(s.getLong("research-points", 0));
+                    m.researchedGen(s.getInt("researched-gen", 1));
+                    for (String bk : s.getStringList("researched-bands")) {
+                        Band rb = Band.fromKey(bk);
+                        if (rb != null) m.researchedBands().add(rb);
+                    }
+                    ConfigurationSection mods = s.getConfigurationSection("models");
+                    if (mods != null) {
+                        for (String mid : mods.getKeys(false)) {
+                            ConfigurationSection md = mods.getConfigurationSection(mid);
+                            if (md == null) continue;
+                            dev.mccomm.cell.model.TowerModel tm = new dev.mccomm.cell.model.TowerModel(mid, md.getString("name", mid));
+                            tm.generation(md.getInt("generation", 1));
+                            for (String bk : md.getStringList("bands")) {
+                                Band mb = Band.fromKey(bk);
+                                if (mb != null) tm.bands().add(mb);
+                            }
+                            tm.marginPercent(md.getDouble("margin-percent", 20));
+                            tm.published(md.getBoolean("published", false));
+                            tm.sold(md.getInt("sold", 0));
+                            m.models().put(mid, tm);
+                        }
+                    }
+                    readLedger(s, m.ledger());
+                    manufacturers.put(m.id(), m);
+                } catch (Exception ex) {
+                    plugin.getLogger().log(Level.WARNING, "Skipping broken manufacturer entry " + id, ex);
                 }
             }
         }
@@ -235,6 +301,12 @@ public final class DataStore {
                         }
                     }
                     t.heightAboveGround(s.getDouble("height", 0));
+                    t.manufacturerId(s.getString("manufacturer"));
+                    t.modelName(s.getString("model"));
+                    for (String bk : s.getStringList("model-bands")) {
+                        Band mb = Band.fromKey(bk);
+                        if (mb != null) t.modelBands().add(mb);
+                    }
                     String bh = s.getString("backhaul");
                     if (bh != null) t.backhaul(Material.matchMaterial(bh));
                     String d = s.getString("display");
@@ -457,6 +529,7 @@ public final class DataStore {
             cy.set(p + "next-upkeep", c.nextUpkeep());
             cy.set(p + "unpaid-since", c.unpaidSince());
             cy.set(p + "trade-in", c.tradeIn());
+            for (var e : c.stock().entrySet()) if (e.getValue() > 0) cy.set(p + "stock." + e.getKey().replace(":", "~"), e.getValue());
             cy.set(p + "mvno", c.mvno());
             cy.set(p + "mvno-owed", c.mvnoOwed());
             writeAgreements(cy, p + "agreements", c.agreements());
@@ -475,6 +548,9 @@ public final class DataStore {
             String p = "towers." + t.id() + ".";
             ty.set(p + "carrier", t.carrierId());
             ty.set(p + "name", t.name());
+            ty.set(p + "manufacturer", t.manufacturerId());
+            ty.set(p + "model", t.modelName());
+            ty.set(p + "model-bands", t.modelBands().stream().map(Band::key).toList());
             for (var e : t.screen().entrySet()) ty.set(p + "screen." + e.getKey(), e.getValue().toString());
             ty.set(p + "height", Math.round(t.heightAboveGround() * 10) / 10.0);
             ty.set(p + "world", t.worldId().toString());
@@ -533,7 +609,32 @@ public final class DataStore {
             if (!inbox.isEmpty()) py.set(p + "inbox", inbox);
         }
 
+        YamlConfiguration my = new YamlConfiguration();
+        for (dev.mccomm.cell.model.Manufacturer m : manufacturers.values()) {
+            String p = "manufacturers." + m.id() + ".";
+            my.set(p + "name", m.name());
+            my.set(p + "owner", m.owner() == null ? null : m.owner().toString());
+            my.set(p + "system", m.system());
+            my.set(p + "employees", m.employees().stream().map(UUID::toString).toList());
+            my.set(p + "colors", dev.mccomm.cell.util.Style.toHex(m.colors()));
+            my.set(p + "balance", m.balance());
+            my.set(p + "research-points", m.researchPoints());
+            my.set(p + "researched-gen", m.researchedGen());
+            my.set(p + "researched-bands", m.researchedBands().stream().map(Band::key).toList());
+            for (dev.mccomm.cell.model.TowerModel tm : m.models().values()) {
+                String q = p + "models." + tm.id() + ".";
+                my.set(q + "name", tm.name());
+                my.set(q + "generation", tm.generation());
+                my.set(q + "bands", tm.bands().stream().map(Band::key).toList());
+                my.set(q + "margin-percent", tm.marginPercent());
+                my.set(q + "published", tm.published());
+                my.set(q + "sold", tm.sold());
+            }
+            writeLedger(my, p + "ledger", m.ledger());
+        }
+
         try {
+            my.save(new File(dir, "manufacturers.yml"));
             cy.save(new File(dir, "carriers.yml"));
             ty.save(new File(dir, "towers.yml"));
             py.save(new File(dir, "players.yml"));

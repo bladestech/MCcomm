@@ -830,7 +830,10 @@ public final class BillingService implements Listener {
         long cost = towers + share;
         if (c.balance() >= cost) {
             c.balance(c.balance() - cost);
-            if (towers > 0) c.log(-towers, "Tower upkeep (" + plugin.store().towersOf(c.id()).size() + " towers)");
+            if (towers > 0) {
+                c.log(-towers, "Tower upkeep (" + plugin.store().towersOf(c.id()).size() + " towers)");
+                plugin.manufacturers().payUpkeepShares(c);
+            }
             if (share > 0) {
                 c.log(-share, "Revenue share to " + host.host().name());
                 host.host().balance(host.host().balance() + share);

@@ -14,6 +14,9 @@ public final class Tower {
     private final int id;
     private String carrierId;
     private String name;
+    private String manufacturerId;  // who built it (for the upkeep share)
+    private String modelName;       // model name at install time
+    private final EnumSet<Band> modelBands = EnumSet.noneOf(Band.class); // bands the model includes
     private final UUID worldId;
     private final int x, y, z;
     private int generation;
@@ -42,6 +45,11 @@ public final class Tower {
     public String carrierId() { return carrierId; }
     public String name() { return name == null ? "T" + id : name; }
     public void name(String name) { this.name = name; }
+    public String manufacturerId() { return manufacturerId; }
+    public void manufacturerId(String id) { this.manufacturerId = id; }
+    public String modelName() { return modelName; }
+    public void modelName(String n) { this.modelName = n; }
+    public EnumSet<Band> modelBands() { return modelBands; }
     public UUID worldId() { return worldId; }
     public int x() { return x; }
     public int y() { return y; }

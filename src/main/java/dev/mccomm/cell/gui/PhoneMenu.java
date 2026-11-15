@@ -181,6 +181,15 @@ public final class PhoneMenu {
             });
         }
 
+        for (dev.mccomm.cell.model.Manufacturer mf : plugin.store().manufacturers()) {
+            if (!mf.isStaff(p.getUniqueId())) continue;
+            m.set(44, Items.of(Material.SMITHING_TABLE, "<gold>My factory", "<gray>" + Items.esc(mf.name()), "<gray>Research, models, sales."), e -> {
+                click(p);
+                plugin.manufacturerMenu().open(p, mf);
+            });
+            break;
+        }
+
         // Bottom: emergency, call controls, close.
         String sos = plugin.settings().emergencyNumber;
         m.set(45, Items.of(Material.RED_DYE, "<red><b>Emergency " + sos, st.emergency() ? "<gray>Click to dial." : "<dark_gray>No signal at all."),

@@ -37,12 +37,14 @@ public final class DepositMenu implements Listener {
     private static final class Holder implements InventoryHolder {
         final String carrierId; // null = the player's own wallet
         final Runnable after;
+        final java.util.function.LongConsumer custom; // when set, receives the deposited credits instead
         Inventory inv;
         boolean done;
 
-        Holder(String carrierId, Runnable after) {
+        Holder(String carrierId, Runnable after, java.util.function.LongConsumer custom) {
             this.carrierId = carrierId;
             this.after = after;
+            this.custom = custom;
         }
 
         @Override
@@ -53,9 +55,17 @@ public final class DepositMenu implements Listener {
 
     /** Opens a deposit box for the player's wallet ({@code carrier == null}) or a carrier's. */
     public void open(Player p, Carrier carrier, Runnable after) {
-        Holder h = new Holder(carrier == null ? null : carrier.id(), after);
-        h.inv = Bukkit.createInventory(h, 36, Msg.mm("<dark_gray>Deposit · " + (carrier == null ? "your wallet"
-                : Items.esc(carrier.name()))));
+        open(p, new Holder(carrier == null ? null : carrier.id(), after, null),
+                "Deposit · " + (carrier == null ? "your wallet" : Items.esc(carrier.name())));
+    }
+
+    /** A deposit box whose credits go to {@code onDeposit} (e.g. a manufacturer's wallet or research). */
+    public void open(Player p, String title, java.util.function.LongConsumer onDeposit, Runnable after) {
+        open(p, new Holder(null, after, onDeposit), title);
+    }
+
+    private void open(Player p, Holder h, String title) {
+        h.inv = Bukkit.createInventory(h, 36, Msg.mm("<dark_gray>" + title));
         ItemStack bar = Items.of(Material.GRAY_STAINED_GLASS_PANE, "<gray> ");
         for (int i = FREE; i < 36; i++) h.inv.setItem(i, bar);
         h.inv.setItem(SLOT_ALL, Items.of(Material.HOPPER, "<yellow>Add all ores from your inventory"));
@@ -127,7 +137,9 @@ public final class DepositMenu implements Listener {
             h.inv.setItem(i, null);
         }
         if (total > 0) {
-            if (h.carrierId == null) {
+            if (h.custom != null) {
+                h.custom.accept(total);
+            } else if (h.carrierId == null) {
                 plugin.billing().depositPlayer(p, total);
             } else {
                 Carrier c = plugin.store().carrier(h.carrierId);
