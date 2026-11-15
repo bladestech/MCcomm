@@ -268,27 +268,6 @@ public final class TowerGui implements Listener {
         plugin.towers().refresh(t);
     }
 
-    private void upgrade(Player p, Tower t) {
-        Generation next = s().generations.get(t.generation() + 1);
-        if (next == null) return;
-        boolean free = p.hasPermission("mccomm.admin");
-        if (!free && next.upgradeMaterial() != null) {
-            ItemStack cost = new ItemStack(next.upgradeMaterial(), next.upgradeAmount());
-            if (!p.getInventory().containsAtLeast(cost, next.upgradeAmount())) {
-                Msg.send(p, "<red>You need <white><amount>× <item></white> to upgrade.",
-                        Msg.p("amount", "" + next.upgradeAmount()), Msg.p("item", pretty(next.upgradeMaterial())));
-                return;
-            }
-            p.getInventory().removeItem(cost);
-        }
-        t.generation(next.level());
-        for (Band b : Band.values()) if (s().spec(b).minGeneration() == next.level()) t.enabledBands().add(b);
-        p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.2f);
-        Msg.send(p, "<green>Tower <id> upgraded to <white><model></white> (Gen <gen>).", Msg.p("id", t.name()),
-                Msg.p("model", next.model()), Msg.p("gen", "" + next.level()));
-        plugin.towers().refresh(t);
-    }
-
     // ----------------------------------------------------------------- helpers
 
     private static ItemStack item(Material m, String name, List<String> lore) {

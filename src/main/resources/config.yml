@@ -113,23 +113,19 @@ bands:
     min-generation: 5
     icon: NETHERITE_INGOT
 
-# Tower generations. A tower starts at generation 1.
-# upgrade-cost is taken from the owner's inventory when upgrading TO that generation.
+# Tower generations. A band needs at least its min-generation (see bands). Each
+# generation's model name is used for the Generic manufacturer's towers.
 generations:
   1:
     model: "CT-100 Classic"
   2:
     model: "CT-200 Edge"
-    upgrade-cost: { material: IRON_BLOCK, amount: 2 }
   3:
     model: "CT-300 LTE-A"
-    upgrade-cost: { material: GOLD_BLOCK, amount: 2 }
   4:
     model: "CT-400 NR"
-    upgrade-cost: { material: DIAMOND, amount: 14 }   # 1.5 diamond blocks, rounded up
   5:
     model: "CT-500 NR-X"
-    upgrade-cost: { material: NETHERITE_INGOT, amount: 1 }
 
 # Backhaul block placed in the tower GUI. Once installed it is locked: it can
 # only be discarded (destroyed), never taken back. Without one the tower is offline.
@@ -381,8 +377,6 @@ hud:
 # of the sign board, with text auto-scaled to fit inside it.
 display:
   panel-material: BLACK_CONCRETE
-  # Fraction of the board the text may fill (leaves a small margin).
-  text-fill: 0.88
   # Full-bright so the screen is readable at night.
   full-bright: true
   # If text shows mirrored/backwards on your client, set this to 180.

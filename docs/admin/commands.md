@@ -1,0 +1,80 @@
+# Commands and permissions
+
+## Permissions
+
+| Permission | Default | Allows |
+|---|---|---|
+| `mccomm.use` | everyone | `/cell`, `/text`, `/call`, `/internet`, `/carrier`, `/tower`, `/manufacturer` |
+| `mccomm.carrier.create` | everyone | Creating a carrier |
+| `mccomm.simulate` | op | `/cellsim`: simulated users for roleplay |
+| `mccomm.admin` | op | Managing every carrier, tower and manufacturer; no limits; free installs; `/celladmin`; the simulated revenue toggle |
+
+## Players
+
+| Command | Description |
+|---|---|
+| `/cell` (`/phone`) | Open the phone |
+| `/cell status` | Your connection in chat |
+| `/cell speedtest [slot]` | Run a speedtest |
+| `/cell eshop` · `/cell wallet` | Buy phones · your wallet |
+| `/cell subscribe <carrier>` | See a carrier's plans |
+| `/cell plan <carrier>` | Pick or change a plan |
+| `/cell unsubscribe <carrier>` | Unsubscribe (releases your number) |
+| `/cell activate\|deactivate <carrier>` | Swap SIMs between active and inactive |
+| `/cell data <carrier\|auto>` | Choose your data SIM |
+| `/cell sims` · `/cell number` · `/cell towers` · `/cell carriers` | Info |
+| `/cell contacts` · `/cell messages` | Open those apps |
+| `/cell pay <player> <amount>` | Send credits (free) |
+| `/cell hud` | Toggle the signal sidebar |
+| `/text <number\|contact\|player> <message>` (`/sms`) | Send a text |
+| `/call start <number\|contact\|player\|909>` | Call |
+| `/call accept` · `/call deny` · `/call end` | Answer, decline, hang up |
+| `/internet [message]` (`/net`) | Toggle internet chat, or send one message |
+
+## Carriers
+
+| Command | Description |
+|---|---|
+| `/carrier create <name> [mvno]` (`/telecom`) | Create a carrier (or an MVNO) |
+| `/carrier manage [name]` | The management screen |
+| `/carrier company [name]` | Valuation, transfers, sell, liquidate |
+| `/carrier info [name]` · `/carrier list` | Info |
+| `/carrier color <name> <colours...>` | Branding: a colour, a 2–4 colour gradient, or a preset |
+| `/carrier employee add\|remove <name> <player>` | Staff |
+| `/carrier delete <name> confirm` | Delete outright |
+
+## Towers
+
+| Command | Description |
+|---|---|
+| `/tower install <name> [carrier]` | Install a stocked tower on the wall sign you look at (`create` is an alias) |
+| `/tower manage` · `/tower info` | GUI or info for the sign you look at |
+| `/tower rename <name>` · `/tower remove` | Rename or remove it |
+| `/tower list [carrier]` | List towers |
+| `/tower setgen <gen>` | Admin: set the tower's generation |
+| `/tower tp <name>` | Admin: teleport to a tower |
+
+## Manufacturers
+
+| Command | Description |
+|---|---|
+| `/manufacturer create <name>` (`/mfr`) | Found a manufacturer |
+| `/manufacturer manage [name]` | Research, models, wallet |
+| `/manufacturer company [name]` | Valuation, transfers, sell, liquidate |
+| `/manufacturer list` | All manufacturers |
+| `/manufacturer color <name> <colours...>` | Branding |
+| `/manufacturer employee add\|remove <name> <player>` | Staff |
+| `/manufacturer delete <name> confirm` | Delete outright |
+
+## Admin
+
+| Command | Description |
+|---|---|
+| `/celladmin reload` | Reload `config.yml` and refresh everything |
+| `/celladmin save` | Save data now (it also autosaves every minute) |
+| `/celladmin credits <player> <amount>` | Add (or, if negative, take) credits from a player |
+| `/celladmin carriercredits <carrier> <amount>` | Same for a carrier |
+| `/celladmin givephone <player> <model>` | Give a phone (worth nothing on resale) |
+| `/celladmin billing` | Run the billing check now |
+| `/celladmin timewarp <days>` | Fast-forward the economy (see [Data, backups and testing](data.md)) |
+| `/cellsim` | [Simulated users](simulation.md) |

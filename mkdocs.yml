@@ -1,0 +1,76 @@
+site_name: MCcomm
+site_description: Cell towers, carriers, phones, plans and mobile data for Paper/Purpur
+site_url: https://bladestech.github.io/MCcomm/
+repo_url: https://github.com/bladestech/MCcomm
+repo_name: bladestech/MCcomm
+edit_uri: edit/main/docs/
+copyright: Copyright 2026 bladestech · Apache License 2.0
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+  icon:
+    logo: material/radio-tower
+    repo: fontawesome/brands/github
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Players:
+      - The phone: players/phone.md
+      - SIMs, numbers and plans: players/plans.md
+      - Texts, calls and /internet: players/messaging.md
+      - Wallet and phones: players/wallet.md
+  - Running a carrier:
+      - Overview: carriers/index.md
+      - Towers: carriers/towers.md
+      - Plans: carriers/plans.md
+      - Upkeep and decay: carriers/upkeep.md
+      - Roaming and MVNOs: carriers/partners.md
+  - Running a manufacturer: manufacturers.md
+  - Companies and economy: economy.md
+  - Signal reference: signal.md
+  - Admin:
+      - Commands and permissions: admin/commands.md
+      - Configuration: admin/config.md
+      - Simulated users: admin/simulation.md
+      - squaremap: admin/squaremap.md
+      - Data, backups and testing: admin/data.md
