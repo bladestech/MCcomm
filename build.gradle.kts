@@ -4,7 +4,8 @@ plugins {
 }
 
 group = "dev.mccomm"
-version = "1.0.0-alpha"
+// CI passes -PreleaseVersion=<tag without the leading v> when building a release.
+version = (findProperty("releaseVersion") as String?) ?: "1.0.0-alpha"
 
 repositories {
     mavenCentral()
