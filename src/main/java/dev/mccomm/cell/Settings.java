@@ -68,6 +68,8 @@ public final class Settings {
     public final double[] decaySpeed;
     public final double throttleMbps, mbPerCharSend, mbPerCharReceive;
     public final int internetMaxLength;
+    public final int noticeHours, mvnoGraceHours;
+    public final double deprioritizedSpeed;
 
     /** Sign board geometry, in blocks, relative to the sign block's centre. */
     public record SignGeom(double width, double height, double centerY, double faceOffset) {
@@ -236,6 +238,9 @@ public final class Settings {
         throttleMbps = Math.max(0.01, c.getDouble("data.throttle-mbps", 0.5));
         mbPerCharSend = Math.max(0, c.getDouble("internet.mb-per-char-send", 1.0));
         mbPerCharReceive = Math.max(0, c.getDouble("internet.mb-per-char-receive", 0.1));
+        noticeHours = Math.max(0, c.getInt("partners.notice-hours", 24));
+        deprioritizedSpeed = Math.clamp(c.getDouble("partners.deprioritized-speed", 0.5), 0.05, 1.0);
+        mvnoGraceHours = Math.max(0, c.getInt("partners.mvno-grace-hours", 24));
         internetMaxLength = Math.clamp(c.getInt("internet.max-length", 200), 1, 256);
         decaySpeed = ds.isEmpty() ? new double[]{0.6, 0.4, 0.25} : ds.stream().mapToDouble(Double::doubleValue).toArray();
 

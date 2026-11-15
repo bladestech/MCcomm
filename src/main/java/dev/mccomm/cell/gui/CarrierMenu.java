@@ -3,6 +3,8 @@ package dev.mccomm.cell.gui;
 import dev.mccomm.cell.CellPlugin;
 import dev.mccomm.cell.band.Band;
 import dev.mccomm.cell.economy.BillingService;
+import dev.mccomm.cell.economy.PartnerService;
+import dev.mccomm.cell.model.Agreement;
 import dev.mccomm.cell.model.Carrier;
 import dev.mccomm.cell.model.LedgerEntry;
 import dev.mccomm.cell.model.Plan;
@@ -65,13 +67,20 @@ public final class CarrierMenu {
         m.set(4, Items.of(Material.BEACON, "<b>" + c.styled(),
                 "<gray>Owner: <white>" + name(c.owner()),
                 "<gray>Numbers: <white>" + c.prefix() + "-xxxx",
-                "<gray>Towers: <white>" + towers.size()));
+                c.mvno() ? "<gray>Type: <light_purple>MVNO (virtual)" : "<gray>Towers: <white>" + towers.size(),
+                c.mvno() ? "<gray>Network: <white>" + mvnoNetworkName(c) : "<gray>Type: <white>Network operator"));
 
         List<String> wallet = new ArrayList<>();
         wallet.add("<gray>Upkeep: <white>" + plugin.settings().money(upkeep) + " <gray>every "
                 + BillingService.period(plugin.settings().upkeepPeriodHours));
         wallet.add("<gray>Next upkeep in <white>" + BillingService.until(c.nextUpkeep() - now));
         if (upkeep > 0) wallet.add("<gray>Covers <white>" + (c.balance() / upkeep) + "</white> more period(s)");
+        if (c.mvno()) {
+            var deal = plugin.partners().mvnoHost(c);
+            if (deal != null) wallet.add("<gray>Owed to " + Items.esc(deal.host().name()) + ": <white>" + plugin.settings().money(c.mvnoOwed())
+                    + " <dark_gray>(" + Math.round(deal.agreement().sharePercent()) + "% share, settled with upkeep)");
+            if (plugin.partners().suspended(c)) wallet.add("<dark_red>Your subscribers are suspended!");
+        }
         if (c.balance() < upkeep) wallet.add("<gold>Not enough for the next upkeep!");
         m.set(10, Items.glow(Items.of(Material.GOLD_BLOCK, "<gold><b>" + plugin.settings().money(c.balance()), wallet)));
 
@@ -156,6 +165,14 @@ public final class CarrierMenu {
                 plugin.store().markDirty();
                 for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
             }, () -> open(p, c));
+        });
+
+        int offers = plugin.partners().offersTo(c).size();
+        m.set(24, Items.of(Material.FILLED_MAP, "<white>Partners" + (offers > 0 ? " <yellow>(" + offers + " offer" + (offers == 1 ? "" : "s") + ")" : ""),
+                "<gray>Roaming agreements" + (c.mvno() ? " and your host network." : " and MVNOs you host."),
+                "<yellow>Click to open"), e -> {
+            click(p);
+            partners(p, c);
         });
 
         m.set(28, Items.of(Material.PAPER, "<white>Plans", "<gray>" + c.plans().size() + " plan(s)",
@@ -394,6 +411,23 @@ public final class CarrierMenu {
             }
         }
 
+        m.set(25, Items.of(plan.roaming() ? Material.COMPASS : Material.BARRIER, "<white>Roaming: " + (plan.roaming() ? "<green>allowed" : "<red>not allowed"),
+                "<gray>Lets subscribers use partner networks", "<gray>where you have no coverage.", "<yellow>Click to toggle"), e -> {
+            click(p);
+            plan.roaming(!plan.roaming());
+            saved(p, c, plan);
+        });
+        if (plan.roaming()) {
+            m.set(26, Items.of(Material.GOLD_NUGGET, "<white>Roaming surcharge: <gold>" + (plan.roamingPerGb() > 0 ? st.money(plan.roamingPerGb()) + " <white>per GB" : "<green>free"),
+                    "<gray>Charged to subscribers for data used", "<gray>while roaming. You pay partners their rate.", "<yellow>Click to change <gray>(0 = free)"), e -> {
+                click(p);
+                askLong(p, "<aqua>Roaming surcharge per GB (0 for free roaming):", 0, 100_000, v -> {
+                    plan.roamingPerGb(v);
+                    saved(p, c, plan);
+                });
+            });
+        }
+
         // ---- row 3: financing
         if (plan.financed()) {
             dev.mccomm.cell.economy.PhoneModel ph = st.phone(plan.financePhone());
@@ -473,6 +507,220 @@ public final class CarrierMenu {
     private void saved(Player p, Carrier c, Plan plan) {
         plugin.store().markDirty();
         editor(p, c, plan);
+    }
+
+    // ================================================================ partners
+
+    private String mvnoNetworkName(Carrier c) {
+        var deal = plugin.partners().mvnoHost(c);
+        return deal == null ? "<red>none" : deal.host().styled();
+    }
+
+    public void partners(Player p, Carrier c) {
+        boolean owner = isOwner(p, c);
+        Menu m = menu(6, Items.esc(c.name()) + " · Partners");
+        long now = System.currentTimeMillis();
+        m.set(4, Items.of(Material.FILLED_MAP, "<b>" + c.styled(),
+                c.mvno() ? "<light_purple>MVNO: you run on a host network." : "<gray>Network operator: you own towers.",
+                "<gray>Roaming: your subscribers use partners'", "<gray>towers where you have no coverage.",
+                c.mvno() ? "<gray>Host: their towers are your home network." : "<gray>MVNOs: virtual carriers that rent your network."));
+
+        // Row 1-2: active agreements (as host, then as partner)
+        int slot = 9;
+        for (Agreement a : new ArrayList<>(c.agreements().values())) {
+            if (slot > 26) break;
+            Carrier partner = plugin.store().carrier(a.partnerId());
+            if (partner == null) continue;
+            PartnerService.Deal deal = new PartnerService.Deal(c, a);
+            List<String> lore = new ArrayList<>(terms(a));
+            lore.add(a.kind() == Agreement.Kind.MVNO ? "<gray>They pay you a revenue share." : "<gray>They pay you per GB their roamers use.");
+            if (a.endsAt() != 0) lore.add("<gold>Ends in " + BillingService.until(a.endsAt() - now));
+            if (owner) {
+                lore.add("");
+                lore.add("<yellow>Click <gray>edit terms · <yellow>Shift-right <gray>end");
+            }
+            m.set(slot++, Items.of(a.kind() == Agreement.Kind.MVNO ? Material.ENDER_EYE : Material.COMPASS,
+                    "<white>" + (a.kind() == Agreement.Kind.MVNO ? "Hosting MVNO " : "Roaming partner ") + partner.styled(), lore), e -> {
+                if (!owner) return;
+                click(p);
+                if (e.isShiftClick() && e.isRightClick()) confirmEnd(p, c, deal);
+                else terms(p, c, a, () -> partners(p, c));
+            });
+        }
+        for (PartnerService.Deal deal : plugin.partners().asPartner(c)) {
+            if (slot > 26) break;
+            Agreement a = deal.agreement();
+            List<String> lore = new ArrayList<>(terms(a));
+            lore.add(a.kind() == Agreement.Kind.MVNO ? "<gray>Their towers are your home network." : "<gray>Your subscribers roam here when you have no coverage.");
+            if (a.endsAt() != 0) lore.add("<gold>Ends in " + BillingService.until(a.endsAt() - now));
+            if (owner) {
+                lore.add("");
+                lore.add("<yellow>Shift-right <gray>end");
+            }
+            m.set(slot++, Items.of(a.kind() == Agreement.Kind.MVNO ? Material.BEACON : Material.MAP,
+                    "<white>" + (a.kind() == Agreement.Kind.MVNO ? "Your host " : "Roaming on ") + deal.host().styled(), lore), e -> {
+                if (!owner || !(e.isShiftClick() && e.isRightClick())) return;
+                click(p);
+                confirmEnd(p, c, deal);
+            });
+        }
+        if (slot == 9) m.set(13, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No agreements yet"));
+
+        // Row 3: offers received and offers sent
+        slot = 27;
+        for (PartnerService.Deal offer : plugin.partners().offersTo(c)) {
+            if (slot > 35) break;
+            List<String> lore = new ArrayList<>(terms(offer.agreement()));
+            if (owner) {
+                lore.add("");
+                lore.add("<yellow>Click <gray>accept · <yellow>Shift-right <gray>decline");
+            }
+            m.set(slot++, Items.glow(Items.of(Material.WRITABLE_BOOK, "<yellow>Offer from " + offer.host().styled()
+                    + " <gray>(" + (offer.agreement().kind() == Agreement.Kind.MVNO ? "MVNO hosting" : "roaming") + ")", lore)), e -> {
+                if (!owner) return;
+                click(p);
+                if (e.isShiftClick() && e.isRightClick()) plugin.partners().decline(p, offer);
+                else plugin.partners().accept(p, c, offer);
+                partners(p, c);
+            });
+        }
+        for (Agreement a : new ArrayList<>(c.offers().values())) {
+            if (slot > 35) break;
+            Carrier partner = plugin.store().carrier(a.partnerId());
+            if (partner == null) continue;
+            List<String> lore = new ArrayList<>(terms(a));
+            lore.add("<gray>Waiting for them to accept.");
+            if (owner) {
+                lore.add("");
+                lore.add("<yellow>Click <gray>edit terms · <yellow>Shift-right <gray>withdraw");
+            }
+            m.set(slot++, Items.of(Material.PAPER, "<gray>Offer sent to " + partner.styled()
+                    + " <gray>(" + (a.kind() == Agreement.Kind.MVNO ? "MVNO hosting" : "roaming") + ")", lore), e -> {
+                if (!owner) return;
+                click(p);
+                if (e.isShiftClick() && e.isRightClick()) {
+                    c.offers().remove(a.key());
+                    plugin.store().markDirty();
+                    partners(p, c);
+                } else terms(p, c, a, () -> partners(p, c));
+            });
+        }
+
+        m.set(45, Items.of(Material.ARROW, "<gray>« Back"), e -> {
+            click(p);
+            open(p, c);
+        });
+        if (owner && !c.mvno()) {
+            m.set(48, Items.of(Material.COMPASS, "<green>Offer roaming", "<gray>Let another carrier's subscribers", "<gray>use your towers, for a fee per GB."), e -> {
+                click(p);
+                plugin.prompt().ask(p, "<aqua>Offer roaming to which carrier?", in -> {
+                    Carrier other = plugin.store().carrier(in);
+                    if (other == null) {
+                        Msg.send(p, "<red>No carrier named <white><n></white>.", Msg.p("n", in));
+                        return;
+                    }
+                    Agreement a = plugin.partners().offer(p, c, Agreement.Kind.ROAMING, other);
+                    if (a != null) {
+                        Msg.send(p, "<green>Offer sent to <white><n></white>. Adjust the terms until they accept.", Msg.p("n", other.name()));
+                        terms(p, c, a, () -> partners(p, c));
+                    }
+                });
+            });
+            m.set(50, Items.of(Material.ENDER_EYE, "<green>Offer MVNO hosting", "<gray>Let a virtual carrier run on your", "<gray>network for a share of its revenue."), e -> {
+                click(p);
+                plugin.prompt().ask(p, "<aqua>Host which MVNO?", in -> {
+                    Carrier other = plugin.store().carrier(in);
+                    if (other == null) {
+                        Msg.send(p, "<red>No carrier named <white><n></white>.", Msg.p("n", in));
+                        return;
+                    }
+                    Agreement a = plugin.partners().offer(p, c, Agreement.Kind.MVNO, other);
+                    if (a != null) {
+                        Msg.send(p, "<green>Offer sent to <white><n></white>. Adjust the terms until they accept.", Msg.p("n", other.name()));
+                        terms(p, c, a, () -> partners(p, c));
+                    }
+                });
+            });
+        }
+        m.open(p);
+    }
+
+    private List<String> terms(Agreement a) {
+        var st = plugin.settings();
+        List<String> lore = new ArrayList<>();
+        if (a.kind() == Agreement.Kind.ROAMING) lore.add("<gray>Rate: <white>" + st.money(a.perGb()) + " per GB");
+        else lore.add("<gray>Revenue share: <white>" + Math.round(a.sharePercent()) + "%");
+        lore.add("<gray>Max band: <white>" + (a.maxBand() == null ? "All" : st.spec(a.maxBand()).name()));
+        lore.add("<gray>Priority: <white>" + (a.deprioritize() ? "below the host's customers" : "equal"));
+        return lore;
+    }
+
+    private void confirmEnd(Player p, Carrier c, PartnerService.Deal deal) {
+        long now = System.currentTimeMillis();
+        Long until = confirm.get(p.getUniqueId());
+        if (until == null || until < now) {
+            confirm.put(p.getUniqueId(), now + CONFIRM_MS);
+            Msg.send(p, "<yellow>Shift-right-click again within 5 seconds to end this agreement. It keeps working for "
+                    + plugin.settings().noticeHours + " h.");
+            return;
+        }
+        confirm.remove(p.getUniqueId());
+        plugin.partners().end(p, deal);
+        partners(p, c);
+    }
+
+    /** Host-side terms editor (works on an offer or an active agreement). */
+    public void terms(Player p, Carrier host, Agreement a, Runnable back) {
+        Carrier partner = plugin.store().carrier(a.partnerId());
+        Menu m = menu(3, "Terms · " + Items.esc(partner == null ? "?" : partner.name()));
+        var st = plugin.settings();
+        m.set(4, Items.of(a.kind() == Agreement.Kind.MVNO ? Material.ENDER_EYE : Material.COMPASS,
+                "<white>" + (a.kind() == Agreement.Kind.MVNO ? "MVNO hosting for " : "Roaming for ") + (partner == null ? "?" : partner.styled()), terms(a)));
+        if (a.kind() == Agreement.Kind.ROAMING) {
+            m.set(10, Items.of(Material.GOLD_INGOT, "<white>Rate: <gold>" + st.money(a.perGb()) + " <white>per GB",
+                    "<gray>Paid by their carrier for data", "<gray>their roamers use on your towers.", "<yellow>Click to change"), e -> {
+                click(p);
+                askLong(p, "<aqua>Wholesale price per GB:", 0, 100_000, v -> {
+                    a.perGb(v);
+                    plugin.store().markDirty();
+                    terms(p, host, a, back);
+                });
+            });
+        } else {
+            m.set(10, Items.of(Material.GOLD_INGOT, "<white>Revenue share: <gold>" + Math.round(a.sharePercent()) + "%",
+                    "<gray>Your cut of every plan payment,", "<gray>top-up, data pack and overage they collect.", "<yellow>Click to change"), e -> {
+                click(p);
+                askDouble(p, "<aqua>Revenue share in percent (0-90):", 0, 90, v -> {
+                    a.sharePercent(v);
+                    plugin.store().markDirty();
+                    terms(p, host, a, back);
+                });
+            });
+        }
+        m.set(12, Items.of(Material.LIGHTNING_ROD, "<white>Max band: <aqua>" + (a.maxBand() == null ? "All bands" : st.spec(a.maxBand()).name()),
+                "<gray>Their users can't go above this on your towers.", "<yellow>Click <gray>next · <yellow>Right-click <gray>previous"), e -> {
+            click(p);
+            Band[] all = Band.values();
+            int idx = a.maxBand() == null ? all.length : a.maxBand().ordinal();
+            idx = e.isRightClick() ? idx - 1 : idx + 1;
+            if (idx < 0) idx = all.length;
+            if (idx > all.length) idx = 0;
+            a.maxBand(idx == all.length ? null : all[idx]);
+            plugin.store().markDirty();
+            terms(p, host, a, back);
+        });
+        m.set(14, Items.of(a.deprioritize() ? Material.HOPPER : Material.CHEST, "<white>Priority: <aqua>" + (a.deprioritize() ? "Below your customers" : "Equal"),
+                "<gray>When a band is busy, deprioritized users", "<gray>get " + Math.round(st.deprioritizedSpeed * 100) + "% of the speed.", "<yellow>Click to toggle"), e -> {
+            click(p);
+            a.deprioritize(!a.deprioritize());
+            plugin.store().markDirty();
+            terms(p, host, a, back);
+        });
+        m.set(18, Items.of(Material.ARROW, "<gray>« Back"), e -> {
+            click(p);
+            back.run();
+        });
+        m.open(p);
     }
 
     // ================================================================ branding

@@ -56,12 +56,12 @@ public final class SpeedTest {
         // A speedtest really downloads and uploads: speed x duration, in megabytes.
         double usedMB = (dl * DL_TICKS / 20.0 + ul * UL_TICKS / 20.0) / 8.0;
         dev.mccomm.cell.model.PlayerProfile prof = plugin.store().profile(id);
-        if (plugin.billing().dataBlocked(prof, sim.carrier().id(), usedMB)) {
+        if (plugin.billing().dataBlockedOn(prof, sim, usedMB)) {
             Msg.send(p, "<red>Not enough data for a speedtest at this speed (needs about <white><mb></white>). Buy a data pack in your wallet.",
                     Msg.p("mb", dev.mccomm.cell.Settings.data(usedMB)));
             return;
         }
-        plugin.billing().useData(id, sim.carrier().id(), usedMB);
+        plugin.billing().useDataOn(id, sim, usedMB);
         cooldown.put(id, now + plugin.settings().speedtestCooldown * 1000L);
         String dataLine = dev.mccomm.cell.Settings.data(usedMB) + " used · " + plugin.billing().dataLeftText(prof, sim.carrier().id());
         String carrier = sim.carrier().name();

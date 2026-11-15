@@ -23,6 +23,12 @@ public final class Carrier {
     private long nextUpkeep;   // when upkeep is next charged (epoch ms), 0 = not scheduled yet
     private long unpaidSince;  // when upkeep first failed (epoch ms), 0 = paid up
     private boolean tradeIn;   // trade-in program on/off
+    private boolean mvno;      // virtual carrier: no towers, runs on a host network
+    private long mvnoOwed;     // revenue share owed to the host, settled with upkeep
+    /** Deals where this carrier is the host (key = Agreement.key()). */
+    private final Map<String, Agreement> agreements = new LinkedHashMap<>();
+    /** Offers this carrier (as host) has made and the partner hasn't answered yet. */
+    private final Map<String, Agreement> offers = new LinkedHashMap<>();
     private double tradeInPercent = 60;
     private final List<LedgerEntry> ledger = new ArrayList<>();
     private final long createdAt;
@@ -56,6 +62,12 @@ public final class Carrier {
     public String prefix() { return prefix; }
     public void prefix(String prefix) { this.prefix = prefix; }
     public Map<String, Plan> plans() { return plans; }
+    public boolean mvno() { return mvno; }
+    public void mvno(boolean v) { this.mvno = v; }
+    public long mvnoOwed() { return mvnoOwed; }
+    public void mvnoOwed(long v) { this.mvnoOwed = v; }
+    public Map<String, Agreement> agreements() { return agreements; }
+    public Map<String, Agreement> offers() { return offers; }
     public boolean tradeIn() { return tradeIn; }
     public void tradeIn(boolean v) { this.tradeIn = v; }
     public double tradeInPercent() { return tradeInPercent; }

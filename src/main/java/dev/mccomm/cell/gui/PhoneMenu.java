@@ -240,6 +240,7 @@ public final class PhoneMenu {
                 Msg.bars(l.bars()) + " <white>" + plugin.settings().spec(l.band()).name(),
                 "<gray>" + String.format(Locale.ROOT, "%.0f", l.dbm()) + " dBm · " + Msg.distance(l.distance()),
                 "<gray>Tower: <white>" + Items.esc(l.tower().name()),
+                sim.roamingOn() != null ? "<gold>Roaming on " + sim.roamingOn().styled() : "<dark_gray>Home network",
                 number, planLine);
     }
 
@@ -538,10 +539,14 @@ public final class PhoneMenu {
             boolean has = prof.has(c.id());
             List<Tower> towers = plugin.store().towersOf(c.id());
             long online = towers.stream().filter(Tower::online).count();
-            SignalService.Link l = here.get(c.id());
+            var host = c.mvno() ? plugin.partners().mvnoHost(c) : null;
+            SignalService.Link l = here.get(host != null ? host.host().id() : c.id());
             List<String> lore = new ArrayList<>();
             lore.add("<gray>Numbers: <white>" + c.prefix() + "-xxxx");
-            lore.add("<gray>Towers: <white>" + towers.size() + " <dark_gray>(" + online + " online)");
+            if (c.mvno()) lore.add("<light_purple>Virtual network" + (host != null ? " on " + host.host().styled() : " <red>(no network)"));
+            else lore.add("<gray>Towers: <white>" + towers.size() + " <dark_gray>(" + online + " online)");
+            int partners = plugin.partners().roamingHosts(c).size();
+            if (partners > 0) lore.add("<gray>Roaming partners: <white>" + partners);
             lore.add("<gray>Here: " + (l == null ? "<red>No coverage" : Msg.bars(l.bars()) + " <white>" + plugin.settings().spec(l.band()).name()));
             lore.add("");
             lore.add("<gray>Plans: <white>" + c.plans().size() + (c.plans().isEmpty() ? "" : " <dark_gray>(from "
@@ -664,6 +669,8 @@ public final class PhoneMenu {
                 lore.add("<dark_gray>Locked to this carrier until paid off");
             }
         }
+        lore.add("<gray>Roaming: " + (!plan.roaming() ? "<red>not included" : plan.roamingPerGb() > 0
+                ? "<white>" + st.money(plan.roamingPerGb()) + " per GB" : "<green>included"));
         String data = plan.unlimited() ? "Unlimited" : Settings.data(plan.dataMB()) + (plan.prepaid() ? " per top-up" : " per period");
         lore.add("<gray>Data: <white>" + data);
         if (!plan.unlimited()) {

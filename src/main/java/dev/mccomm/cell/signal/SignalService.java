@@ -35,7 +35,12 @@ public final class SignalService {
     }
 
     /** One active SIM. {@code link} is null when there's no service (no coverage, no plan or no phone). {@code plan} null = no plan. */
-    public record SimStatus(int slot, Carrier carrier, Link link, dev.mccomm.cell.model.Plan plan, String issue, boolean throttled) {
+    /**
+     * @param roamingOn    the partner network this SIM is roaming on, or null (home or MVNO host)
+     * @param deprioritized the host puts this user behind its own customers when a band is busy
+     */
+    public record SimStatus(int slot, Carrier carrier, Link link, dev.mccomm.cell.model.Plan plan, String issue, boolean throttled,
+                            Carrier roamingOn, boolean deprioritized) {
         public boolean texts() { return link != null && plan != null && plan.texts(); }
         public boolean calls() { return link != null && plan != null && plan.calls(); }
     }
@@ -160,12 +165,9 @@ public final class SignalService {
     public Status compute(Player p) {
         PlayerProfile prof = plugin.store().profile(p.getUniqueId());
         dev.mccomm.cell.economy.PhoneModel phone = plugin.billing().phoneOf(p);
-        Map<String, Link> best = phone == null ? Map.of() : bestLinks(p, cid -> {
-            dev.mccomm.cell.model.Plan plan = plugin.billing().planOf(prof, cid);
-            Band cap = phone.maxBand();
-            if (plan != null && plan.maxBand() != null && plan.maxBand().ordinal() < cap.ordinal()) cap = plan.maxBand();
-            return cap;
-        });
+        boolean emergency = phone != null && !bestLinks(p, cid -> phone.maxBand()).isEmpty();
+        Location eye = p.getEyeLocation();
+        double env = environmentLoss(p);
         List<SimStatus> sims = new ArrayList<>();
         boolean blacklisted = phone != null && prof.blacklist().containsKey(phone.id());
         String lock = phone == null ? null : prof.phoneLocks().get(phone.id());
@@ -173,6 +175,8 @@ public final class SignalService {
         for (String id : prof.active()) {
             Carrier c = plugin.store().carrier(id);
             dev.mccomm.cell.model.Plan plan = plugin.billing().planOf(prof, id);
+            int thisSlot = slot++;
+            if (c == null) continue;
             String issue = null;
             if (phone == null) issue = "No phone";
             else if (blacklisted) issue = "Phone blacklisted";
@@ -181,11 +185,58 @@ public final class SignalService {
                 issue = "Phone locked to " + (lc == null ? lock : lc.name());
             } else if (plan == null) issue = "No plan";
             else if (plugin.billing().expired(prof, id)) issue = "Prepaid expired";
-            if (c != null) sims.add(new SimStatus(slot, c, issue == null ? best.get(id) : null, plan, issue,
-                    issue == null && plugin.billing().throttled(prof, id)));
-            slot++;
+
+            // Home network: the carrier's own towers, or its host's for an MVNO.
+            Carrier home = c;
+            Band cap = phone == null ? Band.G2 : phone.maxBand();
+            if (plan != null && plan.maxBand() != null && plan.maxBand().ordinal() < cap.ordinal()) cap = plan.maxBand();
+            boolean deprioritized = false;
+            if (issue == null && c.mvno()) {
+                var deal = plugin.partners().mvnoHost(c);
+                if (deal == null) issue = "No network";
+                else if (plugin.partners().suspended(c)) issue = "Network suspended";
+                else {
+                    home = deal.host();
+                    cap = min(cap, deal.agreement().maxBand());
+                    deprioritized = deal.agreement().deprioritize();
+                }
+            }
+            Link link = null;
+            Carrier roamingOn = null;
+            if (issue == null) {
+                link = bestOn(home.id(), eye, env, cap, p.getWorld().getUID());
+                // No home coverage: fall back to roaming partners (if the plan allows and the carrier can pay).
+                if (link == null && plan.roaming() && c.balance() > 0) {
+                    for (var deal : plugin.partners().roamingHosts(c)) {
+                        Link l = bestOn(deal.host().id(), eye, env, min(cap, deal.agreement().maxBand()), p.getWorld().getUID());
+                        if (l != null && (link == null || better(l, link))) {
+                            link = l;
+                            roamingOn = deal.host();
+                            deprioritized = deal.agreement().deprioritize();
+                        }
+                    }
+                }
+            }
+            sims.add(new SimStatus(thisSlot, c, link, plan, issue, issue == null && plugin.billing().throttled(prof, id),
+                    roamingOn, link != null && deprioritized));
         }
-        return new Status(List.copyOf(sims), !best.isEmpty(), prof.dataSim(), phone);
+        return new Status(List.copyOf(sims), emergency, prof.dataSim(), phone);
+    }
+
+    private static Band min(Band a, Band b) {
+        if (b == null) return a;
+        return b.ordinal() < a.ordinal() ? b : a;
+    }
+
+    /** Best link on one network's towers. */
+    private Link bestOn(String networkId, Location eye, double env, Band cap, java.util.UUID world) {
+        Link best = null;
+        for (Tower t : plugin.store().towers()) {
+            if (!t.carrierId().equals(networkId) || !t.online() || !t.worldId().equals(world)) continue;
+            Link l = linkTo(t, eye, env, cap);
+            if (l != null && (best == null || better(l, best))) best = l;
+        }
+        return best;
     }
 
     /** Coverage per carrier here, limited by the player's phone (all bands if they have none). */
@@ -339,6 +390,7 @@ public final class SignalService {
         double d = downloadMbps(sim.link());
         if (sim.plan() != null && sim.plan().speedCapMbps() > 0) d = Math.min(d, sim.plan().speedCapMbps());
         if (sim.throttled()) d = Math.min(d, s().throttleMbps);
+        if (sim.deprioritized() && usersOn(sim.link().tower(), sim.link().band()) > s().usersBeforeSlowdown) d *= s().deprioritizedSpeed;
         return d;
     }
 
@@ -347,6 +399,7 @@ public final class SignalService {
         double u = uploadMbps(sim.link());
         if (sim.plan() != null && sim.plan().speedCapMbps() > 0) u = Math.min(u, sim.plan().speedCapMbps() * ratio);
         if (sim.throttled()) u = Math.min(u, s().throttleMbps * ratio);
+        if (sim.deprioritized() && usersOn(sim.link().tower(), sim.link().band()) > s().usersBeforeSlowdown) u *= s().deprioritizedSpeed;
         return u;
     }
 
@@ -369,7 +422,7 @@ public final class SignalService {
             if (sim.link() == null) {
                 sb.append(sim.carrier().styled()).append(" <red>No Service");
             } else {
-                sb.append(sim.carrier().styled()).append(" ")
+                sb.append(sim.carrier().styled()).append(sim.roamingOn() != null ? " <gold>R</gold>" : "").append(" ")
                         .append(Msg.bars(sim.link().bars())).append(" <white>").append(s().spec(sim.link().band()).name());
             }
         }

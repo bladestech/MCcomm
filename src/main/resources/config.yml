@@ -259,6 +259,17 @@ internet:
   mb-per-char-receive: 0.1  # every receiver pays this per character
   max-length: 200
 
+# Roaming agreements and MVNOs (virtual carriers without towers).
+partners:
+  # When either side ends an agreement it keeps working this long.
+  notice-hours: 24
+  # A host can deprioritize roaming/MVNO users: on a busy band they get this
+  # share of the speed its own customers get.
+  deprioritized-speed: 0.5
+  # MVNO subscribers keep service this long after their carrier misses a
+  # payment to the host; then they're suspended until it pays.
+  mvno-grace-hours: 24
+
 # Carriers pay upkeep for every tower from their wallet, every period.
 upkeep:
   period-hours: 24

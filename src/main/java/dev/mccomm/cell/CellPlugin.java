@@ -9,6 +9,7 @@ import dev.mccomm.cell.comm.InternetService;
 import dev.mccomm.cell.comm.SimService;
 import dev.mccomm.cell.comm.SmsService;
 import dev.mccomm.cell.economy.BillingService;
+import dev.mccomm.cell.economy.PartnerService;
 import dev.mccomm.cell.gui.CarrierMenu;
 import dev.mccomm.cell.gui.ChatPrompt;
 import dev.mccomm.cell.gui.DepositMenu;
@@ -44,6 +45,7 @@ public final class CellPlugin extends JavaPlugin {
     private ChatPrompt prompt;
     private PhoneMenu phone;
     private BillingService billing;
+    private PartnerService partners;
     private DepositMenu deposit;
     private CarrierMenu carrierMenu;
     private InternetService internet;
@@ -69,6 +71,7 @@ public final class CellPlugin extends JavaPlugin {
         prompt = new ChatPrompt(this);
         phone = new PhoneMenu(this);
         billing = new BillingService(this);
+        partners = new PartnerService(this);
         deposit = new DepositMenu(this);
         carrierMenu = new CarrierMenu(this);
         internet = new InternetService(this);
@@ -137,6 +140,7 @@ public final class CellPlugin extends JavaPlugin {
     public ChatPrompt prompt() { return prompt; }
     public PhoneMenu phone() { return phone; }
     public BillingService billing() { return billing; }
+    public PartnerService partners() { return partners; }
     public DepositMenu deposit() { return deposit; }
     public CarrierMenu carrierMenu() { return carrierMenu; }
     public InternetService internet() { return internet; }

@@ -78,7 +78,7 @@ public final class CarrierCommand extends Cmd {
     private void help(CommandSender s) {
         Msg.raw(s, "<dark_gray>━━━ <aqua>/carrier</aqua> ━━━");
         Msg.raw(s, "<white>/carrier manage [name] <gray>— wallet, upkeep, plans, towers");
-        Msg.raw(s, "<white>/carrier create <name>");
+        Msg.raw(s, "<white>/carrier create <name> [mvno] <gray>— mvno = virtual carrier without towers");
         Msg.raw(s, "<white>/carrier delete <name> confirm");
         Msg.raw(s, "<white>/carrier info [name]");
         Msg.raw(s, "<white>/carrier list");
@@ -111,11 +111,18 @@ public final class CarrierCommand extends Cmd {
             Msg.send(p, "<red>You already own the maximum number of carriers (<n>).", Msg.p("n", "" + max));
             return;
         }
+        boolean mvno = args.length >= 3 && args[2].equalsIgnoreCase("mvno");
         Carrier c = new Carrier(name, p.getUniqueId(), NamedTextColor.AQUA, System.currentTimeMillis());
+        c.mvno(mvno);
         plugin.store().addCarrier(c);
         plugin.billing().ensureDefaults();
-        Msg.send(p, "<green>Carrier <white><c></white> created. Look at a wall sign and run <white>/tower create <c></white> to build your first tower.",
-                Msg.p("c", name));
+        if (mvno) {
+            Msg.send(p, "<green>MVNO <white><c></white> created. It has no towers: get a host network to offer it hosting, then accept in <white>/carrier manage</white> → Partners.",
+                    Msg.p("c", name));
+        } else {
+            Msg.send(p, "<green>Carrier <white><c></white> created. Look at a wall sign and run <white>/tower create <c> <name></white> to build your first tower.",
+                    Msg.p("c", name));
+        }
     }
 
     private void delete(CommandSender s, String[] args) {
@@ -228,6 +235,7 @@ public final class CarrierCommand extends Cmd {
             return filter(opts, args[args.length - 1]);
         }
         if (args.length == 3 && sub.equals("delete")) return filter(List.of("confirm"), args[2]);
+        if (args.length == 3 && sub.equals("create")) return filter(List.of("mvno"), args[2]);
         return List.of();
     }
 }

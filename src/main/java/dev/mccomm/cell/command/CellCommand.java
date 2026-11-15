@@ -181,7 +181,7 @@ public final class CellCommand extends Cmd {
                         Msg.p("n", "" + sim.slot()), Msg.p("c", c.name()));
                 continue;
             }
-            Msg.raw(p, head + Msg.bars(l.bars()) + " <white><band>",
+            Msg.raw(p, head + Msg.bars(l.bars()) + " <white><band>" + (sim.roamingOn() != null ? " <gold>(roaming on " + sim.roamingOn().styled() + "<gold>)" : ""),
                     Msg.p("n", "" + sim.slot()), Msg.p("c", c.name()), Msg.p("band", plugin.settings().spec(l.band()).name()));
             Msg.raw(p, "  <gray>Tower <white><id></white> <dark_gray>(<model>)</dark_gray> · <white><dist></white> · <white><dbm> dBm",
                     Msg.p("id", l.tower().name()),

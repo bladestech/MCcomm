@@ -185,6 +185,10 @@ public final class DataStore {
                     c.nextUpkeep(s.getLong("next-upkeep", 0));
                     c.unpaidSince(s.getLong("unpaid-since", 0));
                     c.tradeIn(s.getBoolean("trade-in", false));
+                    c.mvno(s.getBoolean("mvno", false));
+                    c.mvnoOwed(s.getLong("mvno-owed", 0));
+                    readAgreements(s.getConfigurationSection("agreements"), c.agreements());
+                    readAgreements(s.getConfigurationSection("offers"), c.offers());
                     c.tradeInPercent(s.getDouble("trade-in-percent", 60));
                     ConfigurationSection pls = s.getConfigurationSection("plans");
                     if (pls != null) {
@@ -211,6 +215,8 @@ public final class DataStore {
                             pl.interestPercent(ps0.getDouble("interest-percent", 10));
                             pl.downPayment(ps0.getLong("down-payment", 0));
                             pl.colors(dev.mccomm.cell.util.Style.fromHex(ps0.getStringList("colors")));
+                            pl.roaming(ps0.getBoolean("roaming", true));
+                            pl.roamingPerGb(ps0.getLong("roaming-per-gb", 0));
                             c.plans().put(pid, pl);
                         }
                     }
@@ -340,6 +346,39 @@ public final class DataStore {
         }
     }
 
+    private static void readAgreements(ConfigurationSection s, Map<String, dev.mccomm.cell.model.Agreement> out) {
+        if (s == null) return;
+        for (String key : s.getKeys(false)) {
+            ConfigurationSection a = s.getConfigurationSection(key);
+            if (a == null) continue;
+            try {
+                dev.mccomm.cell.model.Agreement ag = new dev.mccomm.cell.model.Agreement(
+                        dev.mccomm.cell.model.Agreement.Kind.valueOf(a.getString("kind", "ROAMING")), a.getString("partner"));
+                ag.perGb(a.getLong("per-gb", 5));
+                ag.sharePercent(a.getDouble("share-percent", 30));
+                ag.maxBand(Band.fromKey(a.getString("max-band")));
+                ag.deprioritize(a.getBoolean("deprioritize", true));
+                ag.endsAt(a.getLong("ends-at", 0));
+                if (ag.partnerId() != null) out.put(ag.key(), ag);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+    }
+
+    private static void writeAgreements(YamlConfiguration y, String path, Map<String, dev.mccomm.cell.model.Agreement> in) {
+        int i = 0;
+        for (dev.mccomm.cell.model.Agreement a : in.values()) {
+            String p = path + "." + (i++) + ".";
+            y.set(p + "kind", a.kind().name());
+            y.set(p + "partner", a.partnerId());
+            y.set(p + "per-gb", a.perGb());
+            y.set(p + "share-percent", a.sharePercent());
+            y.set(p + "max-band", a.maxBand() == null ? null : a.maxBand().key());
+            y.set(p + "deprioritize", a.deprioritize());
+            y.set(p + "ends-at", a.endsAt());
+        }
+    }
+
     private static void readLedger(ConfigurationSection s, List<dev.mccomm.cell.model.LedgerEntry> out) {
         for (Map<?, ?> m : s.getMapList("ledger")) {
             Object t = m.get("time"), a = m.get("amount");
@@ -379,6 +418,10 @@ public final class DataStore {
             cy.set(p + "next-upkeep", c.nextUpkeep());
             cy.set(p + "unpaid-since", c.unpaidSince());
             cy.set(p + "trade-in", c.tradeIn());
+            cy.set(p + "mvno", c.mvno());
+            cy.set(p + "mvno-owed", c.mvnoOwed());
+            writeAgreements(cy, p + "agreements", c.agreements());
+            writeAgreements(cy, p + "offers", c.offers());
             cy.set(p + "trade-in-percent", c.tradeInPercent());
             for (dev.mccomm.cell.model.Plan pl : c.plans().values()) {
                 String pp = p + "plans." + pl.id() + ".";
@@ -400,6 +443,8 @@ public final class DataStore {
                 cy.set(pp + "interest-percent", pl.interestPercent());
                 cy.set(pp + "down-payment", pl.downPayment());
                 cy.set(pp + "colors", dev.mccomm.cell.util.Style.toHex(pl.colors()));
+                cy.set(pp + "roaming", pl.roaming());
+                cy.set(pp + "roaming-per-gb", pl.roamingPerGb());
             }
             writeLedger(cy, p + "ledger", c.ledger());
             cy.set(p + "employees", c.employees().stream().map(UUID::toString).toList());

@@ -59,12 +59,12 @@ public final class InternetService implements Listener {
         }
         PlayerProfile prof = plugin.store().profile(from.getUniqueId());
         double cost = text.length() * plugin.settings().mbPerCharSend;
-        if (plugin.billing().dataBlocked(prof, sim.carrier().id(), cost)) {
+        if (plugin.billing().dataBlockedOn(prof, sim, cost)) {
             Msg.send(from, "<red>Not enough data to send that (<white><mb></white>). Buy a data pack in your wallet.",
                     Msg.p("mb", Settings.data(cost)));
             return;
         }
-        plugin.billing().useData(from.getUniqueId(), sim.carrier().id(), cost);
+        plugin.billing().useDataOn(from.getUniqueId(), sim, cost);
 
         Component line = format(from, sim, st.phone(), text);
         long delayTicks = Math.max(1, Math.round(plugin.signal().pingMs(sim.link()) / 50.0));
@@ -83,7 +83,7 @@ public final class InternetService implements Listener {
             }
             SignalService.SimStatus sim = plugin.signal().status(to).primary();
             if (sim == null) continue; // offline from the internet: they miss it
-            if (plugin.billing().useData(to.getUniqueId(), sim.carrier().id(), cost) == BillingService.DataResult.BLOCKED) continue;
+            if (plugin.billing().useDataOn(to.getUniqueId(), sim, cost) == BillingService.DataResult.BLOCKED) continue;
             to.sendMessage(line);
         }
     }

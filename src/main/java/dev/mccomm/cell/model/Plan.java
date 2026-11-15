@@ -34,6 +34,8 @@ public final class Plan {
     private int installments = 6;
     private double interestPercent = 10;
     private long downPayment;
+    private boolean roaming = true;
+    private long roamingPerGb;  // surcharge to the subscriber per GB while roaming, 0 = free
     private java.util.List<net.kyori.adventure.text.format.TextColor> colors = new java.util.ArrayList<>(); // empty = carrier style
 
     public Plan(String id, String name, long price, int periodHours) {
@@ -87,6 +89,11 @@ public final class Plan {
     public String styled(Carrier carrier) {
         return dev.mccomm.cell.util.Style.mm(colors.isEmpty() && carrier != null ? carrier.colors() : colors, name);
     }
+
+    public boolean roaming() { return roaming; }
+    public void roaming(boolean v) { this.roaming = v; }
+    public long roamingPerGb() { return roamingPerGb; }
+    public void roamingPerGb(long v) { this.roamingPerGb = v; }
 
     public boolean prepaid() { return type == Type.PREPAID; }
     public boolean financed() { return type == Type.FINANCED; }

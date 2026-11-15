@@ -338,6 +338,64 @@ public final class BillingService implements Listener {
         c.log(amount, note + " · " + name(player));
     }
 
+    /** Plan revenue: like transfer, and an MVNO also accrues its host's revenue share. */
+    private void collect(UUID player, Carrier c, long amount, String note) {
+        transfer(player, c, amount, note);
+        if (amount > 0 && c.mvno()) {
+            var deal = plugin.partners().mvnoHost(c);
+            if (deal != null) c.mvnoOwed(c.mvnoOwed() + Math.round(amount * deal.agreement().sharePercent() / 100.0));
+        }
+    }
+
+    private final Map<String, Double> roamingAccrual = new HashMap<>();
+
+    /** Data use on a specific SIM: plan allowance, plus roaming charges if it's on a partner's tower. */
+    public DataResult useDataOn(UUID player, dev.mccomm.cell.signal.SignalService.SimStatus sim, double mb) {
+        DataResult r = useData(player, sim.carrier().id(), mb);
+        Carrier host = sim.roamingOn();
+        if (r == DataResult.BLOCKED || host == null) return r;
+        Carrier home = sim.carrier();
+        var deal = plugin.partners().roamingDeal(host, home);
+        if (deal != null && deal.perGb() > 0) {
+            // Home carrier pays the host wholesale. Fractions of a credit are carried over.
+            String key = "w|" + home.id() + "|" + host.id();
+            double owed = roamingAccrual.getOrDefault(key, 0.0) + mb / 1000.0 * deal.perGb();
+            long whole = (long) Math.floor(owed);
+            if (whole > 0) {
+                long pay = Math.min(whole, home.balance());
+                home.balance(home.balance() - pay);
+                home.log(-pay, "Roaming on " + host.name());
+                host.balance(host.balance() + pay);
+                host.log(pay, "Roaming from " + home.name());
+            }
+            roamingAccrual.put(key, owed - whole);
+        }
+        Plan plan = sim.plan();
+        if (plan != null && plan.roamingPerGb() > 0) {
+            String key = "s|" + player + "|" + home.id();
+            double owed = roamingAccrual.getOrDefault(key, 0.0) + mb / 1000.0 * plan.roamingPerGb();
+            long whole = (long) Math.floor(owed);
+            if (whole > 0) {
+                PlayerProfile prof = prof(player);
+                long pay = Math.min(whole, prof.balance());
+                if (pay > 0) transfer(player, home, pay, "Roaming surcharge");
+            }
+            roamingAccrual.put(key, owed - whole);
+        }
+        plugin.store().markDirty();
+        return r;
+    }
+
+    /** True if this data use would be refused on this SIM (plan rules, or a roaming surcharge they can't pay). */
+    public boolean dataBlockedOn(PlayerProfile prof, dev.mccomm.cell.signal.SignalService.SimStatus sim, double mb) {
+        if (dataBlocked(prof, sim.carrier().id(), mb)) return true;
+        Plan plan = sim.plan();
+        if (sim.roamingOn() != null && plan != null && plan.roamingPerGb() > 0) {
+            return prof.balance() < (long) Math.floor(mb / 1000.0 * plan.roamingPerGb());
+        }
+        return false;
+    }
+
     /** Checks whether this financed plan can start for the player, returning the phone or null. */
     private PhoneModel financeCheck(Player p, Carrier c, Plan plan) {
         PhoneModel phone = s().phone(plan.financePhone());
@@ -388,7 +446,7 @@ public final class BillingService implements Listener {
         long now = System.currentTimeMillis();
         Subscription sub = new Subscription(plan.id(), now + plan.periodMillis());
         sub.dataLeftMB(Math.max(0, plan.dataMB()));
-        transfer(p.getUniqueId(), c, plan.price(), plan.prepaid() ? plan.name() + " top-up" : plan.name());
+        collect(p.getUniqueId(), c, plan.price(), plan.prepaid() ? plan.name() + " top-up" : plan.name());
         if (phone != null) {
             transfer(p.getUniqueId(), c, plan.downPayment(), "Down payment " + phone.name());
             startFinancing(p, c, plan, phone, sub);
@@ -433,7 +491,7 @@ public final class BillingService implements Listener {
         if (prepaidSwitch) {
             // Switching to or from prepaid starts the new plan now.
             if (!afford(p, plan.price(), plan.name())) return;
-            transfer(p.getUniqueId(), c, plan.price(), plan.prepaid() ? plan.name() + " top-up" : plan.name());
+            collect(p.getUniqueId(), c, plan.price(), plan.prepaid() ? plan.name() + " top-up" : plan.name());
             sub.nextBill(now + plan.periodMillis());
             sub.dataLeftMB(Math.max(0, plan.dataMB()));
             sub.expiredNotice(false);
@@ -457,7 +515,7 @@ public final class BillingService implements Listener {
             return;
         }
         if (!afford(p, plan.price(), "A top-up")) return;
-        transfer(p.getUniqueId(), c, plan.price(), plan.name() + " top-up");
+        collect(p.getUniqueId(), c, plan.price(), plan.name() + " top-up");
         long now = System.currentTimeMillis();
         if (now >= sub.nextBill()) {
             sub.nextBill(now + plan.periodMillis());
@@ -482,7 +540,7 @@ public final class BillingService implements Listener {
             return;
         }
         if (!afford(p, plan.packPrice(), "A data pack")) return;
-        transfer(p.getUniqueId(), c, plan.packPrice(), "Data pack " + Settings.data(plan.packMB()));
+        collect(p.getUniqueId(), c, plan.packPrice(), "Data pack " + Settings.data(plan.packMB()));
         sub.dataLeftMB(sub.dataLeftMB() + plan.packMB());
         plugin.store().markDirty();
         Msg.send(p, "<green>Added <white><d></white>. Data left: <white><left></white>.",
@@ -590,7 +648,7 @@ public final class BillingService implements Listener {
                 Carrier c = plugin.store().carrier(carrierId);
                 if (prof.balance() < cost || c == null) return DataResult.BLOCKED;
                 sub.dataLeftMB(0);
-                transfer(player, c, cost, "Data overage " + Settings.data(over));
+                collect(player, c, cost, "Data overage " + Settings.data(over));
                 plugin.store().markDirty();
                 return DataResult.OK;
             }
@@ -649,20 +707,33 @@ public final class BillingService implements Listener {
     }
 
     private void chargeUpkeep(Carrier c, long now, boolean repair) {
-        long cost = upkeepCost(c);
+        long towers = upkeepCost(c);
+        var host = c.mvno() ? plugin.partners().mvnoHost(c) : null;
+        if (c.mvno() && host == null) c.mvnoOwed(0); // no host any more: nothing to settle
+        long share = host == null ? 0 : c.mvnoOwed();
+        long cost = towers + share;
         if (c.balance() >= cost) {
             c.balance(c.balance() - cost);
-            if (cost > 0) c.log(-cost, "Tower upkeep (" + plugin.store().towersOf(c.id()).size() + " towers)");
+            if (towers > 0) c.log(-towers, "Tower upkeep (" + plugin.store().towersOf(c.id()).size() + " towers)");
+            if (share > 0) {
+                c.log(-share, "Revenue share to " + host.host().name());
+                host.host().balance(host.host().balance() + share);
+                host.host().log(share, "Revenue share from " + c.name());
+                c.mvnoOwed(0);
+            }
             if (c.unpaidSince() != 0) {
                 c.unpaidSince(0);
-                notify(c.owner(), "<green>Upkeep for <white><c></white> is paid. Your towers are repaired.", Msg.p("c", c.name()));
+                notify(c.owner(), c.mvno() ? "<green><c> paid its host. Service is back for your subscribers."
+                        : "<green>Upkeep for <white><c></white> is paid. Your towers are repaired.", Msg.p("c", c.name()));
             }
             if (repair) c.nextUpkeep(now + s().upkeepPeriodHours * HOUR);
             else c.nextUpkeep(c.nextUpkeep() + s().upkeepPeriodHours * HOUR);
         } else if (!repair) {
             if (c.unpaidSince() == 0) {
                 c.unpaidSince(now);
-                notify(c.owner(), "<red><c> couldn't pay tower upkeep (<white><cost></white>, balance <white><b></white>). Your towers will decay until you deposit.",
+                notify(c.owner(), c.mvno()
+                                ? "<red><c> couldn't pay its host (<white><cost></white>, balance <white><b></white>). Subscribers lose service in " + s().mvnoGraceHours + " h unless you deposit."
+                                : "<red><c> couldn't pay tower upkeep (<white><cost></white>, balance <white><b></white>). Your towers will decay until you deposit.",
                         Msg.p("c", c.name()), Msg.p("cost", s().money(cost)), Msg.p("b", s().money(c.balance())));
             }
             c.nextUpkeep(c.nextUpkeep() + s().upkeepPeriodHours * HOUR);
@@ -678,6 +749,7 @@ public final class BillingService implements Listener {
     public void tick() {
         long now = System.currentTimeMillis();
 
+        plugin.partners().tick();
         for (Carrier c : new ArrayList<>(plugin.store().carriers())) {
             if (c.nextUpkeep() == 0) c.nextUpkeep(now + s().upkeepPeriodHours * HOUR);
             for (int guard = 0; guard < 60 && now >= c.nextUpkeep(); guard++) chargeUpkeep(c, now, false);
@@ -685,7 +757,7 @@ public final class BillingService implements Listener {
             Integer before = lastStage.put(c.id(), stage);
             if (before != null && before != stage) {
                 for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
-                if (stage >= s().silentStage()) {
+                if (stage >= s().silentStage() && !c.mvno()) {
                     notify(c.owner(), "<dark_red><c>'s towers have gone silent. Deposit to repair them.", Msg.p("c", c.name()));
                 }
             }
@@ -725,7 +797,7 @@ public final class BillingService implements Listener {
                 for (int guard = 0; guard < 60 && sub.planId() != null && now >= sub.nextBill(); guard++) {
                     charge = nextCharge(p, c.id());
                     if (p.balance() >= charge) {
-                        transfer(p.player(), c, plan.price(), plan.name());
+                        collect(p.player(), c, plan.price(), plan.name());
                         if (sub.financing()) {
                             long inst = Math.min(sub.financeInstallment(), sub.financeRemaining());
                             transfer(p.player(), c, inst, "Phone instalment");

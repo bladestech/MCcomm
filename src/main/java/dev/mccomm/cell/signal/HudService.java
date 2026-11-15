@@ -113,7 +113,9 @@ public final class HudService {
                     out.add(sim.issue() != null ? Msg.mm("   <red><i>", Msg.p("i", sim.issue()))
                             : Msg.mm(st.emergency() ? "   <red>No Service <dark_gray>· SOS" : "   <dark_gray>No Signal"));
                 } else {
-                    out.add(Msg.mm("   " + Msg.bars(l.bars()) + " <white><band>", Msg.p("band", plugin.settings().spec(l.band()).name())));
+                    out.add(Msg.mm("   " + Msg.bars(l.bars()) + " <white><band>"
+                                    + (sim.roamingOn() != null ? " <gold><b>R</b></gold> " + sim.roamingOn().styled() : ""),
+                            Msg.p("band", plugin.settings().spec(l.band()).name())));
                     out.add(Msg.mm("   <gray><dbm> dBm <dark_gray>·</dark_gray> <d> <dark_gray>·</dark_gray> <t>",
                             Msg.p("dbm", String.format(Locale.ROOT, "%.0f", l.dbm())), Msg.p("d", Msg.distance(l.distance())),
                             Msg.p("t", l.tower().name())));

@@ -181,6 +181,10 @@ public final class TowerCommand extends Cmd {
             Msg.send(p, "<red>You don't work for <white><c></white>.", Msg.p("c", c.name()));
             return;
         }
+        if (c.mvno()) {
+            Msg.send(p, "<red><white><c></white> is an MVNO: it runs on a host network and can't build towers.", Msg.p("c", c.name()));
+            return;
+        }
         Block b = target(p);
         if (b == null || !TowerManager.isWallSign(b)) {
             Msg.send(p, "<red>Look at a wall sign (standing and hanging signs can't be towers).");
