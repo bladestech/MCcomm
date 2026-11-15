@@ -27,6 +27,8 @@ public final class HudService {
     private final CellPlugin plugin;
     private final Map<UUID, Scoreboard> boards = new HashMap<>();
     private final Map<UUID, List<Component>> shown = new HashMap<>();
+    /** Last seen balance and the direction of its last change (+1 up, -1 down, 0 none yet), per wallet. */
+    private final Map<String, long[]> trend = new HashMap<>();
 
     public HudService(CellPlugin plugin) {
         this.plugin = plugin;
@@ -129,17 +131,56 @@ public final class HudService {
             }
             out.removeLast();
         }
+        out.add(Component.empty());
         String partner = plugin.calls().partnerName(p);
         String incoming = plugin.calls().incoming(p);
         if (partner != null || incoming != null) {
-            out.add(Component.empty());
             out.add(partner != null ? Msg.mm(" <dark_aqua>☎</dark_aqua> <white><n>", Msg.p("n", partner))
                     : Msg.mm(" <green>☎ Incoming:</green> <white><n>", Msg.p("n", incoming)));
         }
-        out.add(Component.empty());
+
+        // Carriers you run: balance coloured by health (green ok, gold short of next upkeep, red unpaid).
+        List<Carrier> mine = new ArrayList<>();
+        for (Carrier c : plugin.store().carriers()) if (c.isStaff(p.getUniqueId())) mine.add(c);
+        for (int i = 0; i < mine.size() && i < 2; i++) {
+            Carrier c = mine.get(i);
+            boolean unpaid = c.unpaidSince() != 0;
+            boolean low = c.balance() < plugin.billing().upkeepCost(c) + c.mvnoOwed();
+            String col = unpaid ? "<red>" : low ? "<gold>" : "<green>";
+            out.add(Msg.mm(" " + c.styled() + " " + col + "<b>" + arrow("c:" + c.id(), c.balance()) + (unpaid ? " <dark_red>unpaid" : ""),
+                    Msg.p("b", plugin.settings().money(c.balance()))));
+        }
+        if (mine.size() > 2) out.add(Msg.mm(" <dark_gray>+<n> more carriers", Msg.p("n", "" + (mine.size() - 2))));
+
+        // Footer: your wallet (or debt), phone and in-game time.
+        var prof = plugin.store().profile(p.getUniqueId());
+        String wallet = prof.totalOverdue() > 0
+                ? "<red>Owes " + Msg.escape(plugin.settings().money(prof.totalOverdue()))
+                : "<gold>" + Msg.escape(plugin.settings().money(prof.balance())) + arrow("p:" + p.getUniqueId(), prof.balance());
         String phone = st.phone() == null ? "No phone" : st.phone().name();
-        out.add(Msg.mm(" <dark_gray><ph> · <time>", Msg.p("ph", phone), Msg.p("time", clock(p))));
+        out.add(Msg.mm(" " + wallet + " <dark_gray>· <ph> · <time>", Msg.p("ph", phone), Msg.p("time", clock(p))));
+
+        // The sidebar shows at most 15 lines: drop spacer lines first, then trim above the footer.
+        while (out.size() > 15) {
+            int blank = out.indexOf(Component.empty());
+            if (blank >= 0) out.remove(blank);
+            else out.remove(out.size() - 2);
+        }
         return out;
+    }
+
+    /** " <green>▲" or " <red>▼" for the last change of this balance, "" until it first changes. */
+    private String arrow(String key, long balance) {
+        long[] t = trend.get(key);
+        if (t == null) {
+            trend.put(key, new long[]{balance, 0});
+            return "";
+        }
+        if (balance != t[0]) {
+            t[1] = balance > t[0] ? 1 : -1;
+            t[0] = balance;
+        }
+        return t[1] > 0 ? " <green>▲" : t[1] < 0 ? " <red>▼" : "";
     }
 
     private static String clock(Player p) {
