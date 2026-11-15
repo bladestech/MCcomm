@@ -366,12 +366,10 @@ public final class SignalService {
         StringBuilder sb = new StringBuilder();
         for (SimStatus sim : st.sims()) {
             if (!sb.isEmpty()) sb.append(" <dark_gray>|</dark_gray> ");
-            String name = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(sim.carrier().name());
-            String col = sim.carrier().color().asHexString();
             if (sim.link() == null) {
-                sb.append("<").append(col).append(">").append(name).append("</").append(col).append("> <red>No Service");
+                sb.append(sim.carrier().styled()).append(" <red>No Service");
             } else {
-                sb.append("<").append(col).append(">").append(name).append("</").append(col).append("> ")
+                sb.append(sim.carrier().styled()).append(" ")
                         .append(Msg.bars(sim.link().bars())).append(" <white>").append(s().spec(sim.link().band()).name());
             }
         }

@@ -48,6 +48,7 @@ public final class Settings {
     public final int smsExpireMinutes, callRingSeconds, garbleBars;
     public final double garbleChance;
     public final boolean hudDefault, hudSidebar;
+    public final String hudTitle;
     public final int inboxMax, contactsMax, promptTimeout;
 
     // economy
@@ -179,6 +180,7 @@ public final class Settings {
         garbleBars = c.getInt("messaging.garble-at-or-below-bars", 1);
         garbleChance = c.getDouble("messaging.garble-chance", 0.15);
         hudDefault = c.getBoolean("hud.default-enabled", true);
+        hudTitle = c.getString("hud.title", "<gradient:#5EE7DF:#B490CA><b>MCcomm</b></gradient>");
         hudSidebar = !"actionbar".equalsIgnoreCase(c.getString("hud.style", "sidebar"));
         inboxMax = Math.clamp(c.getInt("phone.inbox-max", 45), 1, 45);
         contactsMax = Math.clamp(c.getInt("phone.contacts-max", 45), 1, 45);

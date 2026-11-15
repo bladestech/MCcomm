@@ -93,11 +93,10 @@ public final class InternetService implements Listener {
         Carrier c = sim.carrier();
         String model = phone == null ? "?" : phone.name();
         String tag = model.isEmpty() ? "?" : model.substring(0, 1).toUpperCase() + (model.endsWith("+") ? "+" : "");
-        String col = c.color().asHexString();
-        Component hover = Msg.mm("<white><n>\n<gray>Phone: <white><ph>\n<gray>Carrier: <" + col + "><c></" + col + ">\n<gray>Band: <white><b>",
+        Component hover = Msg.mm("<white><n>\n<gray>Phone: <white><ph>\n<gray>Carrier: " + c.styled() + "\n<gray>Band: <white><b>",
                 Msg.p("n", from.getName()), Msg.p("ph", model), Msg.p("c", c.name()),
                 Msg.p("b", plugin.settings().spec(sim.link().band()).name()));
-        return Msg.mm("<dark_aqua>[NET]</dark_aqua> <white><hoverable></white> <" + col + "><c></" + col + "> <dark_gray><tag></dark_gray><gray>: <white><m>",
+        return Msg.mm("<dark_aqua>[NET]</dark_aqua> <white><hoverable></white> " + c.styled() + " <dark_gray><tag></dark_gray><gray>: <white><m>",
                 Msg.c("hoverable", Component.text(from.getName()).hoverEvent(HoverEvent.showText(hover))),
                 Msg.p("c", c.name()), Msg.p("tag", tag), Msg.p("m", text));
     }

@@ -25,7 +25,8 @@ Requires Java 25 and Paper (or Purpur) 26.1+.
   - **Phones:** sell a phone back to the eShop for 50%. Carriers can run trade-in programs that take a phone's value off a phone loan and lower each instalment.
   - **Tower upkeep:** carriers pay for their towers. Unpaid towers decay until they go silent.
 - **`/internet`:** a second chat channel that costs mobile data per character. It shows your carrier and phone model.
-- **Signal sidebar HUD** with bars, band, tower and data left.
+- **Branding:** carrier and plan names can have a solid colour or a 2-4 colour gradient. Pick from presets or type your own on the Branding page in `/carrier manage`, or use `/carrier color`.
+- **Signal sidebar HUD** with each SIM's carrier and plan in their styles, plus bars, band, tower, data left, your phone and the in-game time.
 
 ## Quick start
 

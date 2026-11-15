@@ -297,6 +297,8 @@ hud:
   default-enabled: true
   # sidebar = scoreboard panel on the right, actionbar = one line above the hotbar
   style: sidebar
+  # Sidebar title (MiniMessage: colours and gradients allowed).
+  title: "<gradient:#5EE7DF:#B490CA><b>MCcomm</b></gradient>"
 
 # The screen covers the sign's front face exactly: a thin block panel the size
 # of the sign board, with text auto-scaled to fit inside it.

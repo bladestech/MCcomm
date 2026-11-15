@@ -56,14 +56,13 @@ public final class CarrierMenu {
             Msg.send(p, "<red>You don't work for <white><c></white>.", Msg.p("c", c.name()));
             return;
         }
-        String col = "<" + c.color().asHexString() + ">";
         Menu m = menu(5, Items.esc(c.name()) + " · Management");
         long now = System.currentTimeMillis();
         List<Tower> towers = plugin.store().towersOf(c.id());
         long upkeep = plugin.billing().upkeepCost(c);
         int stage = plugin.billing().decayStage(c);
 
-        m.set(4, Items.of(Material.BEACON, col + "<b>" + Items.esc(c.name()),
+        m.set(4, Items.of(Material.BEACON, "<b>" + c.styled(),
                 "<gray>Owner: <white>" + name(c.owner()),
                 "<gray>Numbers: <white>" + c.prefix() + "-xxxx",
                 "<gray>Towers: <white>" + towers.size()));
@@ -145,6 +144,20 @@ public final class CarrierMenu {
             }
         });
 
+        m.set(20, Items.of(Material.PAINTING, "<white>Branding: " + c.styled(),
+                "<gray>" + dev.mccomm.cell.util.Style.describe(c.colors()),
+                "<gray>Your name's colour or gradient everywhere:",
+                "<gray>tower screens, phones, sidebar, /internet.",
+                isOwner(p, c) ? "<yellow>Click to change" : "<dark_gray>Only the owner can change this"), e -> {
+            if (!isOwner(p, c)) return;
+            click(p);
+            branding(p, "Branding · " + Items.esc(c.name()), c.name(), c.colors(), false, style -> {
+                c.colors(style);
+                plugin.store().markDirty();
+                for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
+            }, () -> open(p, c));
+        });
+
         m.set(28, Items.of(Material.PAPER, "<white>Plans", "<gray>" + c.plans().size() + " plan(s)",
                 isOwner(p, c) ? "<yellow>Click to create and edit plans" : "<gray>Click to view plans"), e -> {
             click(p);
@@ -186,7 +199,7 @@ public final class CarrierMenu {
                 lore.add("");
                 lore.add("<yellow>Click <gray>edit · <yellow>Shift-right <gray>delete");
             }
-            m.set(slot++, Items.of(Material.PAPER, "<" + c.color().asHexString() + "><b>" + Items.esc(plan.name()), lore), e -> {
+            m.set(slot++, Items.of(Material.PAPER, "<b>" + plan.styled(c), lore), e -> {
                 if (!owner) return;
                 click(p);
                 if (e.isShiftClick() && e.isRightClick()) deletePlan(p, c, plan);
@@ -235,9 +248,18 @@ public final class CarrierMenu {
         Menu m = menu(6, "Edit · " + Items.esc(plan.name()));
         var st = plugin.settings();
         boolean prepaid = plan.prepaid();
-        m.set(4, Items.of(Material.PAPER, "<" + c.color().asHexString() + "><b>" + Items.esc(plan.name()), plugin.phone().planLore(plan)));
+        m.set(4, Items.of(Material.PAPER, "<b>" + plan.styled(c), plugin.phone().planLore(plan)));
 
         // ---- row 1: basics
+        m.set(9, Items.of(Material.PAINTING, "<white>Style: " + plan.styled(c),
+                "<gray>" + (plan.colors().isEmpty() ? "Uses the carrier's style" : dev.mccomm.cell.util.Style.describe(plan.colors())),
+                "<yellow>Click to change"), e -> {
+            click(p);
+            branding(p, "Plan style · " + Items.esc(plan.name()), plan.name(), plan.colors(), true, style -> {
+                plan.colors(style);
+                plugin.store().markDirty();
+            }, () -> editor(p, c, plan));
+        });
         m.set(10, Items.of(Material.NAME_TAG, "<white>Name: <aqua>" + Items.esc(plan.name()), "<yellow>Click to rename"), e -> {
             click(p);
             plugin.prompt().ask(p, "<aqua>New name for the plan:", in -> {
@@ -451,6 +473,71 @@ public final class CarrierMenu {
     private void saved(Player p, Carrier c, Plan plan) {
         plugin.store().markDirty();
         editor(p, c, plan);
+    }
+
+    // ================================================================ branding
+
+    /**
+     * Pick a solid colour, a preset gradient or type a custom style. {@code allowReset} adds a
+     * "use carrier style" option (for plans, where an empty style means inherit).
+     */
+    public void branding(Player p, String title, String sample, List<net.kyori.adventure.text.format.TextColor> current,
+                         boolean allowReset, java.util.function.Consumer<List<net.kyori.adventure.text.format.TextColor>> apply, Runnable back) {
+        Menu m = menu(6, title);
+        m.set(4, Items.glow(Items.of(Material.NAME_TAG, "<b>" + dev.mccomm.cell.util.Style.mm(current, sample),
+                "<gray>Current: <white>" + dev.mccomm.cell.util.Style.describe(current))));
+        int[] solidSlots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25};
+        int i = 0;
+        for (dev.mccomm.cell.util.Style.Solid sol : dev.mccomm.cell.util.Style.SOLIDS) {
+            if (i >= solidSlots.length) break;
+            List<net.kyori.adventure.text.format.TextColor> style = List.of(sol.color());
+            m.set(solidSlots[i++], Items.of(sol.swatch(), "<b>" + dev.mccomm.cell.util.Style.mm(style, sample),
+                    "<gray>" + sol.name() + " · solid", "<yellow>Click to use"), e -> {
+                click(p);
+                apply.accept(style);
+                branding(p, title, sample, style, allowReset, apply, back);
+            });
+        }
+        int[] gradSlots = {28, 29, 30, 31, 32, 33, 34, 37, 38, 39};
+        i = 0;
+        for (var g : dev.mccomm.cell.util.Style.GRADIENTS.entrySet()) {
+            if (i >= gradSlots.length) break;
+            List<net.kyori.adventure.text.format.TextColor> style = g.getValue();
+            m.set(gradSlots[i++], Items.of(Material.FIREWORK_STAR, "<b>" + dev.mccomm.cell.util.Style.mm(style, sample),
+                    "<gray>" + g.getKey() + " · gradient", "<yellow>Click to use"), e -> {
+                click(p);
+                apply.accept(style);
+                branding(p, title, sample, style, allowReset, apply, back);
+            });
+        }
+        m.set(41, Items.of(Material.WRITABLE_BOOK, "<aqua>Custom style",
+                "<gray>Type 1 colour for solid, 2-4 for a gradient:", "<white>#33ccff", "<white>#ff5f6d #ffc371", "<white>red gold aqua",
+                "<yellow>Click to type"), e -> {
+            click(p);
+            plugin.prompt().ask(p, "<aqua>Colours (hex or names), 1 for solid or 2-4 for a gradient:", in -> {
+                List<net.kyori.adventure.text.format.TextColor> style = dev.mccomm.cell.util.Style.parse(in);
+                if (style == null) {
+                    Msg.send(p, "<red>Couldn't read that. Try <white>#ff5f6d #ffc371</white> or <white>aqua</white>.");
+                    branding(p, title, sample, current, allowReset, apply, back);
+                    return;
+                }
+                apply.accept(style);
+                Msg.send(p, "<green>Style set: <b>" + dev.mccomm.cell.util.Style.mm(style, sample));
+                branding(p, title, sample, style, allowReset, apply, back);
+            });
+        });
+        if (allowReset) {
+            m.set(43, Items.of(Material.BARRIER, "<white>Use the carrier's style", "<gray>Clears this plan's own colours."), e -> {
+                click(p);
+                apply.accept(List.of());
+                back.run();
+            });
+        }
+        m.set(45, Items.of(Material.ARROW, "<gray>« Back"), e -> {
+            click(p);
+            back.run();
+        });
+        m.open(p);
     }
 
     // ================================================================== towers

@@ -237,9 +237,8 @@ public final class TowerManager {
 
     private List<Component> screenLines(Tower t) {
         Carrier c = plugin.store().carrier(t.carrierId());
-        TextColor color = c == null ? NamedTextColor.WHITE : c.color();
         List<Component> out = new ArrayList<>(LINES);
-        out.add(Component.text(c == null ? "?" : c.name(), color, TextDecoration.BOLD));
+        out.add(c == null ? Component.text("?", NamedTextColor.WHITE, TextDecoration.BOLD) : Msg.mm("<b>" + c.styled()));
         out.add(Component.text(t.name(), NamedTextColor.WHITE)
                 .append(Component.text(" · " + s().generation(t.generation()).model() + " (G" + t.generation() + ")", NamedTextColor.GRAY)));
 

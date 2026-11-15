@@ -70,60 +70,79 @@ public final class HudService {
 
     private Scoreboard newBoard() {
         Scoreboard b = Bukkit.getScoreboardManager().getNewScoreboard();
-        Objective o = b.registerNewObjective(OBJECTIVE, Criteria.DUMMY, Msg.mm("<aqua><b>CELL</b>"));
+        Objective o = b.registerNewObjective(OBJECTIVE, Criteria.DUMMY, Msg.mm(plugin.settings().hudTitle));
         o.setDisplaySlot(DisplaySlot.SIDEBAR);
         o.numberFormat(NumberFormat.blank());
         return b;
     }
 
+    /**
+     * Layout:
+     * <pre>
+     *  » Carrier        data      (carrier in its style; "data" marks the data SIM on dual SIM)
+     *    |||| 5G Mid
+     *    -78 dBm · 312 m · LF1
+     *    Plan · 3.2 GB             (plan in its style, data left)
+     *
+     *  ☎ Bob                       (in a call)
+     *  Pilot+ · 14:05              (phone, in-game time)
+     * </pre>
+     */
     private List<Component> build(Player p, SignalService.Status st) {
         List<Component> out = new ArrayList<>();
-        String emergency = plugin.settings().emergencyNumber;
         out.add(Component.empty());
         if (st.phone() == null) {
             out.add(Msg.mm(" <red>No phone"));
-            out.add(Component.empty());
-            out.add(Msg.mm(" <dark_gray>/cell eshop"));
+            out.add(Msg.mm(" <dark_gray>Get one: <gray>/cell eshop"));
         } else if (st.sims().isEmpty()) {
             if (st.emergency()) {
                 out.add(Msg.mm(" <red>No Service"));
-                out.add(Msg.mm(" <gray>Emergency calls only"));
-                out.add(Msg.mm(" <gray>Dial <white><n>", Msg.p("n", emergency)));
+                out.add(Msg.mm(" <gray>SOS only <dark_gray>· <white><n>", Msg.p("n", plugin.settings().emergencyNumber)));
             } else {
                 out.add(Msg.mm(" <dark_gray>No Signal"));
             }
-            out.add(Component.empty());
-            out.add(Msg.mm(" <dark_gray>/cell subscribe"));
+            out.add(Msg.mm(" <dark_gray>Get a SIM: <gray>/cell"));
         } else {
+            var prof = plugin.store().profile(p.getUniqueId());
+            boolean dual = st.sims().size() > 1;
             for (SignalService.SimStatus sim : st.sims()) {
                 Carrier c = sim.carrier();
-                String col = c.color().asHexString();
-                out.add(Msg.mm(" <gray>SIM <n> <dark_gray>· <" + col + "><c>" + (st.sims().size() > 1 && st.isDataSim(sim) ? " <dark_gray>[<aqua>D</aqua>]" : ""),
-                        Msg.p("n", "" + sim.slot()), Msg.p("c", c.name())));
+                out.add(Msg.mm(" <dark_gray>»</dark_gray> " + c.styled() + (dual && st.isDataSim(sim) ? " <dark_gray>·</dark_gray> <aqua>data" : "")));
                 SignalService.Link l = sim.link();
                 if (l == null) {
-                    out.add(sim.issue() != null ? Msg.mm(" <red><i>", Msg.p("i", sim.issue()))
-                            : Msg.mm(st.emergency() ? " <red>No Service <dark_gray>· SOS" : " <dark_gray>No Signal"));
+                    out.add(sim.issue() != null ? Msg.mm("   <red><i>", Msg.p("i", sim.issue()))
+                            : Msg.mm(st.emergency() ? "   <red>No Service <dark_gray>· SOS" : "   <dark_gray>No Signal"));
                 } else {
-                    out.add(Msg.mm(" " + Msg.bars(l.bars()) + " <white><band>", Msg.p("band", plugin.settings().spec(l.band()).name())));
-                    out.add(Msg.mm(" <gray><dbm> dBm <dark_gray>· <gray><d>",
-                            Msg.p("dbm", String.format(Locale.ROOT, "%.0f", l.dbm())), Msg.p("d", Msg.distance(l.distance()))));
-                    out.add(Msg.mm(" <dark_gray>Tower <id>", Msg.p("id", l.tower().name())));
-                    if (st.isDataSim(sim)) {
-                        String d = plugin.billing().dataLeftText(plugin.store().profile(p.getUniqueId()), c.id());
-                        out.add(Msg.mm((sim.throttled() ? " <gold>" : " <gray>") + "Data: <d>" + (sim.throttled() ? " (slow)" : ""), Msg.p("d", d)));
-                    }
+                    out.add(Msg.mm("   " + Msg.bars(l.bars()) + " <white><band>", Msg.p("band", plugin.settings().spec(l.band()).name())));
+                    out.add(Msg.mm("   <gray><dbm> dBm <dark_gray>·</dark_gray> <d> <dark_gray>·</dark_gray> <t>",
+                            Msg.p("dbm", String.format(Locale.ROOT, "%.0f", l.dbm())), Msg.p("d", Msg.distance(l.distance())),
+                            Msg.p("t", l.tower().name())));
+                }
+                if (sim.plan() != null && (l != null || sim.issue() == null)) {
+                    String data = plugin.billing().dataLeftText(prof, c.id()).replace(" left", "");
+                    out.add(Msg.mm("   " + sim.plan().styled(c) + " <dark_gray>·</dark_gray> " + (sim.throttled() ? "<gold>" : "<gray>") + "<d>"
+                            + (sim.throttled() ? " (slow)" : ""), Msg.p("d", data)));
                 }
                 out.add(Component.empty());
             }
             out.removeLast();
         }
         String partner = plugin.calls().partnerName(p);
-        if (partner != null) {
+        String incoming = plugin.calls().incoming(p);
+        if (partner != null || incoming != null) {
             out.add(Component.empty());
-            out.add(Msg.mm(" <dark_aqua>☎ <white><n>", Msg.p("n", partner)));
+            out.add(partner != null ? Msg.mm(" <dark_aqua>☎</dark_aqua> <white><n>", Msg.p("n", partner))
+                    : Msg.mm(" <green>☎ Incoming:</green> <white><n>", Msg.p("n", incoming)));
         }
+        out.add(Component.empty());
+        String phone = st.phone() == null ? "No phone" : st.phone().name();
+        out.add(Msg.mm(" <dark_gray><ph> · <time>", Msg.p("ph", phone), Msg.p("time", clock(p))));
         return out;
+    }
+
+    private static String clock(Player p) {
+        long t = (p.getWorld().getTime() + 6000) % 24000;
+        return String.format(Locale.ROOT, "%02d:%02d", t / 1000, (t % 1000) * 60 / 1000);
     }
 
     /** Takes the HUD off this player and gives them back the main scoreboard. */

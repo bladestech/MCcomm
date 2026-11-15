@@ -34,6 +34,7 @@ public final class Plan {
     private int installments = 6;
     private double interestPercent = 10;
     private long downPayment;
+    private java.util.List<net.kyori.adventure.text.format.TextColor> colors = new java.util.ArrayList<>(); // empty = carrier style
 
     public Plan(String id, String name, long price, int periodHours) {
         this.id = id;
@@ -78,6 +79,14 @@ public final class Plan {
     public void interestPercent(double p) { this.interestPercent = p; }
     public long downPayment() { return downPayment; }
     public void downPayment(long v) { this.downPayment = v; }
+
+    public java.util.List<net.kyori.adventure.text.format.TextColor> colors() { return colors; }
+    public void colors(java.util.List<net.kyori.adventure.text.format.TextColor> c) { this.colors = new java.util.ArrayList<>(c); }
+
+    /** The plan's name as MiniMessage: its own style, or the carrier's if it has none. */
+    public String styled(Carrier carrier) {
+        return dev.mccomm.cell.util.Style.mm(colors.isEmpty() && carrier != null ? carrier.colors() : colors, name);
+    }
 
     public boolean prepaid() { return type == Type.PREPAID; }
     public boolean financed() { return type == Type.FINANCED; }

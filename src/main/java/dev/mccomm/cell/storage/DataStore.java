@@ -179,6 +179,8 @@ public final class DataStore {
                             color == null ? NamedTextColor.AQUA : color, s.getLong("created-at"));
                     for (String e : s.getStringList("employees")) c.employees().add(UUID.fromString(e));
                     c.prefix(s.getString("prefix"));
+                    List<TextColor> cols = dev.mccomm.cell.util.Style.fromHex(s.getStringList("colors"));
+                    if (!cols.isEmpty()) c.colors(cols);
                     c.balance(s.getLong("balance", 0));
                     c.nextUpkeep(s.getLong("next-upkeep", 0));
                     c.unpaidSince(s.getLong("unpaid-since", 0));
@@ -208,6 +210,7 @@ public final class DataStore {
                             pl.installments(ps0.getInt("installments", 6));
                             pl.interestPercent(ps0.getDouble("interest-percent", 10));
                             pl.downPayment(ps0.getLong("down-payment", 0));
+                            pl.colors(dev.mccomm.cell.util.Style.fromHex(ps0.getStringList("colors")));
                             c.plans().put(pid, pl);
                         }
                     }
@@ -369,6 +372,7 @@ public final class DataStore {
             cy.set(p + "name", c.name());
             cy.set(p + "owner", c.owner().toString());
             cy.set(p + "color", c.color().asHexString());
+            cy.set(p + "colors", dev.mccomm.cell.util.Style.toHex(c.colors()));
             cy.set(p + "created-at", c.createdAt());
             cy.set(p + "prefix", c.prefix());
             cy.set(p + "balance", c.balance());
@@ -395,6 +399,7 @@ public final class DataStore {
                 cy.set(pp + "installments", pl.installments());
                 cy.set(pp + "interest-percent", pl.interestPercent());
                 cy.set(pp + "down-payment", pl.downPayment());
+                cy.set(pp + "colors", dev.mccomm.cell.util.Style.toHex(pl.colors()));
             }
             writeLedger(cy, p + "ledger", c.ledger());
             cy.set(p + "employees", c.employees().stream().map(UUID::toString).toList());

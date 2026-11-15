@@ -16,7 +16,7 @@ public final class Carrier {
     private String name;
     private UUID owner;
     private final Set<UUID> employees = new LinkedHashSet<>();
-    private TextColor color;
+    private List<TextColor> colors = new ArrayList<>(); // 1 = solid, 2-4 = gradient
     private String prefix; // 3-digit number prefix, unique per carrier
     private long balance;
     private final Map<String, Plan> plans = new LinkedHashMap<>();
@@ -31,7 +31,7 @@ public final class Carrier {
         this.id = idOf(name);
         this.name = name;
         this.owner = owner;
-        this.color = color;
+        this.colors = new ArrayList<>(List.of(color));
         this.createdAt = createdAt;
     }
 
@@ -44,8 +44,14 @@ public final class Carrier {
     public UUID owner() { return owner; }
     public void owner(UUID owner) { this.owner = owner; }
     public Set<UUID> employees() { return employees; }
-    public TextColor color() { return color; }
-    public void color(TextColor color) { this.color = color; }
+    /** First colour of the style (for places that need a single colour). */
+    public TextColor color() { return colors.isEmpty() ? TextColor.color(0xFFFFFF) : colors.getFirst(); }
+    public void color(TextColor color) { this.colors = new ArrayList<>(List.of(color)); }
+    public List<TextColor> colors() { return colors; }
+    public void colors(List<TextColor> c) { this.colors = new ArrayList<>(c); }
+
+    /** The carrier's name as MiniMessage, in its solid colour or gradient. */
+    public String styled() { return dev.mccomm.cell.util.Style.mm(colors, name); }
     public long createdAt() { return createdAt; }
     public String prefix() { return prefix; }
     public void prefix(String prefix) { this.prefix = prefix; }

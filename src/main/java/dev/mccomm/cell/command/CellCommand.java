@@ -172,7 +172,7 @@ public final class CellCommand extends Cmd {
         }
         for (SignalService.SimStatus sim : st.sims()) {
             Carrier c = sim.carrier();
-            String head = "<gray>SIM <n> · <" + c.color().asHexString() + "><c></" + c.color().asHexString() + "> "
+            String head = "<gray>SIM <n> · " + c.styled() + " "
                     + (st.sims().size() > 1 && st.isDataSim(sim) ? "<dark_gray>[<aqua>Data</aqua>]</dark_gray> " : "");
             SignalService.Link l = sim.link();
             if (l == null) {
@@ -241,7 +241,7 @@ public final class CellCommand extends Cmd {
             return;
         }
         for (Carrier c : plugin.store().carriers()) {
-            Msg.raw(s, "<" + c.color().asHexString() + "><c></" + c.color().asHexString() + "> <gray>· <n> towers",
+            Msg.raw(s, c.styled() + " <gray>· <n> towers",
                     Msg.p("c", c.name()), Msg.p("n", "" + plugin.store().towersOf(c.id()).size()));
         }
     }

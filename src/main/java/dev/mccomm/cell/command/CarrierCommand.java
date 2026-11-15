@@ -82,7 +82,7 @@ public final class CarrierCommand extends Cmd {
         Msg.raw(s, "<white>/carrier delete <name> confirm");
         Msg.raw(s, "<white>/carrier info [name]");
         Msg.raw(s, "<white>/carrier list");
-        Msg.raw(s, "<white>/carrier color <name> <color|#hex>");
+        Msg.raw(s, "<white>/carrier color <name> <colours...> <gray>— solid, gradient or preset (or use Branding in /carrier manage)");
         Msg.raw(s, "<white>/carrier employee add|remove <name> <player>");
     }
 
@@ -151,7 +151,7 @@ public final class CarrierCommand extends Cmd {
         long online = towers.stream().filter(Tower::online).count();
         List<String> staff = new ArrayList<>();
         for (UUID id : c.employees()) staff.add(name(id));
-        Msg.raw(s, "<dark_gray>━━━ <" + c.color().asHexString() + "><c></" + c.color().asHexString() + "> <dark_gray>━━━", Msg.p("c", c.name()));
+        Msg.raw(s, "<dark_gray>━━━ " + c.styled() + " <dark_gray>━━━");
         Msg.raw(s, "<gray>Owner: <white><o>", Msg.p("o", name(c.owner())));
         Msg.raw(s, "<gray>Employees: <white><e>", Msg.p("e", staff.isEmpty() ? "none" : String.join(", ", staff)));
         Msg.raw(s, "<gray>Towers: <white><n></white> <dark_gray>(<on> online)", Msg.p("n", "" + towers.size()), Msg.p("on", "" + online));
@@ -164,21 +164,20 @@ public final class CarrierCommand extends Cmd {
 
     private void color(CommandSender s, String[] args) {
         if (args.length < 3) {
-            Msg.send(s, "<red>Usage: /carrier color <name> <color|#hex>");
+            Msg.send(s, "<red>Usage: /carrier color <name> <color> [color...] <gray>(2-4 colours = gradient, or a preset like sunset)");
             return;
         }
         Carrier c = carrierArg(s, args[1]);
         if (c == null || !canManage(s, c)) return;
-        TextColor col = args[2].startsWith("#") ? TextColor.fromHexString(args[2])
-                : NamedTextColor.NAMES.value(args[2].toLowerCase(Locale.ROOT));
-        if (col == null) {
-            Msg.send(s, "<red>Unknown color. Use a name like <white>aqua</white> or a hex like <white>#33ccff</white>.");
+        java.util.List<TextColor> style = dev.mccomm.cell.util.Style.parse(join(args, 2));
+        if (style == null) {
+            Msg.send(s, "<red>Unknown style. Use colour names or hex codes, 1 for solid or 2-4 for a gradient, e.g. <white>#ff5f6d #ffc371</white>, or a preset like <white>sunset</white>.");
             return;
         }
-        c.color(col);
+        c.colors(style);
         plugin.store().markDirty();
         for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
-        Msg.send(s, "<green>Color updated.");
+        Msg.send(s, "<green>Style updated: " + c.styled());
     }
 
     private void employee(CommandSender s, String[] args) {
@@ -223,7 +222,11 @@ public final class CarrierCommand extends Cmd {
             return List.of();
         }
         if (args.length == 2 && List.of("delete", "info", "color", "manage", "wallet", "plans").contains(sub)) return filter(carrierNames(), args[1]);
-        if (args.length == 3 && sub.equals("color")) return filter(NamedTextColor.NAMES.keys(), args[2]);
+        if (args.length >= 3 && sub.equals("color")) {
+            java.util.List<String> opts = new java.util.ArrayList<>(NamedTextColor.NAMES.keys());
+            if (args.length == 3) for (String g : dev.mccomm.cell.util.Style.GRADIENTS.keySet()) opts.add(g.toLowerCase(Locale.ROOT));
+            return filter(opts, args[args.length - 1]);
+        }
         if (args.length == 3 && sub.equals("delete")) return filter(List.of("confirm"), args[2]);
         return List.of();
     }

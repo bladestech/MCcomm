@@ -221,11 +221,10 @@ public final class PhoneMenu {
                     emergency ? "<red>Emergency calls only" : "<dark_gray>No signal", "", "<dark_gray>Get a SIM in the Carrier store");
         }
         Carrier c = sim.carrier();
-        String col = c.color().asHexString();
-        String head = "<gray>SIM " + slot + " <dark_gray>· <" + col + ">" + Items.esc(c.name()) + (data ? " <dark_gray>[<aqua>Data</aqua>]" : "");
+        String head = "<gray>SIM " + slot + " <dark_gray>· " + c.styled() + (data ? " <dark_gray>[<aqua>Data</aqua>]" : "");
         String number = "<gray>Number: <white>" + Numbers.format(prof(p).number(c.id()));
         SignalService.Link l = sim.link();
-        String planLine = sim.plan() == null ? "<red>No plan" : "<gray>Plan: <white>" + Items.esc(sim.plan().name());
+        String planLine = sim.plan() == null ? "<red>No plan" : "<gray>Plan: " + sim.plan().styled(c);
         if (l == null) {
             String why = sim.issue() != null ? "<red>" + Items.esc(sim.issue())
                     : emergency ? "<red>No Service · SOS only" : "<dark_gray>No Signal";
@@ -459,7 +458,7 @@ public final class PhoneMenu {
                 String signal = sim == null || sim.link() == null ? "<red>No Service"
                         : Msg.bars(sim.link().bars()) + " <white>" + plugin.settings().spec(sim.link().band()).name();
                 boolean data = sim != null && st.isDataSim(sim);
-                ItemStack it = Items.of(Material.IRON_INGOT, "<" + c.color().asHexString() + ">" + Items.esc(c.name())
+                ItemStack it = Items.of(Material.IRON_INGOT, c.styled()
                                 + (data ? " <dark_gray>[<aqua>Data</aqua>]" : ""),
                         "<gray>SIM " + (i + 1) + " · <white>" + Numbers.format(prof.number(c.id())), signal,
                         data ? "<aqua>Used for data, calls and texts" : "<dark_gray>Backup for data", "",
@@ -483,7 +482,7 @@ public final class PhoneMenu {
             if (i < prof.inactive().size()) {
                 Carrier c = plugin.store().carrier(prof.inactive().get(i));
                 if (c == null) continue;
-                m.set(slot, Items.of(Material.IRON_NUGGET, "<" + c.color().asHexString() + ">" + Items.esc(c.name()),
+                m.set(slot, Items.of(Material.IRON_NUGGET, c.styled(),
                         "<gray>Number: <white>" + Numbers.format(prof.number(c.id())), "<dark_gray>Inactive", "",
                         "<yellow>Click <gray>activate · <yellow>Shift-click <gray>unsubscribe"), e -> {
                     click(p);
@@ -550,7 +549,7 @@ public final class PhoneMenu {
             lore.add("");
             lore.add(has ? "<green>Subscribed · " + Numbers.format(prof.number(c.id())) + " <dark_gray>· click to change plan"
                     : "<yellow>Click to see plans");
-            ItemStack it = Items.of(has ? Material.LIME_DYE : Material.EMERALD, "<" + c.color().asHexString() + "><b>" + Items.esc(c.name()), lore);
+            ItemStack it = Items.of(has ? Material.LIME_DYE : Material.EMERALD, "<b>" + c.styled(), lore);
             m.set(slot++, has ? Items.glow(it) : it, e -> {
                 click(p);
                 plans(p, c);
@@ -617,7 +616,7 @@ public final class PhoneMenu {
             if (mine) lore.add("<green>Your current plan");
             else if (prof.has(c.id())) lore.add("<yellow>Click to switch to this plan");
             else lore.add("<yellow>Click to subscribe (" + plugin.settings().money(plan.price()) + " now)");
-            ItemStack it = Items.of(mine ? Material.LIME_DYE : Material.PAPER, "<" + c.color().asHexString() + "><b>" + Items.esc(plan.name()), lore);
+            ItemStack it = Items.of(mine ? Material.LIME_DYE : Material.PAPER, "<b>" + plan.styled(c), lore);
             m.set(slot++, mine ? Items.glow(it) : it, e -> {
                 click(p);
                 if (mine) return;
@@ -854,7 +853,7 @@ public final class PhoneMenu {
             if (plan == null) {
                 lore.add("<red>No plan · no service");
             } else {
-                lore.add("<gray>Plan: <white>" + Items.esc(plan.name()));
+                lore.add("<gray>Plan: " + plan.styled(c));
                 if (plan.prepaid()) {
                     boolean expired = now >= sub.nextBill();
                     lore.add(expired ? "<red>Expired" : "<gray>Expires in <white>" + BillingService.until(sub.nextBill() - now));
@@ -881,7 +880,7 @@ public final class PhoneMenu {
             }
             final Plan fplan = plan;
             final Subscription fsub = sub;
-            m.set(slot++, Items.of(plan == null ? Material.GRAY_DYE : Material.PAPER, "<" + c.color().asHexString() + ">" + Items.esc(c.name()), lore), e -> {
+            m.set(slot++, Items.of(plan == null ? Material.GRAY_DYE : Material.PAPER, c.styled(), lore), e -> {
                 click(p);
                 if (e.isShiftClick() && e.isRightClick() && fsub != null && fsub.financing() && c.tradeIn()) {
                     tradeIn(p, c);
