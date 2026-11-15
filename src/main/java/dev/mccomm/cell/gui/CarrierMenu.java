@@ -115,6 +115,36 @@ public final class CarrierMenu {
             m.set(16, Items.glow(Items.of(silent ? Material.REDSTONE_BLOCK : Material.REDSTONE, silent ? "<dark_red>Towers silent" : "<red>Towers decaying", lore)));
         }
 
+        double resale = plugin.settings().resalePercent;
+        List<String> ti = new ArrayList<>();
+        ti.add("<gray>Subscribers paying off a phone with you can");
+        ti.add("<gray>trade in a phone they own: you credit them");
+        ti.add("<white>" + Math.round(c.tradeInPercent()) + "%</white> <gray>of its price off their loan and");
+        ti.add("<gray>resell it for <white>" + Math.round(resale) + "%</white>.");
+        double tiNet = c.tradeInPercent() - resale;
+        ti.add(tiNet > 0 ? "<gray>Costs you <red>" + Math.round(tiNet) + "%</red> of a phone's price per trade-in."
+                : "<gray>Earns you <green>" + Math.round(-tiNet) + "%</green> of a phone's price per trade-in.");
+        if (isOwner(p, c)) {
+            ti.add("");
+            ti.add("<yellow>Click <gray>turn " + (c.tradeIn() ? "off" : "on") + " · <yellow>Right-click <gray>set rate");
+        }
+        m.set(22, Items.of(c.tradeIn() ? Material.HOPPER_MINECART : Material.MINECART,
+                "<white>Trade-in program: " + (c.tradeIn() ? "<green>on" : "<red>off"), ti), e -> {
+            if (!isOwner(p, c)) return;
+            click(p);
+            if (e.isRightClick()) {
+                askDouble(p, "<aqua>Trade-in rate in percent of the phone's price (0-100):", 0, 100, v -> {
+                    c.tradeInPercent(v);
+                    plugin.store().markDirty();
+                    open(p, c);
+                });
+            } else {
+                c.tradeIn(!c.tradeIn());
+                plugin.store().markDirty();
+                open(p, c);
+            }
+        });
+
         m.set(28, Items.of(Material.PAPER, "<white>Plans", "<gray>" + c.plans().size() + " plan(s)",
                 isOwner(p, c) ? "<yellow>Click to create and edit plans" : "<gray>Click to view plans"), e -> {
             click(p);

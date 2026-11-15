@@ -182,6 +182,8 @@ public final class DataStore {
                     c.balance(s.getLong("balance", 0));
                     c.nextUpkeep(s.getLong("next-upkeep", 0));
                     c.unpaidSince(s.getLong("unpaid-since", 0));
+                    c.tradeIn(s.getBoolean("trade-in", false));
+                    c.tradeInPercent(s.getDouble("trade-in-percent", 60));
                     ConfigurationSection pls = s.getConfigurationSection("plans");
                     if (pls != null) {
                         for (String pid : pls.getKeys(false)) {
@@ -372,6 +374,8 @@ public final class DataStore {
             cy.set(p + "balance", c.balance());
             cy.set(p + "next-upkeep", c.nextUpkeep());
             cy.set(p + "unpaid-since", c.unpaidSince());
+            cy.set(p + "trade-in", c.tradeIn());
+            cy.set(p + "trade-in-percent", c.tradeInPercent());
             for (dev.mccomm.cell.model.Plan pl : c.plans().values()) {
                 String pp = p + "plans." + pl.id() + ".";
                 cy.set(pp + "name", pl.name());

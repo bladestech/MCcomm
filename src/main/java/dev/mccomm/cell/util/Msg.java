@@ -38,6 +38,10 @@ public final class Msg {
         a.sendMessage(MM.deserialize(s, r));
     }
 
+    public static String escape(String s) {
+        return MM.escapeTags(s == null ? "" : s);
+    }
+
     public static TagResolver p(String key, String value) {
         return Placeholder.unparsed(key, value == null ? "" : value);
     }

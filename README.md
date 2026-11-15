@@ -22,6 +22,7 @@ Requires Java 25 and Paper (or Purpur) 26.1+.
   - **Plans:** postpaid, financed (the carrier buys your phone and you repay it) or prepaid.
   - **Plan options:** data allowance or unlimited, band and speed caps, and texts/calls included or not.
   - **Missed payments:** the plan is cancelled and the payment becomes ×4 overdue. Financed phones get blacklisted.
+  - **Phones:** sell a phone back to the eShop for 50%. Carriers can run trade-in programs that take a phone's value off a phone loan and lower each instalment.
   - **Tower upkeep:** carriers pay for their towers. Unpaid towers decay until they go silent.
 - **`/internet`:** a second chat channel that costs mobile data per character. It shows your carrier and phone model.
 - **Signal sidebar HUD** with bars, band, tower and data left.

@@ -197,6 +197,88 @@ public final class BillingService implements Listener {
         }
     }
 
+    /** Why this phone can't be sold or traded in, or null if it can. */
+    public String cantPart(PlayerProfile prof, PhoneModel m) {
+        if (!prof.ownedPhones().contains(m.id())) return "You don't own a " + m.name() + ".";
+        if (prof.phoneLocks().containsKey(m.id())) return "You're still paying off your " + m.name() + ".";
+        if (prof.blacklist().containsKey(m.id())) return "Your " + m.name() + " is blacklisted.";
+        return null;
+    }
+
+    private void removePhone(Player p, PlayerProfile prof, PhoneModel m) {
+        prof.ownedPhones().remove(m.id());
+        if (m.id().equals(prof.phone())) {
+            prof.phone(null);
+            Msg.send(p, "<yellow>That was the phone you were using. Switch to another in the eShop to get service.");
+        }
+        plugin.store().markDirty();
+    }
+
+    /** Sells an owned phone back to the eShop for the resale percentage. */
+    public void sellPhone(Player p, PhoneModel m) {
+        PlayerProfile prof = prof(p.getUniqueId());
+        String why = cantPart(prof, m);
+        if (why != null) {
+            Msg.send(p, "<red>" + Msg.escape(why));
+            return;
+        }
+        long value = s().resaleValue(m);
+        removePhone(p, prof, m);
+        prof.balance(prof.balance() + value);
+        prof.log(value, "Sold " + m.name());
+        p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
+        Msg.send(p, "<green>Sold your <white><n></white> for <white><v></white>.", Msg.p("n", m.name()), Msg.p("v", s().money(value)));
+    }
+
+    /** What a carrier's trade-in program credits for this phone. */
+    public long tradeInValue(Carrier c, PhoneModel m) {
+        return Math.round(m.price() * c.tradeInPercent() / 100.0);
+    }
+
+    /**
+     * Trades an owned phone in to a carrier you're paying a phone off with. Its value comes off the
+     * loan and the instalment is spread over the same number of remaining payments. The carrier gets
+     * the resale value for the phone.
+     */
+    public void tradeIn(Player p, Carrier c, PhoneModel m) {
+        PlayerProfile prof = prof(p.getUniqueId());
+        Subscription sub = prof.sub(c.id());
+        if (!c.tradeIn()) {
+            Msg.send(p, "<red><c> doesn't run a trade-in program.", Msg.p("c", c.name()));
+            return;
+        }
+        if (sub == null || !sub.financing()) {
+            Msg.send(p, "<red>You're not paying off a phone with <white><c></white>.", Msg.p("c", c.name()));
+            return;
+        }
+        String why = cantPart(prof, m);
+        if (why != null) {
+            Msg.send(p, "<red>" + Msg.escape(why));
+            return;
+        }
+        long value = Math.min(tradeInValue(c, m), sub.financeRemaining());
+        long paymentsLeft = Math.max(1, (sub.financeRemaining() + sub.financeInstallment() - 1) / Math.max(1, sub.financeInstallment()));
+        removePhone(p, prof, m);
+        long resale = s().resaleValue(m);
+        c.balance(c.balance() + resale);
+        c.log(resale, "Resold traded-in " + m.name());
+        c.log(-value, "Trade-in credit · " + p.getName());
+        prof.log(value, "Traded in " + m.name() + " to " + c.name());
+        sub.financeRemaining(sub.financeRemaining() - value);
+        if (sub.financeRemaining() <= 0) {
+            PhoneModel financed = s().phone(sub.financePhone());
+            finishFinancing(prof, sub);
+            Msg.send(p, "<green>Traded in your <white><n></white>: that paid off your <white><f></white> completely. It's unlocked and yours.",
+                    Msg.p("n", m.name()), Msg.p("f", financed == null ? "phone" : financed.name()));
+        } else {
+            sub.financeInstallment((sub.financeRemaining() + paymentsLeft - 1) / paymentsLeft);
+            Msg.send(p, "<green>Traded in your <white><n></white> for <white><v></white> off your phone loan. Still owed <white><r></white>, now <white><i></white> per period.",
+                    Msg.p("n", m.name()), Msg.p("v", s().money(value)), Msg.p("r", s().money(sub.financeRemaining())),
+                    Msg.p("i", s().money(sub.financeInstallment())));
+        }
+        plugin.store().markDirty();
+    }
+
     public PhoneModel phoneOf(Player p) {
         return s().phone(prof(p.getUniqueId()).phone());
     }

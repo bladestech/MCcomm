@@ -55,6 +55,7 @@ public final class Settings {
     public final Map<Material, Long> oreValues = new LinkedHashMap<>();
     public final Map<String, PhoneModel> phones = new LinkedHashMap<>();
     public final String starterPhone;
+    public final double resalePercent;
     public final int warnHours, overdueMultiplier, billingCheckSeconds, minPeriodHours, maxPeriodHours;
     public final String defaultPlanName;
     public final long defaultPlanPrice;
@@ -209,6 +210,7 @@ public final class Settings {
         }
         String sp = c.getString("starter-phone", "");
         starterPhone = sp == null || sp.isBlank() || !phones.containsKey(sp.toLowerCase()) ? null : sp.toLowerCase();
+        resalePercent = Math.clamp(c.getDouble("phone-resale-percent", 50), 0, 100);
         warnHours = Math.max(0, c.getInt("billing.warn-hours-before", 6));
         overdueMultiplier = Math.max(1, c.getInt("billing.overdue-multiplier", 4));
         billingCheckSeconds = Math.max(10, c.getInt("billing.check-interval-seconds", 60));
@@ -269,6 +271,11 @@ public final class Settings {
     /** Decay stages before towers go silent: one per listed speed, the next stage is silence. */
     public int silentStage() {
         return decaySpeed.length + 1;
+    }
+
+    /** What the eShop pays when you sell this phone back. */
+    public long resaleValue(PhoneModel m) {
+        return Math.round(m.price() * resalePercent / 100.0);
     }
 
     public PhoneModel phone(String id) {

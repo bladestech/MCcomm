@@ -610,6 +610,9 @@ public final class PhoneMenu {
             if (slot >= 27) break;
             boolean mine = current != null && current.id().equals(plan.id());
             List<String> lore = new ArrayList<>(planLore(plan));
+            if (plan.financed() && c.tradeIn()) {
+                lore.add("<aqua>Trade-in: " + Math.round(c.tradeInPercent()) + "% of a phone's price off the loan");
+            }
             lore.add("");
             if (mine) lore.add("<green>Your current plan");
             else if (prof.has(c.id())) lore.add("<yellow>Click to switch to this plan");
@@ -703,10 +706,24 @@ public final class PhoneMenu {
                 lore.add("<light_purple>Financed · locked to " + Items.esc(lc == null ? lock : lc.name()));
             }
             lore.add(using ? "<green>In use" : owned ? "<yellow>Owned · click to use" : "<yellow>Click to buy");
+            boolean sellable = owned && plugin.billing().cantPart(prof, pm) == null;
+            if (sellable) lore.add("<yellow>Shift-right-click <gray>sell for " + plugin.settings().money(plugin.settings().resaleValue(pm)));
             ItemStack it = Items.of(pm.icon(), (using ? "<green><b>" : "<white><b>") + Items.esc(pm.name()), lore);
             m.set(slotFor(i++), using ? Items.glow(it) : it, e -> {
                 click(p);
-                if (!using) plugin.billing().buyOrUse(p, pm);
+                if (e.isShiftClick() && e.isRightClick()) {
+                    if (!sellable) {
+                        String why = plugin.billing().cantPart(prof, pm);
+                        if (why != null) Msg.send(p, "<red>" + Msg.escape(why));
+                    } else if (confirmed(p, "sell:" + pm.id())) {
+                        plugin.billing().sellPhone(p, pm);
+                    } else {
+                        Msg.send(p, "<yellow>Shift-right-click again within 5 seconds to sell your <white><n></white> for <white><v></white>.",
+                                Msg.p("n", pm.name()), Msg.p("v", plugin.settings().money(plugin.settings().resaleValue(pm))));
+                    }
+                } else if (!using) {
+                    plugin.billing().buyOrUse(p, pm);
+                }
                 eshop(p);
             });
         }
@@ -725,6 +742,76 @@ public final class PhoneMenu {
     private static int slotFor(int index) {
         int[] layout = {10, 11, 13, 14, 16, 17, 19, 20, 22, 23, 25, 26};
         return layout[Math.min(index, layout.length - 1)];
+    }
+
+    // =============================================================== trade-in
+
+    /** Pick an owned phone to trade in against a phone loan with this carrier. */
+    public void tradeIn(Player p, Carrier c) {
+        PlayerProfile prof = prof(p);
+        Subscription sub = prof.sub(c.id());
+        if (sub == null || !sub.financing() || !c.tradeIn()) {
+            wallet(p);
+            return;
+        }
+        Menu m = menu(4, "Trade in · " + Items.esc(c.name()), "tradein");
+        m.set(4, Items.of(Material.PAPER, "<white>Phone loan: <gold>" + plugin.settings().money(sub.financeRemaining()) + " left",
+                "<gray>Now " + plugin.settings().money(sub.financeInstallment()) + " per period.",
+                "<gray>" + Items.esc(c.name()) + " gives " + Math.round(c.tradeInPercent()) + "% of a phone's price.",
+                "<gray>Your instalment drops; the number of payments stays."));
+        int slot = 9;
+        for (String id : new ArrayList<>(prof.ownedPhones())) {
+            PhoneModel pm = plugin.settings().phone(id);
+            if (pm == null || slot >= 27) continue;
+            String why = plugin.billing().cantPart(prof, pm);
+            long value = plugin.billing().tradeInValue(c, pm);
+            List<String> lore = new ArrayList<>();
+            if (why != null) {
+                lore.add("<red>" + Items.esc(why));
+                m.set(slot++, Items.of(Material.GRAY_DYE, "<dark_gray>" + Items.esc(pm.name()), lore));
+                continue;
+            }
+            long credited = Math.min(value, sub.financeRemaining());
+            lore.add("<gray>Trade-in value: <green>" + plugin.settings().money(value));
+            if (value > sub.financeRemaining()) {
+                lore.add("<gold>Only " + plugin.settings().money(credited) + " is needed to pay off the loan;");
+                lore.add("<gold>the rest is lost. Selling it in the eShop pays " + plugin.settings().money(plugin.settings().resaleValue(pm)) + ".");
+            }
+            if (pm.id().equals(prof.phone())) lore.add("<yellow>This is the phone you're using.");
+            lore.add("");
+            lore.add("<yellow>Click twice to trade in");
+            m.set(slot++, Items.of(pm.icon(), "<white><b>" + Items.esc(pm.name()), lore), e -> {
+                click(p);
+                if (confirmed(p, "trade:" + pm.id())) {
+                    plugin.billing().tradeIn(p, c, pm);
+                    wallet(p);
+                } else {
+                    Msg.send(p, "<yellow>Click again within 5 seconds to trade in your <white><n></white> for <white><v></white> off your loan.",
+                            Msg.p("n", pm.name()), Msg.p("v", plugin.settings().money(credited)));
+                }
+            });
+        }
+        if (slot == 9) m.set(13, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No phones to trade in", "<dark_gray>Only phones you fully own count."));
+        m.set(27, Items.of(Material.ARROW, "<gray>« Wallet"), e -> {
+            click(p);
+            wallet(p);
+        });
+        m.open(p);
+    }
+
+    private final Map<String, Long> confirms = new HashMap<>();
+
+    /** True on the second click of the same action within 5 seconds. */
+    private boolean confirmed(Player p, String action) {
+        String key = p.getUniqueId() + ":" + action;
+        long now = System.currentTimeMillis();
+        Long until = confirms.get(key);
+        if (until != null && until > now) {
+            confirms.remove(key);
+            return true;
+        }
+        confirms.put(key, now + CONFIRM_MS);
+        return false;
     }
 
     // ================================================================= wallet
@@ -788,12 +875,17 @@ public final class PhoneMenu {
             if (plan != null && plan.prepaid()) lore.add("<yellow>Right-click <gray>top up (" + plugin.settings().money(plan.price()) + ")");
             else if (plan != null && !plan.unlimited() && plan.packMB() > 0)
                 lore.add("<yellow>Right-click <gray>buy " + Settings.data(plan.packMB()) + " (" + plugin.settings().money(plan.packPrice()) + ")");
-            if (sub != null && sub.financing()) lore.add("<yellow>Shift-click <gray>pay off phone (" + plugin.settings().money(sub.financeRemaining()) + ")");
+            if (sub != null && sub.financing()) {
+                lore.add("<yellow>Shift-click <gray>pay off phone (" + plugin.settings().money(sub.financeRemaining()) + ")");
+                if (c.tradeIn()) lore.add("<yellow>Shift-right-click <gray>trade in a phone (" + Math.round(c.tradeInPercent()) + "% of its price)");
+            }
             final Plan fplan = plan;
             final Subscription fsub = sub;
             m.set(slot++, Items.of(plan == null ? Material.GRAY_DYE : Material.PAPER, "<" + c.color().asHexString() + ">" + Items.esc(c.name()), lore), e -> {
                 click(p);
-                if (e.isShiftClick() && fsub != null && fsub.financing()) {
+                if (e.isShiftClick() && e.isRightClick() && fsub != null && fsub.financing() && c.tradeIn()) {
+                    tradeIn(p, c);
+                } else if (e.isShiftClick() && fsub != null && fsub.financing()) {
                     plugin.billing().payOffPhone(p, c);
                     wallet(p);
                 } else if (e.isRightClick() && fplan != null && fplan.prepaid()) {

@@ -233,6 +233,9 @@ phones:
   pilot-plus:     { name: "Pilot+",     max-band: 5g-mmwave, sims: 2, price: 1100, icon: ECHO_SHARD }
 # Phone given free to players who have never owned one ("" = none).
 starter-phone: ""
+# Selling a phone back in the eShop pays this percent of its price. Carriers
+# that run a trade-in program receive this much for each traded-in phone.
+phone-resale-percent: 50
 
 billing:
   # Plans are charged per their own period (set by the carrier, in real hours).

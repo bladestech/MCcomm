@@ -22,6 +22,8 @@ public final class Carrier {
     private final Map<String, Plan> plans = new LinkedHashMap<>();
     private long nextUpkeep;   // when upkeep is next charged (epoch ms), 0 = not scheduled yet
     private long unpaidSince;  // when upkeep first failed (epoch ms), 0 = paid up
+    private boolean tradeIn;   // trade-in program on/off
+    private double tradeInPercent = 60;
     private final List<LedgerEntry> ledger = new ArrayList<>();
     private final long createdAt;
 
@@ -48,6 +50,10 @@ public final class Carrier {
     public String prefix() { return prefix; }
     public void prefix(String prefix) { this.prefix = prefix; }
     public Map<String, Plan> plans() { return plans; }
+    public boolean tradeIn() { return tradeIn; }
+    public void tradeIn(boolean v) { this.tradeIn = v; }
+    public double tradeInPercent() { return tradeInPercent; }
+    public void tradeInPercent(double v) { this.tradeInPercent = v; }
     public long nextUpkeep() { return nextUpkeep; }
     public void nextUpkeep(long t) { this.nextUpkeep = t; }
     public long unpaidSince() { return unpaidSince; }
