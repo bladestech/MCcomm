@@ -225,6 +225,15 @@ public final class DataStore {
                         if (band != null) t.enabledBands().add(band);
                     }
                     t.name(s.getString("name"));
+                    ConfigurationSection sc = s.getConfigurationSection("screen");
+                    if (sc != null) {
+                        for (String role : sc.getKeys(false)) {
+                            try {
+                                t.screen().put(role, UUID.fromString(sc.getString(role)));
+                            } catch (Exception ignored) {
+                            }
+                        }
+                    }
                     t.heightAboveGround(s.getDouble("height", 0));
                     String bh = s.getString("backhaul");
                     if (bh != null) t.backhaul(Material.matchMaterial(bh));
@@ -466,6 +475,7 @@ public final class DataStore {
             String p = "towers." + t.id() + ".";
             ty.set(p + "carrier", t.carrierId());
             ty.set(p + "name", t.name());
+            for (var e : t.screen().entrySet()) ty.set(p + "screen." + e.getKey(), e.getValue().toString());
             ty.set(p + "height", Math.round(t.heightAboveGround() * 10) / 10.0);
             ty.set(p + "world", t.worldId().toString());
             ty.set(p + "x", t.x());

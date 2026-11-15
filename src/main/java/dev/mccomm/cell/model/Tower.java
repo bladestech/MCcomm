@@ -20,7 +20,8 @@ public final class Tower {
     private final EnumSet<Band> enabledBands = EnumSet.noneOf(Band.class);
     private Material backhaul; // null = offline
     private double heightAboveGround; // antenna height over the surrounding terrain, measured when loaded
-    private UUID displayId, panelId;
+    private UUID displayId, panelId; // old single-text screen, removed on next load
+    private final java.util.Map<String, UUID> screen = new java.util.LinkedHashMap<>(); // role -> entity
     private final UUID createdBy;
     private final long createdAt;
 
@@ -52,6 +53,7 @@ public final class Tower {
     public void heightAboveGround(double h) { this.heightAboveGround = h; }
     public Material backhaul() { return backhaul; }
     public void backhaul(Material m) { this.backhaul = m; }
+    public java.util.Map<String, UUID> screen() { return screen; }
     public UUID displayId() { return displayId; }
     public void displayId(UUID id) { this.displayId = id; }
     public UUID panelId() { return panelId; }

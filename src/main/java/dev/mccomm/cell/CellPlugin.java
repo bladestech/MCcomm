@@ -22,6 +22,7 @@ import dev.mccomm.cell.storage.DataStore;
 import dev.mccomm.cell.tower.TowerGui;
 import dev.mccomm.cell.tower.TowerListener;
 import dev.mccomm.cell.tower.TowerManager;
+import dev.mccomm.cell.tower.TowerScreen;
 import dev.mccomm.cell.util.Msg;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.Bukkit;
@@ -34,6 +35,7 @@ public final class CellPlugin extends JavaPlugin {
     private Settings settings;
     private DataStore store;
     private TowerManager towers;
+    private TowerScreen screen;
     private TowerGui gui;
     private TowerListener towerListener;
     private SignalService signal;
@@ -60,6 +62,7 @@ public final class CellPlugin extends JavaPlugin {
         store = new DataStore(this);
         store.load();
         towers = new TowerManager(this);
+        screen = new TowerScreen(this);
         gui = new TowerGui(this);
         towerListener = new TowerListener(this);
         signal = new SignalService(this);
@@ -129,6 +132,7 @@ public final class CellPlugin extends JavaPlugin {
     public Settings settings() { return settings; }
     public DataStore store() { return store; }
     public TowerManager towers() { return towers; }
+    public TowerScreen screen() { return screen; }
     public TowerGui gui() { return gui; }
     public TowerListener towerListener() { return towerListener; }
     public SignalService signal() { return signal; }

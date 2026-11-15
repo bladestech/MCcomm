@@ -113,6 +113,7 @@ public final class TowerManager {
         plugin.gui().closeAll(t);
         removeEntity(t.displayId());
         removeEntity(t.panelId());
+        plugin.screen().remove(t);
         if (clearSign && t.isChunkLoaded()) {
             Block b = t.block();
             if (b != null && b.getState() instanceof org.bukkit.block.Sign sign) {
@@ -140,9 +141,7 @@ public final class TowerManager {
             Block b = t.block();
             if (b != null && isWallSign(b)) {
                 writeSign(t, b);
-                ensureEntities(t);
-                Entity d = t.displayId() == null ? null : Bukkit.getEntity(t.displayId());
-                if (d instanceof TextDisplay td) applyText(t, td);
+                plugin.screen().ensure(t);
             }
         }
         plugin.gui().refreshAll(t);
@@ -150,137 +149,19 @@ public final class TowerManager {
 
     // ---------------------------------------------------------------- entities
 
-    /** Spawns the panel/text if they are missing. Only acts once the chunk's entities are loaded. */
+    /** Spawns or repairs the tower's screen. Only acts once the chunk's entities are loaded. */
     public void ensureEntities(Tower t) {
-        World w = t.world();
-        if (w == null || !w.isChunkLoaded(t.x() >> 4, t.z() >> 4)) return;
-        if (!w.getChunkAt(t.x() >> 4, t.z() >> 4).isEntitiesLoaded()) return;
-        Block b = t.block();
-        if (b == null || !(b.getBlockData() instanceof WallSign ws)) return;
-
-        Settings.SignGeom g = s().wallGeom;
-        Vector facing = ws.getFacing().getDirection();
-        Location face = new Location(w, t.x() + 0.5, t.y() + g.centerY(), t.z() + 0.5)
-                .add(facing.clone().multiply(g.faceOffset()));
-        float yaw = (float) Math.toDegrees(Math.atan2(-facing.getX(), facing.getZ()));
-
-        Entity panel = t.panelId() == null ? null : Bukkit.getEntity(t.panelId());
-        if (panel == null || !panel.isValid()) {
-            Location loc = face.clone().add(facing.clone().multiply(PANEL_DEPTH / 2 + 0.002));
-            loc.setYaw(yaw);
-            loc.setPitch(0);
-            BlockData data = s().panelMaterial.createBlockData();
-            BlockDisplay bd = w.spawn(loc, BlockDisplay.class, e -> {
-                e.setBlock(data);
-                e.setTransformation(new Transformation(
-                        new Vector3f((float) -g.width() / 2, (float) -g.height() / 2, (float) -PANEL_DEPTH / 2),
-                        new Quaternionf(),
-                        new Vector3f((float) g.width(), (float) g.height(), (float) PANEL_DEPTH),
-                        new Quaternionf()));
-                if (s().fullBright) e.setBrightness(new Display.Brightness(15, 15));
-                tag(e, t);
-            });
-            t.panelId(bd.getUniqueId());
-            plugin.store().markDirty();
-        }
-
-        Entity text = t.displayId() == null ? null : Bukkit.getEntity(t.displayId());
-        if (text == null || !text.isValid()) {
-            Location loc = face.clone().add(facing.clone().multiply(PANEL_DEPTH + 0.006));
-            loc.setYaw(yaw + s().yawOffset);
-            loc.setPitch(0);
-            TextDisplay td = w.spawn(loc, TextDisplay.class, e -> {
-                e.setBillboard(Display.Billboard.FIXED);
-                e.setAlignment(TextDisplay.TextAlignment.CENTER);
-                e.setDefaultBackground(false);
-                e.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
-                e.setShadowed(false);
-                e.setSeeThrough(false);
-                e.setLineWidth(1000);
-                if (s().fullBright) e.setBrightness(new Display.Brightness(15, 15));
-                tag(e, t);
-            });
-            t.displayId(td.getUniqueId());
-            plugin.store().markDirty();
-            applyText(t, td);
-        }
+        plugin.screen().ensure(t);
     }
 
-    private void tag(Entity e, Tower t) {
-        e.setPersistent(true);
-        e.getPersistentDataContainer().set(towerKey, PersistentDataType.INTEGER, t.id());
+    /** The model name shown for this tower. */
+    public String modelName(Tower t) {
+        return s().generation(t.generation()).model();
     }
 
-    /** Sets text and scales it so the whole block of text fits inside the sign board. */
-    private void applyText(Tower t, TextDisplay td) {
-        List<Component> lines = screenLines(t);
-        Component text = Component.join(net.kyori.adventure.text.JoinConfiguration.newlines(), lines);
-        double maxPx = 0;
-        for (Component line : lines) {
-            String plain = PlainTextComponentSerializer.plainText().serialize(line);
-            maxPx = Math.max(maxPx, plain.length() * CHAR_PX);
-        }
-        Settings.SignGeom g = s().wallGeom;
-        double fill = s().textFill;
-        double scaleH = fill * g.height() * 40 / (LINES * LINE_PX);
-        double scaleW = maxPx <= 0 ? scaleH : fill * g.width() * 40 / maxPx;
-        float scale = (float) Math.min(scaleH, scaleW);
-        float textHeight = (float) (LINES * LINE_PX * scale / 40);
-
-        td.text(text);
-        td.setTransformation(new Transformation(
-                new Vector3f(0, -textHeight / 2, 0),
-                new Quaternionf(),
-                new Vector3f(scale, scale, scale),
-                new Quaternionf()));
-    }
-
-    private List<Component> screenLines(Tower t) {
-        Carrier c = plugin.store().carrier(t.carrierId());
-        List<Component> out = new ArrayList<>(LINES);
-        out.add(c == null ? Component.text("?", NamedTextColor.WHITE, TextDecoration.BOLD) : Msg.mm("<b>" + c.styled()));
-        out.add(Component.text(t.name(), NamedTextColor.WHITE)
-                .append(Component.text(" · " + s().generation(t.generation()).model() + " (G" + t.generation() + ")", NamedTextColor.GRAY)));
-
-        Component lte = Component.empty();
-        Band[] low = {Band.G2, Band.G3, Band.G4, Band.G4_PLUS};
-        for (int i = 0; i < low.length; i++) {
-            if (i > 0) lte = lte.append(Component.space());
-            lte = lte.append(bandText(t, low[i], s().spec(low[i]).name()));
-        }
-        out.add(lte);
-
-        Component nr = Component.text("5G ", NamedTextColor.WHITE)
-                .append(bandText(t, Band.G5_LOW, "L")).append(Component.space())
-                .append(bandText(t, Band.G5_MID, "M")).append(Component.space())
-                .append(bandText(t, Band.G5_HIGH, "H")).append(Component.space())
-                .append(bandText(t, Band.G5_MMWAVE, "mm"));
-        out.add(nr);
-
-        int stage = plugin.billing().decayStage(t);
-        if (t.backhaul() == null) {
-            out.add(Component.text("● Offline · no backhaul", NamedTextColor.RED));
-        } else if (stage >= s().silentStage()) {
-            out.add(Component.text("● Silent · upkeep unpaid", NamedTextColor.DARK_RED));
-        } else if (stage > 0) {
-            out.add(Component.text("● Degraded · upkeep unpaid", NamedTextColor.GOLD));
-        } else if (t.enabledBands().isEmpty()) {
-            out.add(Component.text("● Offline · no bands", NamedTextColor.RED));
-        } else {
-            BackhaulSpec bh = s().backhaul.get(t.backhaul());
-            String name = bh == null ? t.backhaul().name() : bh.name();
-            int pct = bh == null ? 0 : (int) Math.round(bh.multiplier() * 100);
-            int users = plugin.signal().usersOn(t);
-            out.add(Component.text("● ", NamedTextColor.GREEN)
-                    .append(Component.text(name + " " + pct + "% · " + users + (users == 1 ? " user" : " users"), NamedTextColor.GRAY)));
-        }
-        return out;
-    }
-
-    private Component bandText(Tower t, Band b, String label) {
-        NamedTextColor col = t.enabledBands().contains(b) ? NamedTextColor.GREEN
-                : s().supports(t.generation(), b) ? NamedTextColor.RED : NamedTextColor.DARK_GRAY;
-        return Component.text(label, col);
+    /** True if this tower's model includes the band (it can be switched on). */
+    public boolean available(Tower t, Band b) {
+        return s().supports(t.generation(), b);
     }
 
     private void writeSign(Tower t, Block b) {
@@ -349,7 +230,7 @@ public final class TowerManager {
             Integer id = e.getPersistentDataContainer().get(towerKey, PersistentDataType.INTEGER);
             if (id == null) continue;
             Tower t = plugin.store().tower(id);
-            if (t == null || !(e.getUniqueId().equals(t.displayId()) || e.getUniqueId().equals(t.panelId()))) {
+            if (t == null || !plugin.screen().owns(t, e.getUniqueId())) {
                 e.remove();
             }
         }
