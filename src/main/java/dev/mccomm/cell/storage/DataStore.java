@@ -195,28 +195,7 @@ public final class DataStore {
                         for (String pid : pls.getKeys(false)) {
                             ConfigurationSection ps0 = pls.getConfigurationSection(pid);
                             if (ps0 == null) continue;
-                            dev.mccomm.cell.model.Plan pl = new dev.mccomm.cell.model.Plan(pid, ps0.getString("name", pid),
-                                    ps0.getLong("price", 0), ps0.getInt("period-hours", 24));
-                            pl.maxBand(Band.fromKey(ps0.getString("max-band")));
-                            pl.speedCapMbps(ps0.getDouble("speed-cap", 0));
-                            pl.texts(ps0.getBoolean("texts", true));
-                            pl.calls(ps0.getBoolean("calls", true));
-                            try {
-                                pl.type(dev.mccomm.cell.model.Plan.Type.valueOf(ps0.getString("type", "POSTPAID")));
-                                pl.outOfData(dev.mccomm.cell.model.Plan.OutOfData.valueOf(ps0.getString("out-of-data", "THROTTLE")));
-                            } catch (IllegalArgumentException ignored) {
-                            }
-                            pl.dataMB(ps0.getLong("data-mb", -1));
-                            pl.overagePerGb(ps0.getLong("overage-per-gb", 10));
-                            pl.packMB(ps0.getLong("pack-mb", 0));
-                            pl.packPrice(ps0.getLong("pack-price", 0));
-                            pl.financePhone(ps0.getString("finance-phone"));
-                            pl.installments(ps0.getInt("installments", 6));
-                            pl.interestPercent(ps0.getDouble("interest-percent", 10));
-                            pl.downPayment(ps0.getLong("down-payment", 0));
-                            pl.colors(dev.mccomm.cell.util.Style.fromHex(ps0.getStringList("colors")));
-                            pl.roaming(ps0.getBoolean("roaming", true));
-                            pl.roamingPerGb(ps0.getLong("roaming-per-gb", 0));
+                            dev.mccomm.cell.model.Plan pl = readPlan(ps0, pid);
                             c.plans().put(pid, pl);
                         }
                     }
@@ -294,6 +273,8 @@ public final class DataStore {
                             su.financePhone(sb.getString(cid + ".finance-phone"));
                             su.financeRemaining(sb.getLong(cid + ".finance-remaining", 0));
                             su.financeInstallment(sb.getLong(cid + ".finance-installment", 0));
+                            ConfigurationSection gf = sb.getConfigurationSection(cid + ".grandfathered");
+                            if (gf != null) su.grandfathered(readPlan(gf, su.planId() == null ? "old" : su.planId()));
                             p.subs().put(cid, su);
                         }
                     }
@@ -344,6 +325,55 @@ public final class DataStore {
             for (String cid : new ArrayList<>(p.active())) assignNumber(p, carriers.get(cid));
             for (String cid : new ArrayList<>(p.inactive())) assignNumber(p, carriers.get(cid));
         }
+    }
+
+    private static dev.mccomm.cell.model.Plan readPlan(ConfigurationSection ps0, String pid) {
+        dev.mccomm.cell.model.Plan pl = new dev.mccomm.cell.model.Plan(pid, ps0.getString("name", pid),
+                ps0.getLong("price", 0), ps0.getInt("period-hours", 24));
+        pl.maxBand(Band.fromKey(ps0.getString("max-band")));
+        pl.speedCapMbps(ps0.getDouble("speed-cap", 0));
+        pl.texts(ps0.getBoolean("texts", true));
+        pl.calls(ps0.getBoolean("calls", true));
+        try {
+            pl.type(dev.mccomm.cell.model.Plan.Type.valueOf(ps0.getString("type", "POSTPAID")));
+            pl.outOfData(dev.mccomm.cell.model.Plan.OutOfData.valueOf(ps0.getString("out-of-data", "THROTTLE")));
+        } catch (IllegalArgumentException ignored) {
+        }
+        pl.dataMB(ps0.getLong("data-mb", -1));
+        pl.overagePerGb(ps0.getLong("overage-per-gb", 10));
+        pl.packMB(ps0.getLong("pack-mb", 0));
+        pl.packPrice(ps0.getLong("pack-price", 0));
+        pl.financePhone(ps0.getString("finance-phone"));
+        pl.installments(ps0.getInt("installments", 6));
+        pl.interestPercent(ps0.getDouble("interest-percent", 10));
+        pl.downPayment(ps0.getLong("down-payment", 0));
+        pl.colors(dev.mccomm.cell.util.Style.fromHex(ps0.getStringList("colors")));
+        pl.roaming(ps0.getBoolean("roaming", true));
+        pl.roamingPerGb(ps0.getLong("roaming-per-gb", 0));
+        return pl;
+    }
+
+    private static void writePlan(YamlConfiguration y, String pp, dev.mccomm.cell.model.Plan pl) {
+        y.set(pp + "name", pl.name());
+        y.set(pp + "price", pl.price());
+        y.set(pp + "period-hours", pl.periodHours());
+        y.set(pp + "max-band", pl.maxBand() == null ? null : pl.maxBand().key());
+        y.set(pp + "speed-cap", pl.speedCapMbps());
+        y.set(pp + "texts", pl.texts());
+        y.set(pp + "calls", pl.calls());
+        y.set(pp + "type", pl.type().name());
+        y.set(pp + "data-mb", pl.dataMB());
+        y.set(pp + "out-of-data", pl.outOfData().name());
+        y.set(pp + "overage-per-gb", pl.overagePerGb());
+        y.set(pp + "pack-mb", pl.packMB());
+        y.set(pp + "pack-price", pl.packPrice());
+        y.set(pp + "finance-phone", pl.financePhone());
+        y.set(pp + "installments", pl.installments());
+        y.set(pp + "interest-percent", pl.interestPercent());
+        y.set(pp + "down-payment", pl.downPayment());
+        y.set(pp + "colors", dev.mccomm.cell.util.Style.toHex(pl.colors()));
+        y.set(pp + "roaming", pl.roaming());
+        y.set(pp + "roaming-per-gb", pl.roamingPerGb());
     }
 
     private static void readAgreements(ConfigurationSection s, Map<String, dev.mccomm.cell.model.Agreement> out) {
@@ -424,27 +454,7 @@ public final class DataStore {
             writeAgreements(cy, p + "offers", c.offers());
             cy.set(p + "trade-in-percent", c.tradeInPercent());
             for (dev.mccomm.cell.model.Plan pl : c.plans().values()) {
-                String pp = p + "plans." + pl.id() + ".";
-                cy.set(pp + "name", pl.name());
-                cy.set(pp + "price", pl.price());
-                cy.set(pp + "period-hours", pl.periodHours());
-                cy.set(pp + "max-band", pl.maxBand() == null ? null : pl.maxBand().key());
-                cy.set(pp + "speed-cap", pl.speedCapMbps());
-                cy.set(pp + "texts", pl.texts());
-                cy.set(pp + "calls", pl.calls());
-                cy.set(pp + "type", pl.type().name());
-                cy.set(pp + "data-mb", pl.dataMB());
-                cy.set(pp + "out-of-data", pl.outOfData().name());
-                cy.set(pp + "overage-per-gb", pl.overagePerGb());
-                cy.set(pp + "pack-mb", pl.packMB());
-                cy.set(pp + "pack-price", pl.packPrice());
-                cy.set(pp + "finance-phone", pl.financePhone());
-                cy.set(pp + "installments", pl.installments());
-                cy.set(pp + "interest-percent", pl.interestPercent());
-                cy.set(pp + "down-payment", pl.downPayment());
-                cy.set(pp + "colors", dev.mccomm.cell.util.Style.toHex(pl.colors()));
-                cy.set(pp + "roaming", pl.roaming());
-                cy.set(pp + "roaming-per-gb", pl.roamingPerGb());
+                writePlan(cy, p + "plans." + pl.id() + ".", pl);
             }
             writeLedger(cy, p + "ledger", c.ledger());
             cy.set(p + "employees", c.employees().stream().map(UUID::toString).toList());
@@ -491,6 +501,7 @@ public final class DataStore {
                 py.set(p + "subs." + e.getKey() + ".finance-phone", e.getValue().financePhone());
                 py.set(p + "subs." + e.getKey() + ".finance-remaining", e.getValue().financeRemaining());
                 py.set(p + "subs." + e.getKey() + ".finance-installment", e.getValue().financeInstallment());
+                if (e.getValue().grandfathered() != null) writePlan(py, p + "subs." + e.getKey() + ".grandfathered.", e.getValue().grandfathered());
             }
             if (!pr.notices().isEmpty()) py.set(p + "notices", new ArrayList<>(pr.notices()));
             for (Map.Entry<String, String> e : pr.phoneLocks().entrySet()) py.set(p + "phone-locks." + e.getKey(), e.getValue());

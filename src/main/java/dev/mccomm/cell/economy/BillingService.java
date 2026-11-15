@@ -291,7 +291,16 @@ public final class BillingService implements Listener {
 
     // ================================================================= plans
 
+    /** The terms the subscriber is on right now: their grandfathered terms if a change is pending, else the live plan. */
     public Plan planOf(PlayerProfile prof, String carrierId) {
+        Subscription sub = prof.sub(carrierId);
+        Plan live = livePlan(prof, carrierId);
+        if (live == null) return null;
+        return sub.grandfathered() != null ? sub.grandfathered() : live;
+    }
+
+    /** The carrier's current version of the subscriber's plan (what applies from their next renewal). */
+    public Plan livePlan(PlayerProfile prof, String carrierId) {
         Subscription sub = prof.sub(carrierId);
         Carrier c = plugin.store().carrier(carrierId);
         return sub == null || c == null || sub.planId() == null ? null : c.plans().get(sub.planId());
@@ -306,7 +315,7 @@ public final class BillingService implements Listener {
 
     /** What the next automatic charge will be (plan + phone instalment). 0 for prepaid. */
     public long nextCharge(PlayerProfile prof, String carrierId) {
-        Plan plan = planOf(prof, carrierId);
+        Plan plan = livePlan(prof, carrierId); // renewal moves them onto the live terms
         Subscription sub = prof.sub(carrierId);
         if (plan == null || plan.prepaid()) return 0;
         return plan.price() + (sub.financing() ? Math.min(sub.financeInstallment(), sub.financeRemaining()) : 0);
@@ -499,6 +508,7 @@ public final class BillingService implements Listener {
             sub.dataLeftMB(current == null || current.unlimited() ? plan.dataMB() : Math.min(sub.dataLeftMB(), plan.dataMB()));
         }
         sub.planId(plan.id());
+        sub.grandfathered(null);
         sub.warned(false);
         plugin.store().markDirty();
         Msg.send(p, prepaidSwitch ? "<green>Switched to <white><n></white>, starting now."
@@ -508,13 +518,17 @@ public final class BillingService implements Listener {
     /** Prepaid top-up: extends the expiry and adds the plan's data (an expired plan starts fresh). */
     public void topUp(Player p, Carrier c) {
         PlayerProfile prof = prof(p.getUniqueId());
-        Plan plan = planOf(prof, c.id());
+        Plan plan = livePlan(prof, c.id());
         Subscription sub = prof.sub(c.id());
         if (plan == null || !plan.prepaid()) {
             Msg.send(p, "<red>That SIM isn't on a prepaid plan.");
             return;
         }
         if (!afford(p, plan.price(), "A top-up")) return;
+        if (sub.grandfathered() != null) {
+            sub.grandfathered(null);
+            Msg.send(p, "<gray>Your plan's updated terms apply from this top-up.");
+        }
         collect(p.getUniqueId(), c, plan.price(), plan.name() + " top-up");
         long now = System.currentTimeMillis();
         if (now >= sub.nextBill()) {
@@ -579,6 +593,108 @@ public final class BillingService implements Listener {
             return false;
         }
         return true;
+    }
+
+    // ============================================================ plan edits
+
+    private record PendingNotice(UUID player, String carrierId, String planId, boolean later, long lastEdit) {
+    }
+
+    private final Map<String, PendingNotice> planNotices = new HashMap<>();
+
+    /**
+     * A carrier edited a plan. Changes that are at least as good for subscribers apply now; anything
+     * worse is held back: current subscribers keep their old terms until their next renewal.
+     * Subscribers get one summary a little after the carrier stops editing.
+     */
+    public void planEdited(Carrier c, Plan before, Plan after) {
+        if (sameTerms(before, after)) return;
+        boolean better = atLeastAsGood(before, after);
+        long now = System.currentTimeMillis();
+        for (PlayerProfile p : plugin.store().profiles()) {
+            Subscription sub = p.sub(c.id());
+            if (sub == null || !after.id().equals(sub.planId())) continue;
+            boolean later;
+            if (sub.grandfathered() != null && atLeastAsGood(sub.grandfathered(), after)) {
+                // The live plan is now at least as good as the terms they kept: move them over now.
+                Plan kept = sub.grandfathered();
+                sub.grandfathered(null);
+                if (!kept.unlimited() && !after.unlimited() && after.dataMB() > kept.dataMB()) {
+                    sub.dataLeftMB(sub.dataLeftMB() + (after.dataMB() - kept.dataMB()));
+                }
+                later = false;
+            } else if (better) {
+                if (sub.grandfathered() == null && !before.unlimited() && !after.unlimited() && after.dataMB() > before.dataMB()) {
+                    sub.dataLeftMB(sub.dataLeftMB() + (after.dataMB() - before.dataMB())); // extra data now
+                }
+                later = sub.grandfathered() != null;
+            } else {
+                if (sub.grandfathered() == null) sub.grandfathered(before.copy());
+                later = true;
+            }
+            String key = p.player() + "|" + c.id();
+            PendingNotice old = planNotices.get(key);
+            planNotices.put(key, new PendingNotice(p.player(), c.id(), after.id(), later || (old != null && old.later()), now));
+        }
+        plugin.store().markDirty();
+    }
+
+    private void flushPlanNotices(long now) {
+        for (var it = planNotices.entrySet().iterator(); it.hasNext(); ) {
+            PendingNotice n = it.next().getValue();
+            if (now - n.lastEdit() < 45_000) continue;
+            it.remove();
+            Carrier c = plugin.store().carrier(n.carrierId());
+            Plan plan = c == null ? null : c.plans().get(n.planId());
+            PlayerProfile prof = prof(n.player());
+            Subscription sub = prof.sub(n.carrierId());
+            if (plan == null || sub == null || !plan.id().equals(sub.planId())) continue;
+            if (n.later() && sub.grandfathered() != null) {
+                String when = plan.prepaid() ? "your next top-up" : "your next renewal in " + until(sub.nextBill() - now);
+                notify(n.player(), "<gold><c> changed your <p> plan.</gold> <gray>You keep your current terms until " + when + ". New terms: <t>",
+                        Msg.c("c", Msg.mm(c.styled())), Msg.c("p", Msg.mm(plan.styled(c))), Msg.c("t", Msg.mm(shortTerms(plan))));
+            } else {
+                notify(n.player(), "<green><c> improved your <p> plan, effective now:</green> <t>",
+                        Msg.c("c", Msg.mm(c.styled())), Msg.c("p", Msg.mm(plan.styled(c))), Msg.c("t", Msg.mm(shortTerms(plan))));
+            }
+        }
+    }
+
+    /** "20 cr/day · 5.0 GB · up to 4G+ · 50.0 Mbps cap · no texts" (MiniMessage, gray). */
+    public String shortTerms(Plan p) {
+        List<String> parts = new ArrayList<>();
+        parts.add(s().money(p.price()) + (p.prepaid() ? " per top-up (" + period(p.periodHours()) + ")" : "/" + period(p.periodHours())));
+        parts.add(p.unlimited() ? "unlimited data" : Settings.data(p.dataMB()) + " data");
+        if (p.maxBand() != null) parts.add("up to " + s().spec(p.maxBand()).name());
+        if (p.speedCapMbps() > 0) parts.add(Msg.speed(p.speedCapMbps()) + " cap");
+        if (!p.texts()) parts.add("no texts");
+        if (!p.calls()) parts.add("no calls");
+        if (!p.roaming()) parts.add("no roaming");
+        else if (p.roamingPerGb() > 0) parts.add("roaming " + s().money(p.roamingPerGb()) + "/GB");
+        return "<white>" + Msg.escape(String.join(" · ", parts));
+    }
+
+    /** True if nothing that affects existing subscribers changed (name, style, packs and phone deals don't). */
+    private static boolean sameTerms(Plan a, Plan b) {
+        return a.price() == b.price() && a.periodHours() == b.periodHours() && a.maxBand() == b.maxBand()
+                && a.speedCapMbps() == b.speedCapMbps() && a.texts() == b.texts() && a.calls() == b.calls()
+                && a.dataMB() == b.dataMB() && a.outOfData() == b.outOfData() && a.overagePerGb() == b.overagePerGb()
+                && a.roaming() == b.roaming() && a.roamingPerGb() == b.roamingPerGb() && a.type() == b.type();
+    }
+
+    /** True if {@code after} is at least as good as {@code before} for a subscriber in every way. */
+    private static boolean atLeastAsGood(Plan before, Plan after) {
+        if (after.type() != before.type() || after.periodHours() != before.periodHours()) return false;
+        if (after.price() > before.price()) return false;
+        if (!after.unlimited() && (before.unlimited() || after.dataMB() < before.dataMB())) return false;
+        if (after.maxBand() != null && (before.maxBand() == null || after.maxBand().ordinal() < before.maxBand().ordinal())) return false;
+        if (after.speedCapMbps() > 0 && (before.speedCapMbps() == 0 || after.speedCapMbps() < before.speedCapMbps())) return false;
+        if (before.texts() && !after.texts()) return false;
+        if (before.calls() && !after.calls()) return false;
+        if (before.roaming() && !after.roaming()) return false;
+        if (after.roamingPerGb() > before.roamingPerGb()) return false;
+        if (after.outOfData() != before.outOfData() && after.outOfData() != Plan.OutOfData.THROTTLE) return false;
+        return after.overagePerGb() <= before.overagePerGb();
     }
 
     /** Called when a carrier deletes a plan: its subscribers drop to no plan, without debt. */
@@ -750,6 +866,7 @@ public final class BillingService implements Listener {
         long now = System.currentTimeMillis();
 
         plugin.partners().tick();
+        flushPlanNotices(now);
         for (Carrier c : new ArrayList<>(plugin.store().carriers())) {
             if (c.nextUpkeep() == 0) c.nextUpkeep(now + s().upkeepPeriodHours * HOUR);
             for (int guard = 0; guard < 60 && now >= c.nextUpkeep(); guard++) chargeUpkeep(c, now, false);
@@ -795,6 +912,11 @@ public final class BillingService implements Listener {
                             Msg.p("b", s().money(p.balance())), Msg.p("m", "" + s().overdueMultiplier));
                 }
                 for (int guard = 0; guard < 60 && sub.planId() != null && now >= sub.nextBill(); guard++) {
+                    if (sub.grandfathered() != null) {
+                        sub.grandfathered(null);
+                        notify(p.player(), "<gray>Your <white><c></white> plan's updated terms start now: <t>",
+                                Msg.p("c", c.name()), Msg.c("t", Msg.mm(shortTerms(plan))));
+                    }
                     charge = nextCharge(p, c.id());
                     if (p.balance() >= charge) {
                         collect(p.player(), c, plan.price(), plan.name());

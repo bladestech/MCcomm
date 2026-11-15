@@ -861,6 +861,12 @@ public final class PhoneMenu {
                 lore.add("<red>No plan · no service");
             } else {
                 lore.add("<gray>Plan: " + plan.styled(c));
+                if (sub.grandfathered() != null) {
+                    Plan live = plugin.billing().livePlan(prof, cid);
+                    lore.add("<gold>Plan updated by " + Items.esc(c.name()) + ". Your current terms stay until "
+                            + (plan.prepaid() ? "your next top-up." : "renewal."));
+                    if (live != null) lore.add("<gray>New: " + plugin.billing().shortTerms(live));
+                }
                 if (plan.prepaid()) {
                     boolean expired = now >= sub.nextBill();
                     lore.add(expired ? "<red>Expired" : "<gray>Expires in <white>" + BillingService.until(sub.nextBill() - now));

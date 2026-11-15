@@ -95,6 +95,29 @@ public final class Plan {
     public long roamingPerGb() { return roamingPerGb; }
     public void roamingPerGb(long v) { this.roamingPerGb = v; }
 
+    /** A full copy (same id), used to keep a subscriber's old terms until renewal. */
+    public Plan copy() {
+        Plan p = new Plan(id, name, price, periodHours);
+        p.type = type;
+        p.maxBand = maxBand;
+        p.speedCapMbps = speedCapMbps;
+        p.texts = texts;
+        p.calls = calls;
+        p.dataMB = dataMB;
+        p.outOfData = outOfData;
+        p.overagePerGb = overagePerGb;
+        p.packMB = packMB;
+        p.packPrice = packPrice;
+        p.financePhone = financePhone;
+        p.installments = installments;
+        p.interestPercent = interestPercent;
+        p.downPayment = downPayment;
+        p.roaming = roaming;
+        p.roamingPerGb = roamingPerGb;
+        p.colors = new java.util.ArrayList<>(colors);
+        return p;
+    }
+
     public boolean prepaid() { return type == Type.PREPAID; }
     public boolean financed() { return type == Type.FINANCED; }
 

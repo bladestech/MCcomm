@@ -13,6 +13,7 @@ public final class Subscription {
     private long financeRemaining; // credits still owed for it
     private long financeInstallment;
     private transient boolean expiredNotice; // prepaid: "expired" message already sent
+    private Plan grandfathered; // old terms kept until the next renewal, null = on the live plan
 
     public Subscription(String planId, long nextBill) {
         this.planId = planId;
@@ -34,6 +35,8 @@ public final class Subscription {
     public long financeInstallment() { return financeInstallment; }
     public void financeInstallment(long v) { this.financeInstallment = v; }
 
+    public Plan grandfathered() { return grandfathered; }
+    public void grandfathered(Plan p) { this.grandfathered = p; }
     public boolean expiredNotice() { return expiredNotice; }
     public void expiredNotice(boolean v) { this.expiredNotice = v; }
 

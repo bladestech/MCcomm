@@ -263,9 +263,18 @@ public final class CarrierMenu {
 
     public void editor(Player p, Carrier c, Plan plan) {
         Menu m = menu(6, "Edit · " + Items.esc(plan.name()));
+        Plan before = plan.copy(); // state before this screen's edit, to tell subscribers what changed
         var st = plugin.settings();
         boolean prepaid = plan.prepaid();
-        m.set(4, Items.of(Material.PAPER, "<b>" + plan.styled(c), plugin.phone().planLore(plan)));
+        List<String> hdr = new ArrayList<>(plugin.phone().planLore(plan));
+        int subCount = plugin.billing().subscribers(c, plan);
+        if (subCount > 0) {
+            hdr.add("");
+            hdr.add("<gray>" + subCount + " subscriber(s). Changes in their favour");
+            hdr.add("<gray>apply now; anything worse applies at");
+            hdr.add("<gray>their next renewal. They're notified.");
+        }
+        m.set(4, Items.of(Material.PAPER, "<b>" + plan.styled(c), hdr));
 
         // ---- row 1: basics
         m.set(9, Items.of(Material.PAINTING, "<white>Style: " + plan.styled(c),
@@ -281,7 +290,7 @@ public final class CarrierMenu {
             click(p);
             plugin.prompt().ask(p, "<aqua>New name for the plan:", in -> {
                 plan.name(clip(in, 24));
-                saved(p, c, plan);
+                saved(p, c, plan, before);
             });
         });
         String typeName = switch (plan.type()) {
@@ -294,17 +303,23 @@ public final class CarrierMenu {
                 "<gray>  they repay it with each charge.", "<gray>Prepaid: they top up when they want; no debt.",
                 "<yellow>Click to change"), e -> {
             click(p);
+            int subs = plugin.billing().subscribers(c, plan);
+            if (subs > 0) {
+                Msg.send(p, "<red>This plan has <white><n></white> subscriber(s), so its type can't change. Create a new plan instead.",
+                        Msg.p("n", "" + subs));
+                return;
+            }
             Plan.Type[] all = Plan.Type.values();
             plan.type(all[(plan.type().ordinal() + 1) % all.length]);
             if (plan.financed() && plan.financePhone() == null && !st.phones.isEmpty()) plan.financePhone(st.phones.keySet().iterator().next());
-            saved(p, c, plan);
+            saved(p, c, plan, before);
         });
         m.set(12, Items.of(Material.GOLD_INGOT, "<white>" + (prepaid ? "Top-up price" : "Price") + ": <gold>" + st.money(plan.price()),
                 prepaid ? "<gray>Paid each time they top up." : "<gray>Charged every period.", "<yellow>Click to change"), e -> {
             click(p);
             askLong(p, "<aqua>" + (prepaid ? "Top-up price" : "Price per period") + " in " + st.currencyName + ":", 0, 1_000_000, v -> {
                 plan.price(v);
-                saved(p, c, plan);
+                saved(p, c, plan, before);
             });
         });
         m.set(13, Items.of(Material.CLOCK, "<white>" + (prepaid ? "Valid for" : "Period") + ": <aqua>" + BillingService.period(plan.periodHours()),
@@ -314,7 +329,7 @@ public final class CarrierMenu {
             askLong(p, "<aqua>Hours (" + st.minPeriodHours + "-" + st.maxPeriodHours + ", e.g. 24 = a day, 168 = a week):",
                     st.minPeriodHours, st.maxPeriodHours, v -> {
                         plan.periodHours(v.intValue());
-                        saved(p, c, plan);
+                        saved(p, c, plan, before);
                     });
         });
         String bandName = plan.maxBand() == null ? "All bands" : st.spec(plan.maxBand()).name();
@@ -328,27 +343,27 @@ public final class CarrierMenu {
             if (idx < 0) idx = all.length;
             if (idx > all.length) idx = 0;
             plan.maxBand(idx == all.length ? null : all[idx]);
-            saved(p, c, plan);
+            saved(p, c, plan, before);
         });
         m.set(15, Items.of(Material.SUGAR, "<white>Speed cap: <aqua>" + (plan.speedCapMbps() > 0 ? Msg.speed(plan.speedCapMbps()) : "None"),
                 "<gray>Download is limited to this.", "<yellow>Click to change <gray>(0 = no cap)"), e -> {
             click(p);
             askDouble(p, "<aqua>Speed cap in Mbps (0 for no cap):", 0, 100_000, v -> {
                 plan.speedCapMbps(v);
-                saved(p, c, plan);
+                saved(p, c, plan, before);
             });
         });
         m.set(16, Items.of(plan.texts() ? Material.WRITABLE_BOOK : Material.BOOK, "<white>Texts: " + (plan.texts() ? "<green>included" : "<red>not included"),
                 "<yellow>Click to toggle"), e -> {
             click(p);
             plan.texts(!plan.texts());
-            saved(p, c, plan);
+            saved(p, c, plan, before);
         });
         m.set(17, Items.of(plan.calls() ? Material.BELL : Material.NOTE_BLOCK, "<white>Calls: " + (plan.calls() ? "<green>included" : "<red>not included"),
                 "<yellow>Click to toggle"), e -> {
             click(p);
             plan.calls(!plan.calls());
-            saved(p, c, plan);
+            saved(p, c, plan, before);
         });
 
         // ---- row 2: data
@@ -367,7 +382,7 @@ public final class CarrierMenu {
                     }
                     plan.dataMB(Math.round(gb * 1000));
                 }
-                saved(p, c, plan);
+                saved(p, c, plan, before);
             });
         });
         if (!plan.unlimited()) {
@@ -380,7 +395,7 @@ public final class CarrierMenu {
                 click(p);
                 Plan.OutOfData[] all = Plan.OutOfData.values();
                 plan.outOfData(all[(plan.outOfData().ordinal() + 1) % all.length]);
-                saved(p, c, plan);
+                saved(p, c, plan, before);
             });
             if (plan.outOfData() == Plan.OutOfData.OVERAGE) {
                 m.set(21, Items.of(Material.GOLD_NUGGET, "<white>Overage: <gold>" + st.money(plan.overagePerGb()) + " <white>per GB",
@@ -388,7 +403,7 @@ public final class CarrierMenu {
                     click(p);
                     askLong(p, "<aqua>Price per extra GB:", 0, 100_000, v -> {
                         plan.overagePerGb(v);
-                        saved(p, c, plan);
+                        saved(p, c, plan, before);
                     });
                 });
             }
@@ -397,7 +412,7 @@ public final class CarrierMenu {
                 click(p);
                 askDouble(p, "<aqua>Data pack size in GB (0 for none):", 0, 100_000, v -> {
                     plan.packMB(Math.round(v * 1000));
-                    saved(p, c, plan);
+                    saved(p, c, plan, before);
                 });
             });
             if (plan.packMB() > 0) {
@@ -405,7 +420,7 @@ public final class CarrierMenu {
                     click(p);
                     askLong(p, "<aqua>Data pack price:", 0, 1_000_000, v -> {
                         plan.packPrice(v);
-                        saved(p, c, plan);
+                        saved(p, c, plan, before);
                     });
                 });
             }
@@ -415,7 +430,7 @@ public final class CarrierMenu {
                 "<gray>Lets subscribers use partner networks", "<gray>where you have no coverage.", "<yellow>Click to toggle"), e -> {
             click(p);
             plan.roaming(!plan.roaming());
-            saved(p, c, plan);
+            saved(p, c, plan, before);
         });
         if (plan.roaming()) {
             m.set(26, Items.of(Material.GOLD_NUGGET, "<white>Roaming surcharge: <gold>" + (plan.roamingPerGb() > 0 ? st.money(plan.roamingPerGb()) + " <white>per GB" : "<green>free"),
@@ -423,7 +438,7 @@ public final class CarrierMenu {
                 click(p);
                 askLong(p, "<aqua>Roaming surcharge per GB (0 for free roaming):", 0, 100_000, v -> {
                     plan.roamingPerGb(v);
-                    saved(p, c, plan);
+                    saved(p, c, plan, before);
                 });
             });
         }
@@ -440,27 +455,27 @@ public final class CarrierMenu {
                 int idx = Math.max(0, ids.indexOf(plan.financePhone()));
                 idx = (idx + (e.isRightClick() ? ids.size() - 1 : 1)) % ids.size();
                 plan.financePhone(ids.get(idx));
-                saved(p, c, plan);
+                saved(p, c, plan, before);
             });
             m.set(29, Items.of(Material.REPEATER, "<white>Instalments: <aqua>" + plan.installments(), "<gray>Number of periods to repay over.", "<yellow>Click to change"), e -> {
                 click(p);
                 askLong(p, "<aqua>Number of instalments (1-60):", 1, 60, v -> {
                     plan.installments(v.intValue());
-                    saved(p, c, plan);
+                    saved(p, c, plan, before);
                 });
             });
             m.set(30, Items.of(Material.EXPERIENCE_BOTTLE, "<white>Interest: <aqua>" + plan.interestPercent() + "%", "<gray>Added to the phone price.", "<yellow>Click to change"), e -> {
                 click(p);
                 askDouble(p, "<aqua>Interest in percent (0-200):", 0, 200, v -> {
                     plan.interestPercent(v);
-                    saved(p, c, plan);
+                    saved(p, c, plan, before);
                 });
             });
             m.set(31, Items.of(Material.EMERALD, "<white>Down payment: <gold>" + st.money(plan.downPayment()), "<gray>Paid up front at sign-up.", "<yellow>Click to change"), e -> {
                 click(p);
                 askLong(p, "<aqua>Down payment:", 0, 1_000_000, v -> {
                     plan.downPayment(v);
-                    saved(p, c, plan);
+                    saved(p, c, plan, before);
                 });
             });
             if (ph != null) {
@@ -504,8 +519,9 @@ public final class CarrierMenu {
         });
     }
 
-    private void saved(Player p, Carrier c, Plan plan) {
+    private void saved(Player p, Carrier c, Plan plan, Plan before) {
         plugin.store().markDirty();
+        plugin.billing().planEdited(c, before, plan);
         editor(p, c, plan);
     }
 
