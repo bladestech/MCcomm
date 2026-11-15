@@ -33,6 +33,7 @@ tasks {
     }
     jar {
         archiveBaseName.set("MCcomm")
+        from("LICENSE") // ship the licence inside the jar
     }
     runServer {
         minecraftVersion("26.3")

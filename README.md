@@ -64,3 +64,9 @@ Requires Java 25 and Paper (or Purpur) 26.1+.
 The jar is written to `build/libs/`. `./gradlew runServer` starts a local Paper test server.
 
 Everything (bands, ranges, phones, prices, ore values, upkeep, decay, data costs) is configurable in `config.yml`.
+
+## License
+
+Copyright 2026 bladestech
+
+Licensed under the [Apache License, Version 2.0](LICENSE). You may use, modify and distribute this project under its terms.
