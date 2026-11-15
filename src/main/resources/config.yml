@@ -1,0 +1,312 @@
+# ============================================================
+#  CellTowers configuration
+#  Distances are in blocks, speeds in Mbps, ping in ms.
+# ============================================================
+
+prefix: "<dark_gray>[<aqua>Cell</aqua>]</dark_gray> "
+
+# Emergency number. Works without a subscription when any tower reaches you.
+# It does nothing yet beyond a message.
+emergency-number: "909"
+
+# Bands are ordered from lowest to highest. When you leave a band's range
+# you fall back to the next lower band the tower has enabled.
+#   range            max distance at which the band can be received
+#   max-mbps         peak download with a Netherite backhaul and perfect signal
+#   upload-ratio     upload = download * ratio
+#   ping-ms          base latency
+#   obstruction-db   signal lost per solid block in the walls right around you
+#                    (only the first few blocks from you are checked; hills and
+#                    terrain between you and the tower are ignored)
+#   max-obstruction-db  cap on that loss, so being indoors never kills a band
+#                    by itself (mmWave keeps a high cap: it still wants line of sight)
+#   sms-delay-ticks  how long a /text takes to deliver on this band
+#   min-generation   tower generation needed to enable this band
+#   icon             GUI item
+bands:
+  2g:
+    name: "2G"
+    range: 3000
+    max-mbps: 0.2
+    upload-ratio: 0.5
+    ping-ms: 320
+    obstruction-db: 0.5
+    max-obstruction-db: 6
+    sms-delay-ticks: 80
+    min-generation: 1
+    icon: COAL
+  3g:
+    name: "3G"
+    range: 2400
+    max-mbps: 8
+    upload-ratio: 0.4
+    ping-ms: 120
+    obstruction-db: 0.75
+    max-obstruction-db: 8
+    sms-delay-ticks: 40
+    min-generation: 1
+    icon: COPPER_INGOT
+  4g:
+    name: "4G"
+    range: 1200
+    max-mbps: 100
+    upload-ratio: 0.3
+    ping-ms: 45
+    obstruction-db: 1.0
+    max-obstruction-db: 10
+    sms-delay-ticks: 20
+    min-generation: 2
+    icon: IRON_INGOT
+  4g+:
+    name: "4G+"
+    range: 950
+    max-mbps: 300
+    upload-ratio: 0.3
+    ping-ms: 32
+    obstruction-db: 1.25
+    max-obstruction-db: 10
+    sms-delay-ticks: 15
+    min-generation: 3
+    icon: GOLD_INGOT
+  5g-low:
+    name: "5G Low"
+    range: 1000
+    max-mbps: 250
+    upload-ratio: 0.35
+    ping-ms: 25
+    obstruction-db: 1.25
+    max-obstruction-db: 10
+    sms-delay-ticks: 10
+    min-generation: 3
+    icon: REDSTONE
+  5g-mid:
+    name: "5G Mid"
+    range: 550
+    max-mbps: 1000
+    upload-ratio: 0.3
+    ping-ms: 18
+    obstruction-db: 2.0
+    max-obstruction-db: 14
+    sms-delay-ticks: 8
+    min-generation: 4
+    icon: LAPIS_LAZULI
+  5g-high:
+    name: "5G High"
+    range: 275
+    max-mbps: 2000
+    upload-ratio: 0.25
+    ping-ms: 12
+    obstruction-db: 3.0
+    max-obstruction-db: 18
+    sms-delay-ticks: 6
+    min-generation: 4
+    icon: DIAMOND
+  5g-mmwave:
+    name: "5G mmWave"
+    range: 90
+    max-mbps: 4000
+    upload-ratio: 0.2
+    ping-ms: 6
+    obstruction-db: 10.0
+    max-obstruction-db: 45   # mmWave still mostly needs line of sight
+    sms-delay-ticks: 4
+    min-generation: 5
+    icon: NETHERITE_INGOT
+
+# Tower generations. A tower starts at generation 1.
+# upgrade-cost is taken from the owner's inventory when upgrading TO that generation.
+generations:
+  1:
+    model: "CT-100 Classic"
+  2:
+    model: "CT-200 Edge"
+    upgrade-cost: { material: IRON_BLOCK, amount: 4 }
+  3:
+    model: "CT-300 LTE-A"
+    upgrade-cost: { material: GOLD_BLOCK, amount: 4 }
+  4:
+    model: "CT-400 NR"
+    upgrade-cost: { material: DIAMOND_BLOCK, amount: 3 }
+  5:
+    model: "CT-500 NR-X"
+    upgrade-cost: { material: NETHERITE_INGOT, amount: 2 }
+
+# Backhaul block placed in the tower GUI. Once installed it is locked: it can
+# only be discarded (destroyed), never taken back. Without one the tower is offline.
+backhaul:
+  NETHERITE_BLOCK: { name: "Netherite", multiplier: 1.00 }
+  DIAMOND_BLOCK:   { name: "Diamond",   multiplier: 0.70 }
+  GOLD_BLOCK:      { name: "Gold",      multiplier: 0.45 }
+  IRON_BLOCK:      { name: "Iron",      multiplier: 0.25 }
+  COPPER_BLOCK:    { name: "Copper",    multiplier: 0.10 }
+
+signal:
+  update-interval-ticks: 20
+  best-dbm: -50          # signal right next to a tower
+  cutoff-dbm: -115       # below this the band is lost
+  falloff-exponent: 1.0  # >1 keeps signal strong longer, then drops fast
+  # dBm thresholds for 4, 3 and 2 bars. Anything above cutoff is at least 1 bar.
+  bars: [-75, -88, -101]
+  # Only the walls right around the player count (being inside a building).
+  # Terrain between you and the tower is ignored, Minecraft hills are not realistic.
+  obstruction-scan-distance: 6
+  max-obstruction-blocks: 6
+  rain-db: 2
+  thunder-db: 4
+  # Caves: no loss for the first few blocks below the surface (houses, basements),
+  # then a gentle loss per block, capped.
+  underground-grace-blocks: 8
+  underground-db-per-block: 0.4
+  underground-max-db: 18
+  # Antenna height above the sign, used for distance and line of sight.
+  antenna-height: 1.5
+
+congestion:
+  # This many users can share one band on one tower at full speed. Beyond that
+  # the speed is divided between them.
+  users-before-slowdown: 4
+
+speedtest:
+  cooldown-seconds: 10
+  jitter-percent: 10
+  # Speed multiplier at the weakest usable signal (1.0 at best signal).
+  min-signal-factor: 0.15
+
+carriers:
+  max-per-player: 1          # admins are exempt; -1 = unlimited
+  max-towers-per-carrier: -1 # -1 = unlimited
+  name-pattern: "^[A-Za-z0-9_&.\\-]{2,20}$"
+
+towers:
+  # Paid from the carrier's wallet when a tower is built (admins build free).
+  creation-cost: 25
+  # Towers get a name at creation, like LF1 (Layford 1) or GH2 (Greene Hill 2).
+  # Names are unique across the server, case-insensitive.
+  name-pattern: "^[A-Za-z0-9_\\-]{1,12}$"
+  # Taller towers reach further. Height is measured from the antenna (just above
+  # the sign) down to the typical ground level around the tower, sampled in two
+  # rings of points so the mast itself and single buildings don't count.
+  height-bonus:
+    enabled: true
+    free-blocks: 4           # no bonus for the first few blocks (a sign on a wall)
+    percent-per-block: 1.0   # +1% range per block above that
+    max-percent: 50          # capped at +50% (reached at 54 blocks)
+    sample-radius: 12        # ground is sampled at this radius and twice it
+
+subscriptions:
+  max-active: 2     # the most SIM slots any phone can have
+  max-inactive: 4
+
+# ------------------------------------------------------------------ economy
+# Players and carriers deposit ores into a wallet; each ore is worth credits.
+# Everything (phones, plans, upkeep) is priced in credits.
+currency:
+  name: "credits"
+  symbol: "cr"
+  ores:
+    COPPER_INGOT: 1
+    IRON_INGOT: 3
+    GOLD_INGOT: 10
+    REDSTONE: 1
+    LAPIS_LAZULI: 2
+    EMERALD: 30
+    DIAMOND: 40
+    NETHERITE_INGOT: 200
+    COPPER_BLOCK: 9
+    IRON_BLOCK: 27
+    GOLD_BLOCK: 90
+    REDSTONE_BLOCK: 9
+    LAPIS_BLOCK: 18
+    EMERALD_BLOCK: 270
+    DIAMOND_BLOCK: 360
+    NETHERITE_BLOCK: 1800
+
+# Phones are bought in /cell eshop and stay on your account. You use one at a
+# time; it limits the highest band you can connect on, and how many SIMs are active.
+# Switching to a phone with fewer SIM slots moves the extra SIMs to inactive.
+phones:
+  connect:        { name: "Connect",    max-band: 3g,        sims: 1, price: 64,   icon: STONE_BUTTON }
+  connect-plus:   { name: "Connect+",   max-band: 3g,        sims: 2, price: 120,  icon: POLISHED_BLACKSTONE_BUTTON }
+  explorer:       { name: "Explorer",   max-band: 4g+,       sims: 1, price: 300,  icon: COMPASS }
+  explorer-plus:  { name: "Explorer+",  max-band: 4g+,       sims: 2, price: 420,  icon: RECOVERY_COMPASS }
+  pilot:          { name: "Pilot",      max-band: 5g-mmwave, sims: 1, price: 800,  icon: SPYGLASS }
+  pilot-plus:     { name: "Pilot+",     max-band: 5g-mmwave, sims: 2, price: 1100, icon: ECHO_SHARD }
+# Phone given free to players who have never owned one ("" = none).
+starter-phone: ""
+
+billing:
+  # Plans are charged per their own period (set by the carrier, in real hours).
+  # The first period is charged when you subscribe.
+  warn-hours-before: 6        # warn this long before a charge if your balance is short
+  overdue-multiplier: 4       # a missed payment becomes this many times its price
+  check-interval-seconds: 60
+  # New carriers get this plan to start with; the owner can edit or replace it.
+  default-plan: { name: "Standard", price: 12, period-hours: 24 }
+  min-period-hours: 1
+  max-period-hours: 720
+
+# Mobile data. Each plan has a data allowance (or unlimited) and decides what
+# happens when it runs out: throttle to this speed, block data, or charge per GB.
+data:
+  throttle-mbps: 0.5
+
+# /internet: a second chat, separate from public chat, for players with data.
+internet:
+  mb-per-char-send: 1.0     # the sender pays this per character
+  mb-per-char-receive: 0.1  # every receiver pays this per character
+  max-length: 200
+
+# Carriers pay upkeep for every tower from their wallet, every period.
+upkeep:
+  period-hours: 24
+  base-per-tower: 4
+  per-generation: 4           # extra per generation above 1
+  backhaul:                   # extra by backhaul block
+    NETHERITE_BLOCK: 12
+    DIAMOND_BLOCK: 8
+    GOLD_BLOCK: 5
+    IRON_BLOCK: 3
+    COPPER_BLOCK: 1
+  # When upkeep can't be paid the carrier's towers decay one stage every
+  # step-hours. Topping up the wallet pays the upkeep and repairs them at once.
+  decay:
+    step-hours: 6
+    # Speed at stage 1, 2, 3...; each stage from 2 on also shuts off the tower's
+    # highest band. After the last listed stage the towers go silent.
+    speed: [0.6, 0.4, 0.25]
+
+messaging:
+  sms-expire-minutes: 10
+  call-ring-seconds: 30
+  # Calls get choppy at or below this many bars.
+  garble-at-or-below-bars: 1
+  garble-chance: 0.15
+
+phone:
+  # /cell opens the phone. Numbers look like 312-4821: the first 3 digits are
+  # the carrier's prefix, assigned automatically when the carrier is created.
+  inbox-max: 45        # texts kept per player (max 45, one page)
+  contacts-max: 45     # contacts per player (max 45, one page)
+  prompt-timeout-seconds: 60  # how long the phone waits for you to type a number/message in chat
+
+hud:
+  # Players toggle it with /cell hud.
+  default-enabled: true
+  # sidebar = scoreboard panel on the right, actionbar = one line above the hotbar
+  style: sidebar
+
+# The screen covers the sign's front face exactly: a thin block panel the size
+# of the sign board, with text auto-scaled to fit inside it.
+display:
+  panel-material: BLACK_CONCRETE
+  # Fraction of the board the text may fill (leaves a small margin).
+  text-fill: 0.88
+  # Full-bright so the screen is readable at night.
+  full-bright: true
+  # If text shows mirrored/backwards on your client, set this to 180.
+  yaw-offset: 0
+  # Towers use wall signs only. Board size and position in blocks (vanilla
+  # geometry), relative to the sign block's centre. face-offset is how far the
+  # front face sits from the block centre along the sign's facing (negative =
+  # towards the wall). Only change these if a resource pack changes sign models.
+  wall-sign: { width: 1.0, height: 0.5, center-y: 0.5208, face-offset: -0.3958 }
