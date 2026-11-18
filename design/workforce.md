@@ -1,6 +1,6 @@
 # Design spec: Workforce, facilities and network wear
 
-Status: **phase 1 implemented** (stations, wear, technicians, dispatch, contractors). Later phases are still drafts. Every number is a starting
+Status: **phases 1 and 3 implemented** (stations, wear, technicians, contractors; customer market, support, engineers, call centres, NOCs, transit). Phase 2 and later are still drafts; the market details live in docs/carriers/market.md. Every number is a starting
 value that goes in `config.yml`; this spec is where they get tuned before code.
 
 ## 1. Why

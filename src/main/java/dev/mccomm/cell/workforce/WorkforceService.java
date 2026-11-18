@@ -117,6 +117,9 @@ public final class WorkforceService {
     public void addTraffic(Tower t, double mb) {
         if (!enabled() || t == null || mb <= 0) return;
         t.wear(t.wear() + mb / 1000.0 * w().wearPerGb());
+        // The network carrying the data pays transit for it, settled on payday.
+        StaffState st = state(t.carrierId());
+        st.transitDue(st.transitDue() + mb / 1000.0 * w().transitPerGb());
     }
 
     // =============================================================== queries
@@ -186,13 +189,96 @@ public final class WorkforceService {
         long sum = 0;
         for (Employee e : staffOf(companyId)) sum += e.wage();
         for (Facility f : facilitiesOf(companyId)) sum += rent(f);
+        Carrier c = plugin.store().carrier(companyId);
+        if (c != null) sum += simTransitPerDay(c);
         return sum;
     }
 
     public int freeBeds(String companyId) {
-        int beds = 0;
-        for (Facility f : facilitiesOf(companyId)) beds += f.capacity();
-        return beds - staffOf(companyId).size();
+        return freeSlots(companyId, Facility.Type.STATION);
+    }
+
+    /** Free places for staff in this company's facilities of one type. */
+    public int freeSlots(String companyId, Facility.Type type) {
+        int slots = 0;
+        for (Facility f : facilitiesOf(companyId)) if (f.type() == type) slots += f.capacity();
+        for (Employee e : staffOf(companyId)) if (e.role().facility() == type) slots--;
+        return slots;
+    }
+
+    public List<Employee> staffOf(String companyId, Employee.Role role) {
+        List<Employee> out = new ArrayList<>();
+        for (Employee e : employees.values()) if (e.companyId().equals(companyId) && e.role() == role) out.add(e);
+        return out;
+    }
+
+    // ============================================================ staffing load
+
+    private Map<String, Integer> realSubs = new HashMap<>();
+
+    /** Paying real subscribers per carrier, refreshed every tick. */
+    private void countSubscribers() {
+        Map<String, Integer> m = new HashMap<>();
+        for (var pr : plugin.store().profiles()) {
+            for (var e : pr.subs().entrySet()) if (e.getValue().planId() != null) m.merge(e.getKey(), 1, Integer::sum);
+        }
+        realSubs = m;
+    }
+
+    /** Subscribers a carrier serves: real ones plus simulated customers. */
+    public int subscribers(Carrier c) {
+        return realSubs.getOrDefault(c.id(), 0) + c.simulatedUsers();
+    }
+
+    /** Subscribers on a network operator's towers: its own plus those of the MVNOs it hosts. */
+    public int networkSubscribers(Carrier c) {
+        int n = subscribers(c);
+        for (var a : c.agreements().values()) {
+            if (a.kind() != dev.mccomm.cell.model.Agreement.Kind.MVNO) continue;
+            Carrier m = plugin.store().carrier(a.partnerId());
+            if (m != null) n += subscribers(m);
+        }
+        return n;
+    }
+
+    /** Subscribers a role's working staff can cover. */
+    public double coverage(Carrier c, Employee.Role role) {
+        double sum = 0;
+        for (Employee e : staffOf(c.id(), role)) if (e.working()) sum += w().levelProductivity()[e.level()] * w().covers(role);
+        return sum;
+    }
+
+    /** Work needed of a role divided by what its staff cover: 0 = nothing to do, above 1 = understaffed. */
+    public double load(Carrier c, Employee.Role role) {
+        int subs = role == Employee.Role.ENGINEER ? networkSubscribers(c) : subscribers(c);
+        double need = Math.max(0, subs - w().selfService());
+        if (need <= 0) return 0;
+        double cov = coverage(c, role);
+        return cov <= 0 ? Double.POSITIVE_INFINITY : need / cov;
+    }
+
+    /** Staff of a role needed to cover today's subscribers at regular level. */
+    public int needed(Carrier c, Employee.Role role) {
+        int subs = role == Employee.Role.ENGINEER ? networkSubscribers(c) : subscribers(c);
+        double need = Math.max(0, subs - w().selfService());
+        return (int) Math.ceil(need / Math.max(1, w().covers(role)));
+    }
+
+    /** Speed multiplier on a carrier's towers from engineering staff (1 when staffed). */
+    public double engineerSpeed(Carrier c) {
+        if (!enabled() || c == null) return 1;
+        double load = load(c, Employee.Role.ENGINEER);
+        return load <= 1 ? 1 : Math.max(w().engineerMinSpeed(), 1 / load);
+    }
+
+    public double engineerSpeed(Tower t) {
+        return engineerSpeed(plugin.store().carrier(t.carrierId()));
+    }
+
+    /** Daily transit cost for simulated customers' data (only while they pay, i.e. revenue is on). */
+    public long simTransitPerDay(Carrier c) {
+        if (!enabled() || !plugin.store().simulatedRevenue()) return 0;
+        return (long) Math.ceil(c.simulatedUsers() * w().simGbPerDay() * w().transitPerGb());
     }
 
     public int freeBeds(Facility f) {
@@ -208,6 +294,7 @@ public final class WorkforceService {
     /** Runs with the billing tick (every minute, and every step of a timewarp). */
     public void tick(long now) {
         if (!enabled()) return;
+        countSubscribers();
         accrueWear(now);
         recheckFacilities(now);
         placeIdle();
@@ -369,7 +456,8 @@ public final class WorkforceService {
         Set<String> companies = new HashSet<>();
         for (Employee e : employees.values()) companies.add(e.companyId());
         for (Facility f : facilities.values()) companies.add(f.companyId());
-        for (var e : states.entrySet()) if (e.getValue().wagesOwed() > 0) companies.add(e.getKey());
+        for (var e : states.entrySet()) if (e.getValue().wagesOwed() > 0 || e.getValue().transitDue() >= 1) companies.add(e.getKey());
+        for (Carrier c : plugin.store().carriers()) if (simTransitPerDay(c) > 0) companies.add(c.id());
         for (String id : companies) {
             Carrier c = plugin.store().carrier(id);
             if (c == null) continue;
@@ -379,14 +467,16 @@ public final class WorkforceService {
                 continue;
             }
             for (int guard = 0; guard < 60 && now >= st.nextPayday(); guard++) {
-                long bill = dailyCost(id);
+                long transit = (long) Math.floor(st.transitDue());
+                st.transitDue(st.transitDue() - transit);
+                long bill = dailyCost(id) + transit;
                 st.nextPayday(st.nextPayday() + DAY);
                 if (bill <= 0 && st.wagesOwed() == 0) continue;
                 long total = st.wagesOwed() + bill;
                 // Upkeep comes first: wages are only paid if the next upkeep stays covered.
                 if (c.unpaidSince() == 0 && c.balance() - total >= upkeepReserve(c)) {
                     c.balance(c.balance() - total);
-                    c.log(-total, "Wages & rent (" + staffOf(id).size() + " staff, " + facilitiesOf(id).size() + " sites)");
+                    c.log(-total, "Wages, rent & transit (" + staffOf(id).size() + " staff)");
                     st.wagesOwed(0);
                     st.owedSince(0);
                     for (Employee e : staffOf(id)) e.unpaidDays(0);
@@ -426,14 +516,14 @@ public final class WorkforceService {
 
     // =========================================================== candidates
 
-    public record Candidate(int index, String name, int level, long wage) {
+    public record Candidate(int index, Employee.Role role, String name, int level, long wage) {
     }
 
-    /** Today's job seekers for this company (3, stable for the day). */
-    public List<Candidate> candidates(String companyId, long now) {
+    /** Today's job seekers for one role at this company (3, stable for the day). */
+    public List<Candidate> candidates(String companyId, Employee.Role role, long now) {
         long day = now / DAY;
-        Random r = new Random(companyId.hashCode() * 1_000_003L + day);
-        Set<Integer> taken = hiredCandidates.getOrDefault(companyId + "|" + day, Set.of());
+        Random r = new Random(companyId.hashCode() * 1_000_003L + day * 31 + role.ordinal());
+        Set<Integer> taken = hiredCandidates.getOrDefault(companyId + "|" + role.key + "|" + day, Set.of());
         List<Candidate> out = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
             String name = NAMES_FIRST[r.nextInt(NAMES_FIRST.length)] + " " + NAMES_LAST[r.nextInt(NAMES_LAST.length)];
@@ -441,8 +531,8 @@ public final class WorkforceService {
             double[] odds = w().levelOdds();
             int level = roll < odds[0] ? 0 : roll < odds[0] + odds[1] ? 1 : 2;
             double ask = 0.9 + r.nextDouble() * 0.25;
-            long wage = Math.round(w().wage(level) * ask);
-            if (!taken.contains(i)) out.add(new Candidate(i, name, level, wage));
+            long wage = Math.round(w().wage(role, level) * ask);
+            if (!taken.contains(i)) out.add(new Candidate(i, role, name, level, wage));
         }
         return out;
     }
@@ -455,23 +545,24 @@ public final class WorkforceService {
         return e.wage() * w().severanceDays();
     }
 
-    /** Hires a candidate into the station with the most free beds. Null if it worked, else why not. */
+    /** Hires a candidate into the facility of their role with the most room. Null if it worked, else why not. */
     public String hire(Carrier c, Candidate cand, long now) {
         if (staffOf(c.id()).size() >= w().maxStaff()) return "You're at the staff limit (" + w().maxStaff() + ").";
+        Facility.Type type = cand.role().facility();
         Facility best = null;
         for (Facility f : facilitiesOf(c.id())) {
-            if (f.type() != Facility.Type.STATION || freeBeds(f) <= 0) continue;
+            if (f.type() != type || freeBeds(f) <= 0) continue;
             if (best == null || freeBeds(f) > freeBeds(best)) best = f;
         }
-        if (best == null) return "No free beds. Build a maintenance station or add beds to one.";
+        if (best == null) return "No room: build a " + type.display.toLowerCase() + " (one " + type.needs + ") or enlarge one.";
         long fee = recruitFee(cand.wage());
         if (c.balance() < fee) return "The recruitment fee is " + plugin.settings().money(fee) + ".";
         c.balance(c.balance() - fee);
         c.log(-fee, "Recruitment: " + cand.name());
-        Employee e = new Employee(nextEmployeeId++, c.id(), Employee.Role.TECHNICIAN, cand.name(), cand.level(), cand.wage(), now);
+        Employee e = new Employee(nextEmployeeId++, c.id(), cand.role(), cand.name(), cand.level(), cand.wage(), now);
         e.facilityId(best.id());
         employees.put(e.id(), e);
-        hiredCandidates.computeIfAbsent(c.id() + "|" + (now / DAY), k -> new HashSet<>()).add(cand.index());
+        hiredCandidates.computeIfAbsent(c.id() + "|" + cand.role().key + "|" + (now / DAY), k -> new HashSet<>()).add(cand.index());
         if (state(c.id()).nextPayday() == 0) state(c.id()).nextPayday(now + DAY);
         plugin.store().markDirty();
         return null;
@@ -494,7 +585,7 @@ public final class WorkforceService {
             if (e.facilityId() != 0 && facilities.containsKey(e.facilityId())) continue;
             e.facilityId(0);
             for (Facility f : facilitiesOf(e.companyId())) {
-                if (f.type() == Facility.Type.STATION && freeBeds(f) > 0) {
+                if (f.type() == e.role().facility() && freeBeds(f) > 0) {
                     e.facilityId(f.id());
                     break;
                 }
@@ -505,8 +596,21 @@ public final class WorkforceService {
     // ============================================================ facilities
 
     /** Result of scanning the room around a facility sign. */
-    public record Scan(String error, int beds, int barrels) {
+    public record Scan(String error, int beds, int barrels, int seats, int lecterns, int observers) {
         public boolean ok() { return error == null; }
+
+        Scan(String error) {
+            this(error, 0, 0, 0, 0, 0);
+        }
+
+        /** Staff places this room gives a facility of this type. */
+        public int capacity(Facility.Type type) {
+            return switch (type) {
+                case STATION -> beds;
+                case CALL_CENTRE -> Math.min(seats, lecterns);
+                case NOC -> Math.min(seats, observers);
+            };
+        }
     }
 
     /**
@@ -521,19 +625,19 @@ public final class WorkforceService {
         ArrayDeque<Block> queue = new ArrayDeque<>();
         queue.add(sign);
         air.add(BlockKey.of(sign));
-        Set<BlockKey> beds = new HashSet<>(), barrels = new HashSet<>();
+        Set<BlockKey> beds = new HashSet<>(), barrels = new HashSet<>(), seats = new HashSet<>(), lecterns = new HashSet<>(), observers = new HashSet<>();
         BlockFace[] dirs = {BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST};
         while (!queue.isEmpty()) {
             Block b = queue.poll();
             if (b != sign && world.getHighestBlockYAt(b.getX(), b.getZ(), HeightMap.MOTION_BLOCKING) <= b.getY()) {
-                return new Scan("The room isn't closed or has no roof: the sky is visible from inside.", 0, 0);
+                return new Scan("The room isn't closed or has no roof: the sky is visible from inside.");
             }
             for (BlockFace d : dirs) {
                 Block n = b.getRelative(d);
                 if (n.getY() < world.getMinHeight() || n.getY() >= world.getMaxHeight()) {
-                    return new Scan("The room isn't closed.", 0, 0);
+                    return new Scan("The room isn't closed.");
                 }
-                if (!world.isChunkLoaded(n.getX() >> 4, n.getZ() >> 4)) return new Scan("Part of the room isn't loaded. Stand inside it.", 0, 0);
+                if (!world.isChunkLoaded(n.getX() >> 4, n.getZ() >> 4)) return new Scan("Part of the room isn't loaded. Stand inside it.");
                 BlockKey k = BlockKey.of(n);
                 if (air.contains(k)) continue;
                 if (n.getBlockData() instanceof Bed bed) {
@@ -544,16 +648,28 @@ public final class WorkforceService {
                     barrels.add(k);
                     continue;
                 }
+                if (n.getType() == Material.LECTERN) {
+                    lecterns.add(k);
+                    continue;
+                }
+                if (n.getType() == Material.OBSERVER) {
+                    observers.add(k);
+                    continue;
+                }
+                if (n.getBlockData() instanceof org.bukkit.block.data.type.Stairs) {
+                    if (d != BlockFace.UP) seats.add(k); // stairs in the ceiling are not seats
+                    continue;
+                }
                 if (!(n.getType().isAir() || n.isPassable())) continue;
                 Facility other = facilityByBlock.get(k);
-                if (other != null && other != self) return new Scan("This room already has a facility (" + other.name() + ").", 0, 0);
-                if (plugin.store().towerAt(k) != null) return new Scan("A cell tower sign can't be inside a facility.", 0, 0);
+                if (other != null && other != self) return new Scan("This room already has a facility (" + other.name() + ").");
+                if (plugin.store().towerAt(k) != null) return new Scan("A cell tower sign can't be inside a facility.");
                 air.add(k);
-                if (air.size() > limit) return new Scan("The room isn't closed, or is bigger than " + limit + " blocks. Close the doors and walls.", 0, 0);
+                if (air.size() > limit) return new Scan("The room isn't closed, or is bigger than " + limit + " blocks. Close the doors and walls.");
                 queue.add(n);
             }
         }
-        return new Scan(null, beds.size(), barrels.size());
+        return new Scan(null, beds.size(), barrels.size(), seats.size(), lecterns.size(), observers.size());
     }
 
     /** Registers a station. Null if it worked, else why not. */
@@ -564,10 +680,10 @@ public final class WorkforceService {
         if (facilityByName(c.id(), name) != null) return c.name() + " already has a facility called " + name + ".";
         Scan scan = scan(sign, null);
         if (!scan.ok()) return scan.error();
-        if (scan.beds() < 1) return "A maintenance station needs at least one bed (one per technician).";
+        if (scan.capacity(type) < 1) return "A " + type.display.toLowerCase() + " needs at least one " + type.needs + ".";
         Facility f = new Facility(nextFacilityId++, c.id(), type, name, sign.getWorld().getUID(),
                 sign.getX(), sign.getY(), sign.getZ(), System.currentTimeMillis());
-        f.capacity(scan.beds());
+        f.capacity(scan.capacity(type));
         f.barrels(scan.barrels());
         f.checkedAt(System.currentTimeMillis());
         facilities.put(f.id(), f);
@@ -592,7 +708,7 @@ public final class WorkforceService {
             f.capacity(0);
             f.barrels(0);
         } else {
-            f.capacity(scan.beds());
+            f.capacity(scan.capacity(f.type()));
             f.barrels(scan.barrels());
         }
         // Over capacity: the newest staff go idle.
@@ -640,10 +756,10 @@ public final class WorkforceService {
         if (b == null || !(b.getState() instanceof org.bukkit.block.Sign sign)) return;
         Carrier c = plugin.store().carrier(f.companyId());
         SignSide side = sign.getSide(Side.FRONT);
-        side.line(0, Msg.mm("<dark_aqua>[Station]"));
+        side.line(0, Msg.mm("<dark_aqua>" + f.type().sign));
         side.line(1, c == null ? Component.text("?") : Msg.mm(c.styled()));
         side.line(2, Component.text(f.name()));
-        side.line(3, Msg.mm("<dark_gray>Techs " + staffAt(f).size() + "/" + f.capacity()));
+        side.line(3, Msg.mm("<dark_gray>Staff " + staffAt(f).size() + "/" + f.capacity()));
         sign.setWaxed(true);
         sign.update(false, false);
     }
@@ -815,7 +931,7 @@ public final class WorkforceService {
         if (es != null) for (String key : es.getKeys(false)) {
             ConfigurationSection s = es.getConfigurationSection(key);
             try {
-                Employee e = new Employee(Integer.parseInt(key), s.getString("company"), Employee.Role.TECHNICIAN,
+                Employee e = new Employee(Integer.parseInt(key), s.getString("company"), Employee.Role.of(s.getString("role", "technician")),
                         s.getString("name"), s.getInt("level"), s.getLong("wage"), s.getLong("hired-at"));
                 e.facilityId(s.getInt("facility"));
                 e.unpaidDays(s.getInt("unpaid-days"));
@@ -847,6 +963,7 @@ public final class WorkforceService {
             st.nextPayday(s.getLong("next-payday"));
             st.wagesOwed(s.getLong("owed"));
             st.owedSince(s.getLong("owed-since"));
+            st.transitDue(s.getDouble("transit-due"));
             st.bankruptcyClock(s.getLong("bankruptcy-clock"));
             st.contractors(s.getBoolean("contractors", true));
         }
@@ -881,7 +998,7 @@ public final class WorkforceService {
         for (Employee e : employees.values()) {
             String p = "employees." + e.id() + ".";
             y.set(p + "company", e.companyId());
-            y.set(p + "role", e.role().name().toLowerCase());
+            y.set(p + "role", e.role().key);
             y.set(p + "name", e.name());
             y.set(p + "level", e.level());
             y.set(p + "wage", e.wage());
@@ -908,6 +1025,7 @@ public final class WorkforceService {
             y.set(p + "next-payday", e.getValue().nextPayday());
             y.set(p + "owed", e.getValue().wagesOwed());
             y.set(p + "owed-since", e.getValue().owedSince());
+            y.set(p + "transit-due", Math.round(e.getValue().transitDue() * 1000) / 1000.0);
             y.set(p + "bankruptcy-clock", e.getValue().bankruptcyClock());
             y.set(p + "contractors", e.getValue().contractors());
         }

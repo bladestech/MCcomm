@@ -35,6 +35,8 @@ public final class DataStore {
     private final Map<String, NumberOwner> numberIndex = new ConcurrentHashMap<>();
     private int nextTowerId = 1;
     private boolean simulatedRevenue; // simulated users pay their plans (server-wide, toggled in the simulation menu)
+    private int marketSize;           // simulated customer pool (market mode)
+    private long marketAt;            // last market step (epoch ms)
     private boolean dirty;
 
     public DataStore(JavaPlugin plugin) {
@@ -155,6 +157,10 @@ public final class DataStore {
     public Collection<PlayerProfile> profiles() { return profiles.values(); }
 
     public boolean simulatedRevenue() { return simulatedRevenue; }
+    public int marketSize() { return marketSize; }
+    public void marketSize(int n) { marketSize = Math.max(0, n); markDirty(); }
+    public long marketAt() { return marketAt; }
+    public void marketAt(long t) { marketAt = t; markDirty(); }
 
     public void simulatedRevenue(boolean v) {
         simulatedRevenue = v;
@@ -241,6 +247,8 @@ public final class DataStore {
 
         YamlConfiguration sy = YamlConfiguration.loadConfiguration(new File(dir, "server.yml"));
         simulatedRevenue = sy.getBoolean("simulated-revenue", false);
+        marketSize = sy.getInt("market.size", 0);
+        marketAt = sy.getLong("market.at", 0);
 
         YamlConfiguration my = YamlConfiguration.loadConfiguration(new File(dir, "manufacturers.yml"));
         ConfigurationSection ms = my.getConfigurationSection("manufacturers");
@@ -658,6 +666,8 @@ public final class DataStore {
 
         YamlConfiguration sy = new YamlConfiguration();
         sy.set("simulated-revenue", simulatedRevenue);
+        sy.set("market.size", marketSize);
+        sy.set("market.at", marketAt);
 
         try {
             sy.save(new File(dir, "server.yml"));

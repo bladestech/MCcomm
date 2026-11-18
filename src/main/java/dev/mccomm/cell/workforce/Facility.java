@@ -13,13 +13,17 @@ import java.util.UUID;
  */
 public final class Facility {
     public enum Type {
-        STATION("Maintenance station", "station");
+        STATION("Maintenance station", "station", "[Station]", "bed per technician"),
+        CALL_CENTRE("Call centre", "callcentre", "[Call Centre]", "seat (stairs) and lectern per agent"),
+        NOC("Network operations centre", "noc", "[NOC]", "seat (stairs) and observer per engineer");
 
-        public final String display, key;
+        public final String display, key, sign, needs;
 
-        Type(String display, String key) {
+        Type(String display, String key, String sign, String needs) {
             this.display = display;
             this.key = key;
+            this.sign = sign;
+            this.needs = needs;
         }
 
         public static Type of(String key) {

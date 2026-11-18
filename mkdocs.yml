@@ -65,6 +65,7 @@ nav:
       - Plans: carriers/plans.md
       - Upkeep and decay: carriers/upkeep.md
       - Operations and repairs: carriers/operations.md
+      - The customer market: carriers/market.md
       - Roaming and MVNOs: carriers/partners.md
   - Running a manufacturer: manufacturers.md
   - Companies and economy: economy.md

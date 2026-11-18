@@ -309,6 +309,35 @@ companies:
 # users; for tower load and congestion this many count as one real player.
 simulation:
   users-per-real-user: 500
+  # market = a fixed pool of simulated customers that carriers compete for (see the
+  # market section); fixed = admins set each carrier's simulated users by hand.
+  mode: market
+
+# The simulated customer market (simulation.mode: market). Every hour each carrier
+# gets a satisfaction score; customers leave unhappy or overpriced carriers, and
+# customers without a carrier sign up with the most attractive ones.
+market:
+  # The fair price per day customers expect. They compare a carrier's average plan
+  # price (per day) against this, blended with rivals' prices.
+  reference-price-per-day: 12
+  rivals-weight: 0.5          # 0 = only the fair price above, 1 = only rivals' prices
+  # At this many times the going rate, customers leave en masse and nobody joins.
+  refuse-price-ratio: 3
+  churn:
+    base: 0.01                # share leaving per day even when happy
+    unhappy: 0.12             # extra per day at 0% satisfaction (scales with unhappiness squared)
+    price: 0.03               # extra per day per (price ratio - 1) squared
+    refused: 0.25             # per day when priced out
+  shop-per-day: 0.3           # share of carrier-less customers shopping each day
+  # What satisfaction is made of (relative weights).
+  weights:
+    quality: 0.35             # towers working at full speed (wear, upkeep, engineers)
+    coverage: 0.20            # covered area compared with the best-covered carrier
+    support: 0.20             # customer support staffing
+    price: 0.25
+  coverage-cell-size: 100     # coverage is measured on a grid of this many blocks
+  # How much each band counts for coverage.
+  band-weight: { 2g: 0.3, 3g: 0.5, 4g: 0.75, 4g+: 0.85, 5g-low: 0.9, 5g-mid: 1, 5g-high: 1, 5g-mmwave: 1 }
 
 # squaremap integration (used only if squaremap is installed).
 squaremap:
@@ -409,6 +438,23 @@ workforce:
     delay-hours: 6
     cost-multiplier: 3        # x (parts + a technician's labour)
     minimum: 60
+  # Office staff. They cover subscribers (real plus simulated); the first few need no staff.
+  self-service-subscribers: 25
+  junior-productivity: 0.75   # how many subscribers juniors/seniors cover compared with regulars
+  senior-productivity: 1.35
+  support:
+    # Call centre: one seat (stairs) and one lectern per agent.
+    wage: 100
+    subscribers-each: 60      # understaffed support makes customers unhappy
+  engineers:
+    # Network operations centre: one seat (stairs) and one observer per engineer.
+    wage: 200
+    subscribers-each: 100     # counts the subscribers of MVNOs you host too
+    min-speed: 0.6            # understaffed engineering slows the whole network, down to this
+  transit:
+    # Data carried costs the network transit, paid on payday with wages and rent.
+    cr-per-gb: 1
+    simulated-gb-per-day: 1   # per simulated customer (only while simulated revenue is on)
   # Show a technician figure at the tower during a repair.
   visible-technicians: true
   # /celladmin timewarp step size.

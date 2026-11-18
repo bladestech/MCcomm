@@ -51,9 +51,9 @@ public final class FacilityListener implements Listener {
         Player p = e.getPlayer();
         Carrier c = plugin.store().carrier(f.companyId());
         if (c != null && canManage(p, f)) {
-            plugin.operationsMenu().station(p, c, f);
+            plugin.operationsMenu().facility(p, c, f);
         } else {
-            Msg.send(p, "<gray><t> <white><n></white> of <c> · <white><s>/<b></white> technicians",
+            Msg.send(p, "<gray><t> <white><n></white> of <c> · <white><s>/<b></white> staff",
                     Msg.p("t", f.type().display), Msg.p("n", f.name()), Msg.c("c", Msg.mm(c == null ? "?" : c.styled())),
                     Msg.p("s", "" + wf().staffAt(f).size()), Msg.p("b", "" + f.capacity()));
         }

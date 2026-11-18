@@ -46,11 +46,14 @@ public final class FacilityCommand extends Cmd {
 
     private void help(CommandSender s) {
         Msg.raw(s, "<dark_gray>━━━ <aqua>Facilities</aqua> ━━━");
-        Msg.raw(s, "<white>/facility create station <name> [carrier] <gray>· look at a wall sign inside the building");
-        Msg.raw(s, "<white>/facility check <name> [carrier] <gray>· re-count beds and barrels");
+        Msg.raw(s, "<white>/facility create <type> <name> [carrier] <gray>· look at a wall sign inside the building");
+        Msg.raw(s, "<white>/facility check <name> [carrier] <gray>· re-count the room");
         Msg.raw(s, "<white>/facility remove <name> [carrier]");
         Msg.raw(s, "<white>/facility list [carrier]");
-        Msg.raw(s, "<gray>A station needs a closed, roofed room with one bed per technician. Barrels hold spare parts (faster repairs).");
+        Msg.raw(s, "<gray>Every facility is a closed, roofed room. Types:");
+        Msg.raw(s, "<white>station <gray>· one bed per technician (barrels = spare parts, faster repairs)");
+        Msg.raw(s, "<white>callcentre <gray>· one seat (stairs) and lectern per support agent");
+        Msg.raw(s, "<white>noc <gray>· one seat (stairs) and observer per network engineer");
     }
 
     /** The carrier named in args[idx], or the only one the player works for. */
@@ -86,12 +89,12 @@ public final class FacilityCommand extends Cmd {
         Player p = player(s);
         if (p == null) return;
         if (args.length < 3) {
-            Msg.send(p, "<red>Usage: /facility create station <name> [carrier]");
+            Msg.send(p, "<red>Usage: /facility create station|callcentre|noc <name> [carrier]");
             return;
         }
         Facility.Type type = Facility.Type.of(args[1]);
         if (type == null) {
-            Msg.send(p, "<red>Facility types: <white>station");
+            Msg.send(p, "<red>Facility types: <white>station, callcentre, noc");
             return;
         }
         String name = args[2];
@@ -112,10 +115,10 @@ public final class FacilityCommand extends Cmd {
             return;
         }
         Facility f = plugin.workforce().facilityByName(c.id(), name);
-        Msg.send(p, "<green>Maintenance station <white><n></white> is open: <white><b></white> bed(s), <white><r></white> barrel(s). Rent <white><rent></white>/day.",
-                Msg.p("n", name), Msg.p("b", "" + f.capacity()), Msg.p("r", "" + f.barrels()),
+        Msg.send(p, "<green><t> <white><n></white> is open with room for <white><b></white> staff. Rent <white><rent></white>/day.",
+                Msg.p("t", type.display), Msg.p("n", name), Msg.p("b", "" + f.capacity()),
                 Msg.p("rent", plugin.settings().money(plugin.workforce().rent(f))));
-        Msg.send(p, "<gray>Hire technicians in <white>/carrier manage</white> → Operations, or right-click the sign.");
+        Msg.send(p, "<gray>Hire staff in <white>/carrier manage</white> → Operations, or right-click the sign.");
     }
 
     private void createAt(CommandSender s, String[] args) {
@@ -133,7 +136,7 @@ public final class FacilityCommand extends Cmd {
             y = Integer.parseInt(args[5]);
             z = Integer.parseInt(args[6]);
         } catch (NumberFormatException e) {
-            Msg.send(s, "<red>Usage: /facility create station <name> <carrier> <x> <y> <z> [world]");
+            Msg.send(s, "<red>Usage: /facility create <type> <name> <carrier> <x> <y> <z> [world]");
             return;
         }
         String err = plugin.workforce().create(null, world.getBlockAt(x, y, z), c, type, args[2]);
@@ -165,7 +168,7 @@ public final class FacilityCommand extends Cmd {
         if (f == null) return;
         String err = plugin.workforce().recheck(f);
         if (err != null) Msg.send(s, "<red>" + Msg.escape(err));
-        else Msg.send(s, "<green><n>: <white><b></white> bed(s), <white><r></white> barrel(s).",
+        else Msg.send(s, "<green><n>: room for <white><b></white> staff" + (f.type() == Facility.Type.STATION ? ", <white><r></white> barrel(s)." : "."),
                 Msg.p("n", f.name()), Msg.p("b", "" + f.capacity()), Msg.p("r", "" + f.barrels()));
     }
 
@@ -176,7 +179,7 @@ public final class FacilityCommand extends Cmd {
         Msg.raw(s, "<dark_gray>━━━ <aqua><c> facilities</aqua> ━━━", Msg.p("c", c.name()));
         if (list.isEmpty()) Msg.raw(s, "<gray>None yet.");
         for (Facility f : list) {
-            Msg.raw(s, "<white><n> <gray>· <t> · <w> <x>, <z> · <s>/<b> techs",
+            Msg.raw(s, "<white><n> <gray>· <t> · <w> <x>, <z> · <s>/<b> staff",
                     Msg.p("n", f.name()), Msg.p("t", f.type().display), Msg.p("w", f.world() == null ? "?" : f.world().getName()),
                     Msg.p("x", "" + f.x()), Msg.p("z", "" + f.z()), Msg.p("s", "" + plugin.workforce().staffAt(f).size()),
                     Msg.p("b", "" + f.capacity()));
@@ -188,7 +191,7 @@ public final class FacilityCommand extends Cmd {
         if (args.length <= 1) return filter(SUBS, args.length == 0 ? "" : args[0]);
         String sub = args[0].toLowerCase(Locale.ROOT);
         if (sub.equals("create")) {
-            if (args.length == 2) return filter(List.of("station"), args[1]);
+            if (args.length == 2) return filter(List.of("station", "callcentre", "noc"), args[1]);
             if (args.length == 3) return List.of("<name>");
             if (args.length == 4) return filter(carrierNames(), args[3]);
         }

@@ -21,7 +21,11 @@ public record WorkforceSettings(
         long partsBase, double partsPerWear,
         // contractors
         int contractorAfterMinutes, int contractorDelayHours, double contractorMultiplier, long contractorMin,
-        int timewarpStepMinutes) {
+        int timewarpStepMinutes,
+        // office staff (phase 3)
+        long supportWage, long engineerWage, int supportCovers, int engineerCovers, int selfService,
+        double[] levelProductivity, double engineerMinSpeed,
+        double transitPerGb, double simGbPerDay) {
 
     public static WorkforceSettings read(FileConfiguration c) {
         ConfigurationSection w = c.getConfigurationSection("workforce");
@@ -65,11 +69,39 @@ public record WorkforceSettings(
                 Math.max(0, w.getInt("contractors.delay-hours", 6)),
                 Math.max(1, w.getDouble("contractors.cost-multiplier", 3)),
                 Math.max(0, w.getLong("contractors.minimum", 60)),
-                Math.max(1, w.getInt("timewarp-step-minutes", 10)));
+                Math.max(1, w.getInt("timewarp-step-minutes", 10)),
+                Math.max(0, w.getLong("support.wage", 100)),
+                Math.max(0, w.getLong("engineers.wage", 200)),
+                Math.max(1, w.getInt("support.subscribers-each", 60)),
+                Math.max(1, w.getInt("engineers.subscribers-each", 100)),
+                Math.max(0, w.getInt("self-service-subscribers", 25)),
+                new double[]{w.getDouble("junior-productivity", 0.75), 1.0, w.getDouble("senior-productivity", 1.35)},
+                Math.clamp(w.getDouble("engineers.min-speed", 0.6), 0.05, 1),
+                Math.max(0, w.getDouble("transit.cr-per-gb", 1)),
+                Math.max(0, w.getDouble("transit.simulated-gb-per-day", 1)));
     }
 
     /** Daily wage for a technician of this level (0 junior, 1 regular, 2 senior). */
     public long wage(int level) {
-        return Math.round(technicianWage * levelWage[Math.clamp(level, 0, 2)]);
+        return wage(Employee.Role.TECHNICIAN, level);
+    }
+
+    /** Market wage per day for a role and level. */
+    public long wage(Employee.Role role, int level) {
+        long base = switch (role) {
+            case TECHNICIAN -> technicianWage;
+            case SUPPORT -> supportWage;
+            case ENGINEER -> engineerWage;
+        };
+        return Math.round(base * levelWage[Math.clamp(level, 0, 2)]);
+    }
+
+    /** Subscribers one regular employee of this role covers (0 for technicians). */
+    public int covers(Employee.Role role) {
+        return switch (role) {
+            case TECHNICIAN -> 0;
+            case SUPPORT -> supportCovers;
+            case ENGINEER -> engineerCovers;
+        };
     }
 }

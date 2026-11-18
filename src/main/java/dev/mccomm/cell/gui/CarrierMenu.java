@@ -109,7 +109,8 @@ public final class CarrierMenu {
         long staffDay = plugin.workforce().dailyCost(c.id());
         double net = perDay - upkeepPerDay - staffDay;
         m.set(14, Items.of(Material.EMERALD, "<green>Income",
-                "<gray>Paying subscribers: <white>" + subs + (c.simulatedUsers() > 0 ? " <dark_gray>+ " + c.simulatedUsers() + " simulated" : ""),
+                "<gray>Paying subscribers: <white>" + subs + (c.simulatedUsers() > 0 ? " <dark_gray>+ " + c.simulatedUsers()
+                        + (plugin.market().active() ? " customers" : " simulated") : ""),
                 "<gray>Plan income: <green>+" + plugin.settings().money(Math.round(perDay)) + "</green> /day",
                 "<gray>Upkeep: <red>-" + plugin.settings().money(Math.round(upkeepPerDay)) + "</red> /day",
                 "<gray>Wages & rent: <red>-" + plugin.settings().money(staffDay) + "</red> /day",
@@ -188,6 +189,7 @@ public final class CarrierMenu {
             click(p);
             plans(p, c);
         });
+        if (plugin.market().active()) m.set(18, marketItem(c));
         if (!c.mvno() && plugin.workforce().enabled()) {
             int worn = 0;
             for (Tower t : towers) if (plugin.workforce().wearStage(t) >= 2) worn++;
@@ -237,6 +239,34 @@ public final class CarrierMenu {
         });
         m.set(40, Items.of(Material.BARRIER, "<red>Close"), e -> p.closeInventory());
         m.open(p);
+    }
+
+    /** Market standing: customers, share, satisfaction and what drives it. */
+    public org.bukkit.inventory.ItemStack marketItem(Carrier c) {
+        var mk = plugin.market();
+        var sc = mk.score(c);
+        int size = Math.max(1, plugin.store().marketSize());
+        int[] day = mk.lastDay(c);
+        List<String> lore = new ArrayList<>();
+        lore.add("<gray>Customers: <white>" + c.simulatedUsers() + " <dark_gray>(" + Math.round(100.0 * c.simulatedUsers() / size) + "% of " + size + ")");
+        if (sc == null) return Items.of(Material.PLAYER_HEAD, "<white>Market", lore);
+        String col = sc.satisfaction() >= 75 ? "<green>" : sc.satisfaction() >= 50 ? "<yellow>" : "<red>";
+        lore.add("<gray>Satisfaction: " + col + Math.round(sc.satisfaction()) + "%");
+        lore.add("<dark_gray> · Service " + pct(sc.quality()) + " · Coverage " + pct(sc.coverage()));
+        lore.add("<dark_gray> · Support " + pct(sc.support()) + " · Price " + pct(sc.price()));
+        lore.add("<gray>Average price: <white>" + plugin.settings().money(Math.round(sc.avgPrice())) + "</white>/day <dark_gray>("
+                + Math.round(sc.priceRatio() * 100) + "% of the going rate)");
+        if (sc.refused()) lore.add("<red>Too expensive: customers are leaving and won't join.");
+        lore.add("<gray>Leaving: <white>~" + String.format("%.1f", sc.churnPerDay() * 100) + "%</white> a day");
+        lore.add("<gray>Yesterday: <green>+" + day[0] + "</green> <gray>joined, <red>-" + day[1] + "</red> <gray>left");
+        lore.add("");
+        lore.add("<dark_gray>Customers pick carriers on coverage, speed,");
+        lore.add("<dark_gray>support and price, and leave when unhappy.");
+        return Items.of(Material.PLAYER_HEAD, "<white>Market", lore);
+    }
+
+    private static String pct(double v) {
+        return Math.round(v * 100) + "%";
     }
 
     // =================================================================== plans

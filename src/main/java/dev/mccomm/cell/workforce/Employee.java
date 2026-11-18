@@ -6,12 +6,29 @@ package dev.mccomm.cell.workforce;
  */
 public final class Employee {
     public enum Role {
-        TECHNICIAN("Field technician");
+        TECHNICIAN("Field technician", "technician"),
+        SUPPORT("Customer support", "support"),
+        ENGINEER("Network engineer", "engineer");
 
-        public final String display;
+        public final String display, key;
 
-        Role(String display) {
+        Role(String display, String key) {
             this.display = display;
+            this.key = key;
+        }
+
+        public static Role of(String key) {
+            for (Role r : values()) if (r.key.equalsIgnoreCase(key) || r.name().equalsIgnoreCase(key)) return r;
+            return TECHNICIAN;
+        }
+
+        /** The facility this role works from. */
+        public Facility.Type facility() {
+            return switch (this) {
+                case TECHNICIAN -> Facility.Type.STATION;
+                case SUPPORT -> Facility.Type.CALL_CENTRE;
+                case ENGINEER -> Facility.Type.NOC;
+            };
         }
     }
 

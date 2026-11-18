@@ -65,6 +65,7 @@ public final class CellPlugin extends JavaPlugin {
     private InternetService internet;
     private dev.mccomm.cell.workforce.WorkforceService workforce;
     private dev.mccomm.cell.gui.OperationsMenu operationsMenu;
+    private dev.mccomm.cell.market.MarketService market;
     private BukkitTask signalTask;
     private Object squaremap; // SquaremapHook when squaremap is installed (kept as Object so the class only loads then)
 
@@ -102,6 +103,7 @@ public final class CellPlugin extends JavaPlugin {
         workforce = new dev.mccomm.cell.workforce.WorkforceService(this);
         workforce.load();
         operationsMenu = new dev.mccomm.cell.gui.OperationsMenu(this);
+        market = new dev.mccomm.cell.market.MarketService(this);
         billing.ensureDefaults();
         manufacturers.setup();
 
@@ -207,4 +209,5 @@ public final class CellPlugin extends JavaPlugin {
     public InternetService internet() { return internet; }
     public dev.mccomm.cell.workforce.WorkforceService workforce() { return workforce; }
     public dev.mccomm.cell.gui.OperationsMenu operationsMenu() { return operationsMenu; }
+    public dev.mccomm.cell.market.MarketService market() { return market; }
 }

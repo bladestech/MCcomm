@@ -58,8 +58,8 @@
 
 | Command | Description |
 |---|---|
-| `/facility create station <name> [carrier]` | Register the wall sign you look at as a maintenance station |
-| `/facility check <name> [carrier]` | Re-count its beds and barrels now |
+| `/facility create station\|callcentre\|noc <name> [carrier]` | Register the wall sign you look at as a facility |
+| `/facility check <name> [carrier]` | Re-count its room now |
 | `/facility remove <name> [carrier]` | Remove it (its staff go idle) |
 | `/facility list [carrier]` | List a carrier's facilities |
 

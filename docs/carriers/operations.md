@@ -83,6 +83,12 @@ the newest technicians there go idle (still paid, not working) until there's roo
 Breaking the sign removes the station. Where you build matters: put stations near
 your towers. On [squaremap](../admin/squaremap.md) each station shows its service area.
 
+## Office staff
+
+Customer support agents (call centres) and network engineers (network operations
+centres) are hired the same way. How many you need depends on your subscribers; see
+[The customer market](market.md#staff-for-subscribers).
+
 ## Technicians
 
 Hire them in **Operations**: a few job seekers appear every day.

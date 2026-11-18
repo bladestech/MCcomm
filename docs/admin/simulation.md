@@ -2,20 +2,28 @@
 
 For roleplay and creative servers: make networks feel busy without real players. Requires **`mccomm.simulate`** (ops by default).
 
+There are two modes (`simulation.mode` in the config):
+
+- **`market`** (default): the server has a pool of simulated **customers** that carriers compete for. See [The customer market](../carriers/market.md).
+- **`fixed`**: you set each carrier's simulated users by hand, and they never move.
+
 ## Using it
 
 ```
 /cellsim
 ```
 
-The menu lists every carrier. Click one to set its simulated users: −100, −10, −1, +1, +10, +100, **Set exactly**, or **Clear**. Changes show on the towers immediately.
+**Market mode:** the menu shows every carrier's customers and satisfaction, and the **market size**. Click it for +100, right-click for −100, or shift-click to type a number. When you first switch to market mode, the users carriers already have become their starting customers. Shrinking the market removes customers without a carrier first, then takes from carriers in proportion.
+
+**Fixed mode:** click a carrier to set its simulated users: −100, −10, −1, +1, +10, +100, **Set exactly**, or **Clear**. Changes show on the towers immediately.
 
 ## How they behave
 
 - **Spread evenly** across the carrier's working towers. For an MVNO, that's its host's towers.
 - Each is on **one of the carrier's plans at random**, and that plan's band cap applies. The spread is seeded, so numbers don't jump around between updates.
-- **Counted separately** from real players: tower screens read like `3 users · 50 sim`, and carrier stats show simulated subscribers on their own.
+- **Counted separately** from real players: tower screens read like `3 users · 50 sim`, and carrier stats show them on their own.
 - **Lighter load:** for congestion and the load meter, **500 simulated users count as one real player** (`simulation.users-per-real-user`).
+- **Full cost:** for tower wear, staffing needs and data transit, each one counts fully, because each pays full price.
 
 ## Simulated revenue
 
@@ -26,6 +34,7 @@ When it's on, simulated users **pay their plan** like real subscribers:
 - Each pays its plan's price spread over the plan's period, paid into the carrier wallet **once an hour**.
 - MVNOs owe their host the revenue share on it.
 - Users on a network with **no working towers** don't pay.
+- Their data costs the carrier **transit** (1 GB per customer per day at 1 cr/GB by default), paid on payday.
 
 !!! danger "This creates money"
-    Simulated revenue adds credits from nothing. In a test, 400 simulated users earned a carrier about 5,600 cr/day against 73 cr/day of upkeep. Leave it off on servers where credits should stay scarce, and only give `mccomm.simulate` to people you trust while it's on.
+    Simulated revenue adds credits from nothing. Staff, transit and the market keep a big carrier's margin far below the old ~98%, but money still comes in. Leave it off on servers where credits should stay scarce, and only give `mccomm.simulate` to people you trust while it's on.

@@ -42,11 +42,16 @@ public final class SimulationMenu {
             Msg.send(p, "<red>You can't simulate users.");
             return;
         }
-        Menu m = menu(6, "Simulated users");
+        boolean market = plugin.market().active();
+        Menu m = menu(6, market ? "Customer market" : "Simulated users");
         boolean revenue = plugin.store().simulatedRevenue();
         int slot = 0;
         for (Carrier c : plugin.store().carriers()) {
             if (slot >= 45) break;
+            if (market) {
+                m.set(slot++, plugin.carrierMenu().marketItem(c));
+                continue;
+            }
             List<String> lore = new ArrayList<>();
             lore.add("<gray>Simulated users: <white>" + c.simulatedUsers());
             int towers = plugin.simulation().towerCount(c);
@@ -63,6 +68,34 @@ public final class SimulationMenu {
             });
         }
         boolean admin = p.hasPermission("mccomm.admin");
+        if (market) {
+            int size = plugin.store().marketSize();
+            m.set(47, Items.of(Material.BEACON, "<white>Market size: <aqua>" + size,
+                    "<gray>Simulated customers on the server.",
+                    "<gray>With a carrier: <white>" + plugin.market().customers(),
+                    "<gray>Without one: <white>" + plugin.market().unassigned(),
+                    "",
+                    "<gray>Carriers win and lose customers on",
+                    "<gray>coverage, speed, support and price.",
+                    "<gray>" + Math.round(1 / plugin.settings().simulationWeight) + " customers load a tower like 1 player.",
+                    "",
+                    "<yellow>Click <gray>+100 · <yellow>Right-click <gray>-100 · <yellow>Shift-click <gray>type a number"), e -> {
+                click(p);
+                if (e.isShiftClick()) {
+                    plugin.prompt().ask(p, "<aqua>How many simulated customers on the server?", in -> {
+                        try {
+                            plugin.market().resize(Integer.parseInt(in.trim()));
+                        } catch (NumberFormatException ex) {
+                            Msg.send(p, "<red>Enter a whole number.");
+                        }
+                        open(p);
+                    });
+                    return;
+                }
+                plugin.market().resize(size + (e.isRightClick() ? -100 : 100));
+                open(p);
+            });
+        }
         m.set(49, Items.of(revenue ? Material.EMERALD_BLOCK : Material.COAL_BLOCK,
                 "<white>Simulated revenue: " + (revenue ? "<green>ON" : "<red>OFF"),
                 "<gray>When on, simulated users pay their plan",

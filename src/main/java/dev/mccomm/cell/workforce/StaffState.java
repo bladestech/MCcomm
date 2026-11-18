@@ -6,6 +6,7 @@ public final class StaffState {
     private long wagesOwed;        // missed wages and rent, collected before anything else
     private long owedSince;        // when wages first went unpaid (epoch ms), 0 = paid up
     private boolean contractors = true;
+    private double transitDue;     // real data transit owed, charged on payday
     private long bankruptcyClock;  // when the bankruptcy countdown started (epoch ms), 0 = not in default
 
     public long nextPayday() { return nextPayday; }
@@ -15,11 +16,13 @@ public final class StaffState {
     public boolean contractors() { return contractors; }
     public long owedSince() { return owedSince; }
     public void owedSince(long t) { this.owedSince = t; }
+    public double transitDue() { return transitDue; }
+    public void transitDue(double v) { this.transitDue = Math.max(0, v); }
     public long bankruptcyClock() { return bankruptcyClock; }
     public void bankruptcyClock(long t) { this.bankruptcyClock = t; }
     public void contractors(boolean v) { this.contractors = v; }
 
     public boolean isDefault() {
-        return nextPayday == 0 && wagesOwed == 0 && owedSince == 0 && bankruptcyClock == 0 && contractors;
+        return nextPayday == 0 && wagesOwed == 0 && owedSince == 0 && bankruptcyClock == 0 && transitDue < 0.001 && contractors;
     }
 }

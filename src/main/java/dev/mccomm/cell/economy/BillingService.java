@@ -894,6 +894,7 @@ public final class BillingService implements Listener {
         long now = System.currentTimeMillis();
 
         plugin.partners().tick();
+        plugin.market().tick(now);
         plugin.simulation().payRevenue();
         flushPlanNotices(now);
         for (Carrier c : new ArrayList<>(plugin.store().carriers())) {
@@ -1020,6 +1021,7 @@ public final class BillingService implements Listener {
             }
             plugin.simulation().shift(d);
             plugin.workforce().shift(d);
+            plugin.market().shift(d);
             tick();
             ticks++;
         }
