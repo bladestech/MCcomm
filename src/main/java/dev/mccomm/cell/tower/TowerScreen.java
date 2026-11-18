@@ -200,8 +200,12 @@ public final class TowerScreen {
         if (g == null) return;
         Carrier c = plugin.store().carrier(t.carrierId());
         int stage = plugin.billing().decayStage(t);
+        var wf = plugin.workforce();
+        int wear = wf.wearStage(t);
         State state = t.backhaul() == null || t.enabledBands().isEmpty() ? State.OFFLINE
-                : stage >= s().silentStage() ? State.SILENT : stage > 0 ? State.DEGRADED : State.LIVE;
+                : stage >= s().silentStage() || wear >= 4 ? State.SILENT : stage > 0 || wear > 0 ? State.DEGRADED : State.LIVE;
+        var job = wf.job(t);
+        boolean repairing = job != null && job.started();
         boolean dim = state == State.OFFLINE || state == State.SILENT;
 
         if (entity(t, "accent") instanceof BlockDisplay acc) {
@@ -246,8 +250,8 @@ public final class TowerScreen {
                 right = "";
             }
             case SILENT -> {
-                left = "<#FF8A8A>No service · upkeep unpaid";
-                right = "";
+                left = stage >= s().silentStage() ? "<#FF8A8A>No service · upkeep unpaid" : "<#FF8A8A>No service · worn out";
+                right = repairing ? "<#7FDBFF>⚒ Repair in progress" : "";
             }
             default -> {
                 int users = plugin.signal().usersOn(t);
@@ -263,8 +267,12 @@ public final class TowerScreen {
                 String bhName = bh == null ? t.backhaul().name() : bh.name();
                 right = "<#9AA0AA>" + Msg.escape(bhName) + " " + Math.round(bh == null ? 0 : bh.multiplier() * 100) + "%"
                         + (bonus > 0 ? " · <#7FDBFF>+" + bonus + "%" : "");
-                if (state == State.DEGRADED) {
+                if (stage > 0) {
                     right = "<#FFD86B>Unpaid · " + Math.round(plugin.billing().decaySpeed(t) * 100) + "% speed";
+                } else if (repairing) {
+                    right = "<#7FDBFF>⚒ Repair in progress";
+                } else if (wear > 0) {
+                    right = "<#FFD86B>Worn " + Math.round(t.wear()) + "% · " + Math.round(wf.wearSpeed(t) * 100) + "% speed";
                 }
             }
         }

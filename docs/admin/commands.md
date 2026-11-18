@@ -54,6 +54,15 @@
 | `/tower setgen <gen>` | Admin: set the tower's generation |
 | `/tower tp <name>` | Admin: teleport to a tower |
 
+## Facilities
+
+| Command | Description |
+|---|---|
+| `/facility create station <name> [carrier]` | Register the wall sign you look at as a maintenance station |
+| `/facility check <name> [carrier]` | Re-count its beds and barrels now |
+| `/facility remove <name> [carrier]` | Remove it (its staff go idle) |
+| `/facility list [carrier]` | List a carrier's facilities |
+
 ## Manufacturers
 
 | Command | Description |

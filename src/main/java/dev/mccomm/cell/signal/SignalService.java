@@ -306,8 +306,9 @@ public final class SignalService {
         if (ant == null) return null;
         int stage = plugin.billing().decayStage(t);
         if (stage >= s().silentStage()) return null; // unpaid upkeep: tower is silent
+        if (plugin.workforce().silent(t)) return null; // worn out: needs a repair
         double dist = eye.distance(ant);
-        int dropped = plugin.billing().decayDroppedBands(t);
+        int dropped = Math.max(plugin.billing().decayDroppedBands(t), plugin.workforce().wearDroppedBands(t));
 
         double mult = s().rangeMultiplier(t.heightAboveGround());
         double maxRange = 0;
@@ -409,7 +410,7 @@ public final class SignalService {
         int cap = s().capacity(l.tower().generation());
         double share = users <= cap ? 1 : cap / users;
         return spec.maxMbps() * backhaulMultiplier(l.tower()) * signalFactor(l.dbm()) * share
-                * plugin.billing().decaySpeed(l.tower());
+                * Math.min(plugin.billing().decaySpeed(l.tower()), plugin.workforce().wearSpeed(l.tower()));
     }
 
     public double uploadMbps(Link l) {

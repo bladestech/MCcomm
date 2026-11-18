@@ -40,6 +40,7 @@ import java.util.UUID;
  */
 public final class SquaremapHook {
     private static final Key TOWERS = Key.of("mccomm_towers");
+    private static final Key STATIONS = Key.of("mccomm_stations");
 
     private final CellPlugin plugin;
     private final Squaremap api;
@@ -107,9 +108,36 @@ public final class SquaremapHook {
                         .markerOptions(MarkerOptions.builder().hoverTooltip(html).clickTooltip(html)));
             }
 
+            // Maintenance stations and how far their technicians go.
+            boolean anyStation = false;
+            for (var f : plugin.workforce().facilities()) if (f.worldId().equals(w.getUID())) anyStation = true;
+            if (anyStation && plugin.workforce().enabled()) {
+                SimpleLayerProvider st = layer(mw, mine, STATIONS, "Maintenance stations", 22, 290, false);
+                st.clearMarkers();
+                for (var f : plugin.workforce().facilities()) {
+                    if (!f.worldId().equals(w.getUID())) continue;
+                    Carrier c = plugin.store().carrier(f.companyId());
+                    int rgb = c == null ? 0xFFFFFF : c.color().value();
+                    int staff = plugin.workforce().staffAt(f).size();
+                    String html = "<div style='font-family:sans-serif'><b style='color:" + (c == null ? "#fff" : c.color().asHexString()) + "'>"
+                            + esc(c == null ? "?" : c.name()) + "</b> &middot; <b>" + esc(f.name()) + "</b><br>Maintenance station<br>Technicians: "
+                            + staff + "/" + f.capacity() + "<br>Reach: " + plugin.workforce().w().serviceRadius() + " blocks</div>";
+                    st.addMarker(Key.of("s" + f.id()), Marker.icon(Point.of(f.x() + 0.5, f.z() + 0.5), stationIcon(rgb), s().squaremapIconSize)
+                            .markerOptions(MarkerOptions.builder().hoverTooltip(html).clickTooltip(html)));
+                    Color col = new Color(rgb);
+                    st.addMarker(Key.of("r" + f.id()), Marker.circle(Point.of(f.x() + 0.5, f.z() + 0.5), plugin.workforce().w().serviceRadius())
+                            .markerOptions(MarkerOptions.builder().fill(false).strokeColor(col).strokeOpacity(0.6).strokeWeight(2)
+                                    .hoverTooltip(esc(f.name() + " · service area"))));
+                }
+            } else if (mine.containsKey(STATIONS)) {
+                if (mw.layerRegistry().hasEntry(STATIONS)) mw.layerRegistry().unregister(STATIONS);
+                mine.remove(STATIONS);
+            }
+
             if (s().squaremapCoverage) {
                 Set<Key> keep = new HashSet<>();
                 keep.add(TOWERS);
+                keep.add(STATIONS);
                 for (Carrier c : plugin.store().carriers()) {
                     List<Tower> list = perCarrier.getOrDefault(c.id(), List.of());
                     if (list.isEmpty()) continue;
@@ -186,7 +214,7 @@ public final class SquaremapHook {
     }
 
     private boolean working(Tower t) {
-        return t.online() && plugin.billing().decayStage(t) < s().silentStage();
+        return t.online() && plugin.billing().decayStage(t) < s().silentStage() && !plugin.workforce().silent(t);
     }
 
     // ---------------------------------------------------------------- popup
@@ -208,8 +236,16 @@ public final class SquaremapHook {
         String status = !t.online() ? "<span style='color:#9aa0aa'>Offline</span>"
                 : stage >= s().silentStage() ? "<span style='color:#e05555'>Silent (upkeep unpaid)</span>"
                 : stage > 0 ? "<span style='color:#f6c255'>Degraded (upkeep unpaid)</span>"
+                : plugin.workforce().silent(t) ? "<span style='color:#e05555'>Silent (worn out)</span>"
+                : plugin.workforce().wearStage(t) > 0 ? "<span style='color:#f6c255'>Worn</span>"
                 : "<span style='color:#5ee38a'>Online</span>";
         sb.append("Status: ").append(status).append("<br>");
+        if (plugin.workforce().enabled()) {
+            sb.append("Wear: ").append(Math.round(t.wear())).append("%");
+            var job = plugin.workforce().job(t);
+            if (job != null) sb.append(job.started() ? " &middot; repair in progress" : " &middot; repair queued");
+            sb.append("<br>");
+        }
         if (up) {
             int users = plugin.signal().usersOn(t), sims = plugin.signal().simOn(t);
             sb.append("Users: ").append(users);
@@ -252,6 +288,31 @@ public final class SquaremapHook {
         g.setColor(c);
         drawMast(g);
         g.fillOval(13, 4, 6, 6);
+        g.dispose();
+        if (api.iconRegistry().hasEntry(key)) api.iconRegistry().unregister(key);
+        api.iconRegistry().register(key, img);
+        icons.add(key);
+        return key;
+    }
+
+    /** A small rounded square with a wrench, for maintenance stations. */
+    private Key stationIcon(int rgb) {
+        Key key = Key.of("mccomm_station_" + String.format("%06x", rgb & 0xFFFFFF));
+        if (icons.contains(key) && api.iconRegistry().hasEntry(key)) return key;
+        BufferedImage img = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(new Color(20, 22, 28));
+        g.fillRoundRect(3, 3, 26, 26, 9, 9);
+        g.setColor(new Color(rgb));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(4, 4, 24, 24, 8, 8);
+        // wrench: handle and open jaw
+        g.setStroke(new BasicStroke(3.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(10, 22, 18, 14);
+        g.fillOval(16, 8, 9, 9);
+        g.setColor(new Color(20, 22, 28));
+        g.fillRect(19, 7, 4, 6);
         g.dispose();
         if (api.iconRegistry().hasEntry(key)) api.iconRegistry().unregister(key);
         api.iconRegistry().register(key, img);

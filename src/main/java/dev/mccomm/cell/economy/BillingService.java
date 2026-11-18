@@ -153,6 +153,7 @@ public final class BillingService implements Listener {
 
     /** If a carrier is behind on upkeep, tries to pay it now (after money came in) and repairs its towers. */
     public void retryUpkeep(Carrier c) {
+        plugin.workforce().retryWages(c);
         if (c.unpaidSince() == 0) return;
         chargeUpkeep(c, System.currentTimeMillis(), true);
         if (c.unpaidSince() == 0) {
@@ -383,6 +384,7 @@ public final class BillingService implements Listener {
     /** Data use on a specific SIM: plan allowance, plus roaming charges if it's on a partner's tower. */
     public DataResult useDataOn(UUID player, dev.mccomm.cell.signal.SignalService.SimStatus sim, double mb) {
         DataResult r = useData(player, sim.carrier().id(), mb);
+        if (r != DataResult.BLOCKED && sim.link() != null) plugin.workforce().addTraffic(sim.link().tower(), mb);
         Carrier host = sim.roamingOn();
         if (r == DataResult.BLOCKED || host == null) return r;
         Carrier home = sim.carrier();
@@ -892,6 +894,7 @@ public final class BillingService implements Listener {
 
         plugin.partners().tick();
         plugin.simulation().payRevenue();
+        plugin.workforce().tick(now);
         flushPlanNotices(now);
         for (Carrier c : new ArrayList<>(plugin.store().carriers())) {
             if (c.nextUpkeep() == 0) c.nextUpkeep(now + s().upkeepPeriodHours * HOUR);
@@ -1013,6 +1016,7 @@ public final class BillingService implements Listener {
                 for (Subscription sub : p.subs().values()) sub.nextBill(sub.nextBill() - d);
             }
             plugin.simulation().shift(d);
+            plugin.workforce().shift(d);
             tick();
             ticks++;
         }

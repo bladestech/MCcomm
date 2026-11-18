@@ -35,7 +35,8 @@ public final class SimulationService {
         }
         List<Tower> out = new ArrayList<>();
         for (Tower t : plugin.store().towers()) {
-            if (t.carrierId().equals(net) && t.online() && plugin.billing().decayStage(t) < plugin.settings().silentStage()) out.add(t);
+            if (t.carrierId().equals(net) && t.online() && plugin.billing().decayStage(t) < plugin.settings().silentStage()
+                    && !plugin.workforce().silent(t)) out.add(t);
         }
         return out;
     }

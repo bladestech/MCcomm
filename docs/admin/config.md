@@ -49,6 +49,7 @@ See [Signal reference](../signal.md) for how these numbers are used.
 | `manufacturing` | Manufacturers per player, upkeep share (10%), research points per credit, manufacturing costs, research costs, Generic manufacturer on/off and margin |
 | `companies` | Transfer fee (5%), liquidation fee (10%), MVNO farewell share, tower scrap and stock refund rates, paperweight resale, valuation income days |
 | `partners` | Agreement notice period, deprioritized speed share, MVNO grace period |
+| `workforce` | Tower wear rates and effects, technician wages and levels, hiring and firing costs, station rent, service radius and travel speed, repair times and parts, contractors, visible technicians. See [Operations](../carriers/operations.md) |
 
 ## Extras
 

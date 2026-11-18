@@ -107,6 +107,12 @@ public final class CompanyService {
             Msg.send(p, "<red>Not enough: <white><b></white> available.", Msg.p("b", s().money(have)));
             return;
         }
+        long owedWages = plugin.workforce().state(c.id()).wagesOwed();
+        if (toOwner && owedWages > 0) {
+            Msg.send(p, "<red><c> owes <white><o></white> in wages and rent. Pay your staff before taking money out.",
+                    Msg.p("c", c.name()), Msg.p("o", s().money(owedWages)));
+            return;
+        }
         long fee = fee(amount, s().transferFeePercent);
         long arrives = amount - fee;
         if (toOwner) {
@@ -199,6 +205,7 @@ public final class CompanyService {
         }
         income += plugin.simulation().revenuePerDay(c);
         double upkeep = (plugin.billing().upkeepCost(c) + c.mvnoOwed()) * 24.0 / s().upkeepPeriodHours;
+        upkeep += plugin.workforce().dailyCost(c.id());
         return Math.round(income - upkeep);
     }
 
@@ -209,6 +216,8 @@ public final class CompanyService {
         for (Tower t : plugin.store().towersOf(c.id())) towers += towerCost(t);
         parts.put("Towers (" + plugin.store().towersOf(c.id()).size() + ")", towers);
         parts.put("Tower stock", stockValue(c));
+        long owed = plugin.workforce().state(c.id()).wagesOwed();
+        if (owed > 0) parts.put("Wages owed", -owed);
         long net = netPerDay(c);
         parts.put(s().valuationDays + " days of net income", Math.max(0, net) * s().valuationDays);
         return new Valuation(parts, parts.values().stream().mapToLong(Long::longValue).sum());
@@ -229,15 +238,17 @@ public final class CompanyService {
     // ============================================================ liquidation
 
     /** What closing a carrier would pay out. */
-    public record CarrierLiquidation(long wallet, long scrap, long stock, long farewell, List<Carrier> mvnos, long fee, long payout) {
-        public long gross() { return wallet + scrap + stock; }
+    public record CarrierLiquidation(long wallet, long scrap, long stock, long staff, long farewell, List<Carrier> mvnos, long fee, long payout) {
+        public long gross() { return Math.max(0, wallet + scrap + stock - staff); }
     }
 
     public CarrierLiquidation previewLiquidation(Carrier c) {
         long scrap = 0;
         for (Tower t : plugin.store().towersOf(c.id())) scrap += share(towerCost(t), s().towerScrapPercent);
         long stock = share(stockCost(c), s().stockRefundPercent);
-        long gross = Math.max(0, c.balance()) + scrap + stock;
+        // Wages and rent owed, plus severance for every employee, are settled first.
+        long staff = plugin.workforce().liquidationCost(c.id());
+        long gross = Math.max(0, Math.max(0, c.balance()) + scrap + stock - staff);
         List<Carrier> mvnos = new ArrayList<>();
         for (Agreement a : c.agreements().values()) {
             if (a.kind() != Agreement.Kind.MVNO) continue;
@@ -246,7 +257,7 @@ public final class CompanyService {
         }
         long farewell = mvnos.isEmpty() ? 0 : share(gross, s().mvnoFarewellPercent);
         long fee = fee(gross - farewell, s().liquidationFeePercent);
-        return new CarrierLiquidation(c.balance(), scrap, stock, farewell, mvnos, fee, gross - farewell - fee);
+        return new CarrierLiquidation(c.balance(), scrap, stock, staff, farewell, mvnos, fee, gross - farewell - fee);
     }
 
     /** Closes a carrier for good. */

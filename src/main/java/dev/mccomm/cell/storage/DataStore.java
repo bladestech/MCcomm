@@ -57,6 +57,7 @@ public final class DataStore {
 
     public void removeCarrier(Carrier c) {
         carriers.remove(c.id());
+        if (plugin instanceof dev.mccomm.cell.CellPlugin cp && cp.workforce() != null) cp.workforce().companyRemoved(c.id());
         for (PlayerProfile p : profiles.values()) unsubscribe(p, c.id());
         markDirty();
     }
@@ -131,6 +132,7 @@ public final class DataStore {
 
     public void removeTower(Tower t) {
         towers.remove(t.id());
+        if (plugin instanceof dev.mccomm.cell.CellPlugin cp && cp.workforce() != null) cp.workforce().towerRemoved(t);
         towersByBlock.remove(t.key());
         markDirty();
     }
@@ -313,6 +315,8 @@ public final class DataStore {
                         }
                     }
                     t.heightAboveGround(s.getDouble("height", 0));
+                    t.wear(s.getDouble("wear", 0));
+                    t.wearAt(s.getLong("wear-at", 0));
                     t.manufacturerId(s.getString("manufacturer"));
                     t.modelName(s.getString("model"));
                     for (String bk : s.getStringList("model-bands")) {
@@ -568,6 +572,8 @@ public final class DataStore {
             ty.set(p + "model-bands", t.modelBands().stream().map(Band::key).toList());
             for (var e : t.screen().entrySet()) ty.set(p + "screen." + e.getKey(), e.getValue().toString());
             ty.set(p + "height", Math.round(t.heightAboveGround() * 10) / 10.0);
+            ty.set(p + "wear", Math.round(t.wear() * 100) / 100.0);
+            ty.set(p + "wear-at", t.wearAt());
             ty.set(p + "world", t.worldId().toString());
             ty.set(p + "x", t.x());
             ty.set(p + "y", t.y());
@@ -659,6 +665,7 @@ public final class DataStore {
             cy.save(new File(dir, "carriers.yml"));
             ty.save(new File(dir, "towers.yml"));
             py.save(new File(dir, "players.yml"));
+            if (plugin instanceof dev.mccomm.cell.CellPlugin cp && cp.workforce() != null) cp.workforce().save();
             dirty = false;
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to save MCcomm data", e);

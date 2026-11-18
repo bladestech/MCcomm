@@ -247,10 +247,11 @@ public final class CommCommands {
                         Msg.send(s, "<red>Days must be between 0 and 3650.");
                         return;
                     }
-                    int ticks = plugin.billing().timewarp(Math.round(days * 86_400_000L), 3_600_000L);
+                    int ticks = plugin.billing().timewarp(Math.round(days * 86_400_000L),
+                            plugin.settings().workforce.timewarpStepMinutes() * 60_000L);
                     plugin.store().save();
                     plugin.towers().refreshAll();
-                    Msg.send(s, "<green>Fast-forwarded the economy <white><d></white> days (<white><t></white> hourly steps).",
+                    Msg.send(s, "<green>Fast-forwarded the economy <white><d></white> days (<white><t></white> steps).",
                             Msg.p("d", "" + days), Msg.p("t", "" + ticks));
                 }
                 case "billing" -> {

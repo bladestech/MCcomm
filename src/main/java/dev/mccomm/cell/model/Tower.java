@@ -27,6 +27,8 @@ public final class Tower {
     private final java.util.Map<String, UUID> screen = new java.util.LinkedHashMap<>(); // role -> entity
     private final UUID createdBy;
     private final long createdAt;
+    private double wear;   // 0..100, from the traffic it carries; technicians repair it
+    private long wearAt;   // when wear was last brought up to date (epoch ms), 0 = not yet
 
     public Tower(int id, String carrierId, UUID worldId, int x, int y, int z, int generation,
                  UUID createdBy, long createdAt) {
@@ -68,6 +70,10 @@ public final class Tower {
     public void panelId(UUID id) { this.panelId = id; }
     public UUID createdBy() { return createdBy; }
     public long createdAt() { return createdAt; }
+    public double wear() { return wear; }
+    public void wear(double w) { this.wear = Math.clamp(w, 0, 100); }
+    public long wearAt() { return wearAt; }
+    public void wearAt(long t) { this.wearAt = t; }
 
     public World world() {
         return Bukkit.getWorld(worldId);

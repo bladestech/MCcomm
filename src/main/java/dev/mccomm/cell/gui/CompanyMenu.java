@@ -126,6 +126,7 @@ public final class CompanyMenu {
             lore.add("<gray>Wallet: <white>" + s().money(l.wallet()));
             lore.add("<gray>Towers as scrap (" + Math.round(s().towerScrapPercent) + "%): <white>" + s().money(l.scrap()));
             lore.add("<gray>Unused stock (" + Math.round(s().stockRefundPercent) + "%): <white>" + s().money(l.stock()));
+            if (l.staff() > 0) lore.add("<gray>Owed wages & severance: <red>-" + s().money(l.staff()));
             if (l.farewell() > 0) lore.add("<gray>Farewell to " + l.mvnos().size() + " MVNO(s): <red>-" + s().money(l.farewell()));
             lore.add("<gray>Fee (" + Math.round(s().liquidationFeePercent) + "%): <red>-" + s().money(l.fee()));
             lore.add("<gold>You'd receive: " + s().money(l.payout()));

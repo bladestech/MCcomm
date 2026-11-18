@@ -1,6 +1,6 @@
 # Design spec: Workforce, facilities and network wear
 
-Status: **draft for review**. Not implemented yet. Every number is a starting
+Status: **phase 1 implemented** (stations, wear, technicians, dispatch, contractors). Later phases are still drafts. Every number is a starting
 value that goes in `config.yml`; this spec is where they get tuned before code.
 
 ## 1. Why
@@ -415,7 +415,42 @@ New file `workforce.yml`:
 
 Each phase is released on its own and the docs are updated with it.
 
-## 13. Open questions
+## 13. Later additions
+
+### Headquarters
+
+- One per company, registered like any facility (`/facility create hq <name>`).
+- Houses office staff (financial advisor, later managers). Capacity = seats + desks
+  (lecterns).
+- Its size sets the company's **total staff cap** (replacing the flat
+  `max-staff-per-company`), so growing means building a bigger HQ.
+- Shown on squaremap as the company's home.
+
+### Financial advisor
+
+- A virtual role, housed at HQ, paid like other staff.
+- Once a day writes a report from the company's real numbers, in the company
+  menu: margin, cost per subscriber, cash runway, plans priced far from rivals,
+  towers that cost more than they earn, staffing that's under or over load.
+- Concrete suggestions ("raise Standard by ~2 cr: you're 30% below the market").
+  Juniors give rough advice; seniors are more precise and look further ahead.
+- **Crisis mode:** when runway drops under a few days, a step-by-step plan:
+  which costs to cut first, which towers lose the most money, what could be sold.
+- It only advises; it never changes anything by itself. Needs the customer market
+  (phase 3) to be meaningful, so it comes after it.
+
+### Mergers and buyouts
+
+- **Buyouts** exist already (selling a company to another player for a price).
+  Staff, facilities, wages owed and jobs move with the company.
+- **Mergers:** two carriers become one, with both owners' agreement. The survivor
+  takes the other's towers, stock, staff, facilities and balance. Subscribers keep
+  their plan terms (grandfathered) and get a new number on the survivor's prefix.
+  Agreements between the two end; agreements with third parties carry over.
+  Fees: the usual transfer fee on the absorbed balance.
+- **Hostile takeovers** would need shares and shareholders. Out of scope for now.
+
+## 14. Open questions
 
 1. Is 2,000 blocks a good station service radius for your maps?
 2. Should researchers be cheaper per point than buying points?

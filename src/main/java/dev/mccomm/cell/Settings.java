@@ -36,6 +36,7 @@ public final class Settings {
     public final int usersBeforeSlowdown;
     private final List<Integer> capacityPerGen;
     public final double simulationWeight;
+    public final dev.mccomm.cell.workforce.WorkforceSettings workforce;
     public final boolean squaremapEnabled, squaremapCoverage, squaremapPerBand, squaremapCoverageHidden,
             squaremapBandLayers, squaremapBandLayersHidden;
     public final int squaremapIntervalSeconds, squaremapIconSize;
@@ -187,6 +188,7 @@ public final class Settings {
         squaremapBandLayersHidden = c.getBoolean("squaremap.band-layers-hidden-by-default", true);
         squaremapIntervalSeconds = Math.max(5, c.getInt("squaremap.update-seconds", 30));
         squaremapIconSize = Math.clamp(c.getInt("squaremap.icon-size", 20), 8, 64);
+        workforce = dev.mccomm.cell.workforce.WorkforceSettings.read(c);
         capacityPerGen = cap.isEmpty() ? List.of(4, 6, 9, 13, 18) : cap;
         speedtestCooldown = c.getInt("speedtest.cooldown-seconds", 10);
         jitterPercent = c.getDouble("speedtest.jitter-percent", 10);

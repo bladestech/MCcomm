@@ -100,14 +100,15 @@ public final class CarrierMenu {
             perDay += plan.price() * 24.0 / plan.periodHours();
         }
         double upkeepPerDay = upkeep * 24.0 / plugin.settings().upkeepPeriodHours;
-        double net = perDay - upkeepPerDay;
         double simDay = plugin.simulation().revenuePerDay(c);
         perDay += simDay;
-        net = perDay - upkeepPerDay;
+        long staffDay = plugin.workforce().dailyCost(c.id());
+        double net = perDay - upkeepPerDay - staffDay;
         m.set(14, Items.of(Material.EMERALD, "<green>Income",
                 "<gray>Paying subscribers: <white>" + subs + (c.simulatedUsers() > 0 ? " <dark_gray>+ " + c.simulatedUsers() + " simulated" : ""),
                 "<gray>Plan income: <green>+" + plugin.settings().money(Math.round(perDay)) + "</green> /day",
                 "<gray>Upkeep: <red>-" + plugin.settings().money(Math.round(upkeepPerDay)) + "</red> /day",
+                "<gray>Wages & rent: <red>-" + plugin.settings().money(staffDay) + "</red> /day",
                 "<gray>Net: " + (net >= 0 ? "<green>+" : "<red>-") + plugin.settings().money(Math.round(Math.abs(net))) + " /day"));
 
         if (stage == 0) {
@@ -183,6 +184,17 @@ public final class CarrierMenu {
             click(p);
             plans(p, c);
         });
+        if (!c.mvno() && plugin.workforce().enabled()) {
+            int worn = 0;
+            for (Tower t : towers) if (plugin.workforce().wearStage(t) >= 2) worn++;
+            m.set(26, Items.of(Material.IRON_PICKAXE, "<gold>Operations" + (worn > 0 ? " <red>(" + worn + " worn)" : ""),
+                    "<gray>Tower wear, repairs, maintenance", "<gray>stations and technicians.",
+                    "<gray>Staff: <white>" + plugin.workforce().staffOf(c.id()).size() + " <gray>· Stations: <white>" + plugin.workforce().facilitiesOf(c.id()).size(),
+                    "<yellow>Click to open"), e -> {
+                click(p);
+                plugin.operationsMenu().open(p, c);
+            });
+        }
         m.set(30, Items.of(Material.LIGHTNING_ROD, "<gold>Towers", "<gray>Status, decay and upkeep per tower."), e -> {
             click(p);
             towers(p, c);
@@ -846,7 +858,13 @@ public final class CarrierMenu {
             lore.add("<gray>Upkeep: <white>" + plugin.settings().money(plugin.settings().upkeepCost(t)) + " <gray>per "
                     + BillingService.period(plugin.settings().upkeepPeriodHours));
             lore.add("<gray>Location: <white>" + world + " " + t.x() + ", " + t.y() + ", " + t.z());
+            if (plugin.workforce().enabled()) {
+                lore.add("<gray>Wear: " + OperationsMenu.wearBar(t.wear()) + " <white>" + Math.round(t.wear()) + "%");
+                var job = plugin.workforce().job(t);
+                if (job != null) lore.add(job.started() ? "<aqua>⚒ Repair in progress" : "<yellow>Repair queued");
+            }
             String status = !t.online() ? "<red>Offline" : stage >= plugin.settings().silentStage() ? "<dark_red>Silent (unpaid)"
+                    : plugin.workforce().silent(t) ? "<dark_red>Silent (worn out)"
                     : stage > 0 ? "<gold>Decaying (stage " + stage + ")" : "<green>Online";
             lore.add(status);
             Material icon = !t.online() || stage >= plugin.settings().silentStage() ? Material.IRON_BARS : Material.LIGHTNING_ROD;
