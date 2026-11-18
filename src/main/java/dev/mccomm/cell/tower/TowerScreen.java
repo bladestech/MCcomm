@@ -202,7 +202,7 @@ public final class TowerScreen {
         int stage = plugin.billing().decayStage(t);
         var wf = plugin.workforce();
         int wear = wf.wearStage(t);
-        State state = t.backhaul() == null || t.enabledBands().isEmpty() ? State.OFFLINE
+        State state = !t.online() ? State.OFFLINE
                 : stage >= s().silentStage() || wear >= 4 ? State.SILENT : stage > 0 || wear > 0 ? State.DEGRADED : State.LIVE;
         var job = wf.job(t);
         boolean repairing = job != null && job.started();
@@ -248,7 +248,8 @@ public final class TowerScreen {
         String right;
         switch (state) {
             case OFFLINE -> {
-                left = t.backhaul() == null ? "<#9AA0AA>No backhaul installed" : "<#9AA0AA>All bands switched off";
+                left = t.enabledBands().isEmpty() ? "<#9AA0AA>All bands switched off"
+                        : t.small() ? "<#9AA0AA>No backhaul or macro cell in range" : "<#9AA0AA>No backhaul installed";
                 right = "";
             }
             case SILENT -> {
@@ -258,17 +259,23 @@ public final class TowerScreen {
             default -> {
                 int users = plugin.signal().usersOn(t);
                 int sims = plugin.signal().simOn(t);
-                int capacity = Math.max(1, s().capacity(t.generation()) * Math.max(1, t.enabledBands().size()));
+                int capacity = (int) Math.max(1, plugin.signal().capacity(t) * Math.max(1, t.enabledBands().size()));
                 int lit = Math.min(5, (int) Math.ceil(5.0 * plugin.signal().load(t) / capacity));
                 String barCol = lit >= 4 ? "<#FF8A5C>" : lit >= 3 ? "<#FFD86B>" : "<#5EE38A>";
                 StringBuilder bars = new StringBuilder("<b>");
                 for (int i = 0; i < 5; i++) bars.append(i < lit ? barCol : "<#3A3D45>").append('|');
                 left = bars + "</b> <#C8CCD4>" + users + (users == 1 ? " user" : " users") + (sims > 0 ? " <#7A7F8A>· " + sims + " sim" : "");
-                BackhaulSpec bh = s().backhaul.get(t.backhaul());
-                int bonus = (int) Math.round((s().rangeMultiplier(t.heightAboveGround()) - 1) * 100);
-                String bhName = bh == null ? t.backhaul().name() : bh.name();
-                right = "<#9AA0AA>" + Msg.escape(bhName) + " " + Math.round(bh == null ? 0 : bh.multiplier() * 100) + "%"
-                        + (bonus > 0 ? " · <#7FDBFF>+" + bonus + "%" : "");
+                if (t.backhaul() == null) {
+                    Tower link = plugin.store().tower(t.wirelessLink());
+                    right = "<#9AA0AA>Small cell · via " + Msg.escape(link == null ? "?" : link.name()) + " "
+                            + Math.round(plugin.signal().backhaulMultiplier(t) * 100) + "%";
+                } else {
+                    BackhaulSpec bh = s().backhaul.get(t.backhaul());
+                    int bonus = t.small() ? 0 : (int) Math.round((s().rangeMultiplier(t.heightAboveGround()) - 1) * 100);
+                    String bhName = bh == null ? t.backhaul().name() : bh.name();
+                    right = "<#9AA0AA>" + (t.small() ? "Small cell · " : "") + Msg.escape(bhName) + " " + Math.round(bh == null ? 0 : bh.multiplier() * 100) + "%"
+                            + (bonus > 0 ? " · <#7FDBFF>+" + bonus + "%" : "");
+                }
                 if (stage > 0) {
                     right = "<#FFD86B>Unpaid · " + Math.round(plugin.billing().decaySpeed(t) * 100) + "% speed";
                 } else if (repairing) {

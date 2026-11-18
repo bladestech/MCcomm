@@ -104,7 +104,8 @@ public final class SquaremapHook {
                 boolean up = working(t);
                 Key icon = icon(up && c != null ? c.color().value() : 0x8A8F9A);
                 String html = popup(t, c, up);
-                towerLayer.addMarker(Key.of("t" + t.id()), Marker.icon(Point.of(t.x() + 0.5, t.z() + 0.5), icon, s().squaremapIconSize)
+                int size = t.small() ? Math.max(8, s().squaremapIconSize * 3 / 5) : s().squaremapIconSize;
+                towerLayer.addMarker(Key.of("t" + t.id()), Marker.icon(Point.of(t.x() + 0.5, t.z() + 0.5), icon, size)
                         .markerOptions(MarkerOptions.builder().hoverTooltip(html).clickTooltip(html)));
             }
 
@@ -148,18 +149,17 @@ public final class SquaremapHook {
                     Color col = new Color(c.color().value());
                     for (Tower t : list) {
                         if (!working(t)) continue;
-                        double mult = s().rangeMultiplier(t.heightAboveGround());
                         List<Band> bands = new ArrayList<>();
                         for (Band b : t.enabledBands()) if (plugin.towers().available(t, b)) bands.add(b);
                         if (bands.isEmpty()) continue;
                         if (s().squaremapPerBand) {
                             for (Band b : bands) {
-                                double r = s().spec(b).range() * mult;
+                                double r = plugin.towers().range(t, b);
                                 cov.addMarker(Key.of("c" + t.id() + "_" + b.ordinal()), circle(t, r, col, 0.05, s().spec(b).name() + " · " + t.name()));
                             }
                         } else {
                             double r = 0;
-                            for (Band b : bands) r = Math.max(r, s().spec(b).range() * mult);
+                            for (Band b : bands) r = Math.max(r, plugin.towers().range(t, b));
                             cov.addMarker(Key.of("c" + t.id()), circle(t, r, col, 0.12, t.name() + " · " + Math.round(r) + " blocks"));
                         }
                     }
@@ -175,7 +175,7 @@ public final class SquaremapHook {
                         for (Tower t : towers) {
                             if (!working(t) || !t.enabledBands().contains(b) || !plugin.towers().available(t, b)) continue;
                             Carrier c = plugin.store().carrier(t.carrierId());
-                            double r = s().spec(b).range() * s().rangeMultiplier(t.heightAboveGround());
+                            double r = plugin.towers().range(t, b);
                             bl.addMarker(Key.of("b" + t.id()), Marker.circle(Point.of(t.x() + 0.5, t.z() + 0.5), r).markerOptions(MarkerOptions.builder()
                                     .fillColor(col).fillOpacity(0.07).strokeColor(col).strokeOpacity(0.9).strokeWeight(2)
                                     .hoverTooltip(esc(s().spec(b).name() + " · " + t.name() + " (" + (c == null ? "?" : c.name()) + ") · " + Math.round(r) + " blocks"))));
@@ -227,7 +227,7 @@ public final class SquaremapHook {
                 .append(esc(t.name())).append("</b><br>");
         if (c != null) sb.append("<span style='color:#f5c542'>").append(esc(plugin.market().ratingPlain(c))).append("</span><br>");
         Manufacturer m = plugin.store().manufacturer(t.manufacturerId());
-        sb.append(esc(plugin.towers().modelName(t))).append(" (Gen ").append(t.generation()).append(")");
+        sb.append(t.small() ? "Small cell &middot; " : "").append(esc(plugin.towers().modelName(t))).append(" (Gen ").append(t.generation()).append(")");
         if (m != null) sb.append(" by ").append(esc(m.name()));
         sb.append("<br>");
         List<String> bands = new ArrayList<>();

@@ -113,9 +113,9 @@ public final class TowerGui implements Listener {
         for (Band b : Band.values()) {
             BandSpec spec = s().spec(b);
             List<String> lore = new ArrayList<>();
-            double mult = s().rangeMultiplier(t.heightAboveGround());
-            lore.add("<gray>Range: <white>" + Msg.distance(spec.range() * mult)
-                    + (mult > 1.0001 ? " <dark_gray>(base " + Msg.distance(spec.range()) + ")" : ""));
+            double range = plugin.towers().range(t, b);
+            lore.add("<gray>Range: <white>" + Msg.distance(range)
+                    + (Math.abs(range - spec.range()) > 0.5 ? " <dark_gray>(base " + Msg.distance(spec.range()) + ")" : ""));
             lore.add("<gray>Peak: <white>" + Msg.speed(spec.maxMbps()) + (bh != null
                     ? " <dark_gray>(" + Msg.speed(spec.maxMbps() * bh.multiplier()) + " with " + esc(bh.name()) + ")" : ""));
             lore.add("<gray>Ping: <white>" + spec.pingMs() + " ms");
@@ -139,6 +139,11 @@ public final class TowerGui implements Listener {
             List<String> lore = new ArrayList<>();
             lore.add("<gray>Place a block here to bring the tower online.");
             lore.add("<red>Once installed it is locked and can only be discarded.");
+            if (t.small()) {
+                Tower link = t.wirelessLink() == 0 ? null : plugin.store().tower(t.wirelessLink());
+                lore.add(link != null ? "<aqua>Now: wireless backhaul via " + esc(link.name())
+                        : "<gold>Small cell: or link wirelessly to a macro cell within " + s().smallCells.wirelessRange() + " blocks.");
+            }
             lore.add("");
             for (BackhaulSpec spec : s().backhaul.values()) {
                 lore.add("<gray>• <white>" + esc(spec.name()) + " <dark_gray>— " + Math.round(spec.multiplier() * 100) + "%");

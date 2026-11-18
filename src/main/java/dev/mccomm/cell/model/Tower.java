@@ -29,6 +29,8 @@ public final class Tower {
     private final long createdAt;
     private double wear;   // 0..100, from the traffic it carries; technicians repair it
     private long wearAt;   // when wear was last brought up to date (epoch ms), 0 = not yet
+    private boolean small; // small cell
+    private int wirelessLink; // small cell without a backhaul block: the macro it links to (not saved)
 
     public Tower(int id, String carrierId, UUID worldId, int x, int y, int z, int generation,
                  UUID createdBy, long createdAt) {
@@ -74,6 +76,10 @@ public final class Tower {
     public void wear(double w) { this.wear = Math.clamp(w, 0, 100); }
     public long wearAt() { return wearAt; }
     public void wearAt(long t) { this.wearAt = t; }
+    public boolean small() { return small; }
+    public void small(boolean s) { this.small = s; }
+    public int wirelessLink() { return wirelessLink; }
+    public void wirelessLink(int id) { this.wirelessLink = id; }
 
     public World world() {
         return Bukkit.getWorld(worldId);
@@ -96,7 +102,7 @@ public final class Tower {
     }
 
     public boolean online() {
-        return backhaul != null && !enabledBands.isEmpty();
+        return (backhaul != null || (small && wirelessLink != 0)) && !enabledBands.isEmpty();
     }
 
     public BlockKey key() {

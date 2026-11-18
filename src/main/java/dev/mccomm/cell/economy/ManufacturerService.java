@@ -42,6 +42,7 @@ public final class ManufacturerService {
         }
         g.researchedGen(s().maxGeneration());
         g.researchedBands().addAll(EnumSet.allOf(Band.class));
+        g.smallCells(true);
         g.models().clear();
         for (Generation gen : s().generations.values()) {
             TowerModel tm = new TowerModel("g" + gen.level(), gen.model());
@@ -50,6 +51,17 @@ public final class ManufacturerService {
             tm.marginPercent(s().genericMargin);
             tm.published(s().genericEnabled);
             g.models().put(tm.id(), tm);
+            if (s().smallCells.enabled() && gen.level() >= s().smallCells.minGeneration()) {
+                TowerModel sm = new TowerModel("gs" + gen.level(), gen.model() + " Small");
+                sm.generation(gen.level());
+                sm.small(true);
+                for (Band b : Band.values()) {
+                    if (s().supports(gen.level(), b) && s().spec(b).minGeneration() >= s().smallCells.minGeneration()) sm.bands().add(b);
+                }
+                sm.marginPercent(s().genericMargin);
+                sm.published(s().genericEnabled);
+                g.models().put(sm.id(), sm);
+            }
         }
         for (Tower t : plugin.store().towers()) {
             if (t.manufacturerId() != null) continue;
@@ -65,7 +77,7 @@ public final class ManufacturerService {
     public long cost(TowerModel tm) {
         long c = s().mfgBase + s().mfgPerGen * Math.max(0, tm.generation() - 1);
         for (Band b : tm.bands()) c += s().mfgBandCost.getOrDefault(b, 0L);
-        return c;
+        return tm.small() ? Math.max(1, Math.round(c * s().smallCells.costPercent())) : c;
     }
 
     public long price(TowerModel tm) {
@@ -87,6 +99,14 @@ public final class ManufacturerService {
     public String problem(Manufacturer m, TowerModel tm) {
         if (tm.generation() > m.researchedGen()) return "Gen " + tm.generation() + " isn't researched yet.";
         if (tm.bands().isEmpty()) return "Add at least one band.";
+        if (tm.small()) {
+            if (!s().smallCells.enabled()) return "Small cells are turned off on this server.";
+            if (!m.smallCells()) return "Small cells aren't researched yet.";
+            if (tm.generation() < s().smallCells.minGeneration()) return "Small cells need Gen " + s().smallCells.minGeneration() + " or newer.";
+            for (Band b : tm.bands()) {
+                if (s().spec(b).minGeneration() < s().smallCells.minGeneration()) return "Small cells can't carry " + s().spec(b).name() + ".";
+            }
+        }
         for (Band b : tm.bands()) {
             if (!m.researchedBands().contains(b)) return s().spec(b).name() + " isn't researched yet.";
             if (!s().supports(tm.generation(), b)) return s().spec(b).name() + " needs Gen " + s().spec(b).minGeneration() + ".";
@@ -162,6 +182,25 @@ public final class ManufacturerService {
         m.log(0, "Researched " + s().spec(b).name() + " (" + cost + " RP)");
         plugin.store().markDirty();
         Msg.send(p, "<green>Researched <white><b></white>. You can put it in your models now.", Msg.p("b", s().spec(b).name()));
+    }
+
+    public void researchSmallCells(Player p, Manufacturer m) {
+        var sc = s().smallCells;
+        if (m.smallCells() || !sc.enabled()) return;
+        if (m.researchedGen() < sc.minGeneration()) {
+            Msg.send(p, "<red>Small cells need Gen <g> researched first.", Msg.p("g", "" + sc.minGeneration()));
+            return;
+        }
+        if (m.researchPoints() < sc.researchPoints()) {
+            Msg.send(p, "<red>Small cells need <white><c></white> research points; you have <white><rp></white>.",
+                    Msg.p("c", "" + sc.researchPoints()), Msg.p("rp", "" + m.researchPoints()));
+            return;
+        }
+        m.researchPoints(m.researchPoints() - sc.researchPoints());
+        m.smallCells(true);
+        m.log(0, "Researched small cells (" + sc.researchPoints() + " RP)");
+        plugin.store().markDirty();
+        Msg.send(p, "<green>Researched <white>small cells</white>. Set a model's form factor to Small cell to make them.");
     }
 
     /** Ores deposited straight into research. */

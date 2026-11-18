@@ -16,6 +16,7 @@ public final class TowerModel {
     private double marginPercent = 20;
     private boolean published;
     private int sold;
+    private boolean small; // small cell form factor
 
     public TowerModel(String id, String name) {
         this.id = id;
@@ -34,4 +35,6 @@ public final class TowerModel {
     public void published(boolean p) { this.published = p; }
     public int sold() { return sold; }
     public void sold(int n) { this.sold = n; }
+    public boolean small() { return small; }
+    public void small(boolean s) { this.small = s; }
 }

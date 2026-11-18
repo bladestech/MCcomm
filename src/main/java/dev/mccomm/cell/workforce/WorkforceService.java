@@ -110,7 +110,7 @@ public final class WorkforceService {
     public double wearPerDay(Tower t) {
         if (!enabled() || !t.online()) return 0;
         int subscribers = plugin.signal().usersOn(t) + plugin.signal().simOn(t);
-        return w().wearIdlePerDay() + w().wearPerSubscriberDay() * subscribers;
+        return w().wearIdlePerDay() + w().wearPerSubscriberDay() * subscribers * (t.small() ? plugin.settings().smallCells.wearFactor() : 1);
     }
 
     /** Real data carried by a tower (called on data use). */
@@ -361,6 +361,11 @@ public final class WorkforceService {
         return m;
     }
 
+    /** Repair time for this tower (small cells are quicker). */
+    public double repairMinutes(Tower t, int level, Facility station) {
+        return repairMinutes(t.wear(), level, station) * (t.small() ? plugin.settings().smallCells.repairFactor() : 1);
+    }
+
     public long partsCost(double wear) {
         return (long) Math.ceil(w().partsBase() + w().partsPerWear() * wear);
     }
@@ -395,7 +400,7 @@ public final class WorkforceService {
         long parts = partsCost(t.wear());
         if (!charge(c, j, parts, "Repair parts: " + t.name())) return true; // can't pay: wait, don't call a contractor either
         double travel = bestDist / w().blocksPerMinute();
-        double work = repairMinutes(t.wear(), best.level(), bestStation);
+        double work = repairMinutes(t, best.level(), bestStation);
         long arrive = now + Math.round((w().setOutMinutes() + travel) * MINUTE);
         j.technicianId(best.id());
         j.stationId(bestStation.id());
@@ -411,7 +416,7 @@ public final class WorkforceService {
     private void contractor(RepairJob j, Tower t, Carrier c, long now) {
         long cost = contractorCost(t.wear());
         if (!charge(c, j, cost, "Contractor repair: " + t.name())) return;
-        double work = repairMinutes(t.wear(), 1, null);
+        double work = repairMinutes(t, 1, null);
         j.contractor(true);
         j.repairAt(now + w().contractorDelayHours() * HOUR + Math.round(work * MINUTE));
         j.cost(cost);
@@ -811,11 +816,11 @@ public final class WorkforceService {
 
     /** When the technician on this job gets to the tower (for showing them there). */
     private long arriveAt(RepairJob j, Tower t) {
-        if (j.contractor()) return j.repairAt() - Math.round(repairMinutes(t.wear(), 1, null) * MINUTE);
+        if (j.contractor()) return j.repairAt() - Math.round(repairMinutes(t, 1, null) * MINUTE);
         Employee e = employees.get(j.technicianId());
         Facility f = facilities.get(j.stationId());
         int level = e == null ? 1 : e.level();
-        return j.repairAt() - Math.round(repairMinutes(t.wear(), level, f) * MINUTE);
+        return j.repairAt() - Math.round(repairMinutes(t, level, f) * MINUTE);
     }
 
     /** True while a technician is on site at this tower. */

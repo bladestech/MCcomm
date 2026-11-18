@@ -310,10 +310,9 @@ public final class SignalService {
         double dist = eye.distance(ant);
         int dropped = Math.max(plugin.billing().decayDroppedBands(t), plugin.workforce().wearDroppedBands(t));
 
-        double mult = s().rangeMultiplier(t.heightAboveGround());
         double maxRange = 0;
         for (Band b : t.enabledBands()) {
-            if (s().supports(t.generation(), b)) maxRange = Math.max(maxRange, s().spec(b).range() * mult);
+            if (plugin.towers().available(t, b)) maxRange = Math.max(maxRange, plugin.towers().range(t, b));
         }
         if (dist > maxRange) return null;
 
@@ -328,12 +327,12 @@ public final class SignalService {
             }
             if (b.ordinal() > cap.ordinal()) continue; // phone or plan can't use this band
             BandSpec spec = s().spec(b);
-            double range = spec.range() * mult;
+            double range = plugin.towers().range(t, b);
             if (dist > range) continue;
             if (obstructions < 0) obstructions = countObstructions(eye, ant, dist);
             double ratio = dist / range;
             double dbm = s().bestDbm + (s().cutoffDbm - s().bestDbm) * Math.pow(ratio, s().falloffExponent)
-                    - Math.min(obstructions * spec.obstructionDb(), spec.maxObstructionDb()) - envLoss;
+                    - Math.min(obstructions * spec.obstructionDb(), spec.maxObstructionDb()) * (t.small() ? s().smallCells.wallLoss() : 1) - envLoss;
             if (dbm >= s().cutoffDbm) return new Link(t, b, dbm, bars(dbm), dist);
         }
         return null;
@@ -399,15 +398,27 @@ public final class SignalService {
     }
 
     public double backhaulMultiplier(Tower t) {
+        if (t.backhaul() == null && t.small() && t.wirelessLink() != 0) {
+            // Wireless backhaul: a share of the macro's, shared with the other small cells linked to it.
+            Tower macro = plugin.store().tower(t.wirelessLink());
+            if (macro == null) return 0;
+            int linked = Math.max(1, plugin.towers().linkedCount(macro));
+            return backhaulMultiplier(macro) * s().smallCells.wirelessMultiplier() * Math.max(0.5, 1 - 0.05 * (linked - 1));
+        }
         BackhaulSpec bh = t.backhaul() == null ? null : s().backhaul.get(t.backhaul());
         return bh == null ? 0 : bh.multiplier();
+    }
+
+    /** Users one band of this tower serves at full speed. */
+    public double capacity(Tower t) {
+        return s().capacity(t.generation()) * (t.small() ? s().smallCells.capacityMultiplier() : 1);
     }
 
     /** Download speed in Mbps for this link, after backhaul, signal and congestion. */
     public double downloadMbps(Link l) {
         BandSpec spec = s().spec(l.band());
         double users = Math.max(1, load(l.tower(), l.band()));
-        int cap = s().capacity(l.tower().generation());
+        double cap = capacity(l.tower());
         double share = users <= cap ? 1 : cap / users;
         return spec.maxMbps() * backhaulMultiplier(l.tower()) * signalFactor(l.dbm()) * share
                 * Math.min(plugin.billing().decaySpeed(l.tower()), plugin.workforce().wearSpeed(l.tower()))

@@ -178,6 +178,7 @@ public final class CompanyService {
     private long towerCost(Tower t) {
         TowerModel tm = new TowerModel("tmp", "tmp");
         tm.generation(t.generation());
+        tm.small(t.small());
         if (t.modelBands().isEmpty()) {
             for (Band b : Band.values()) if (s().supports(t.generation(), b)) tm.bands().add(b);
         } else tm.bands().addAll(t.modelBands());

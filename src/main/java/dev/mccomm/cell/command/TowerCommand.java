@@ -232,6 +232,28 @@ public final class TowerCommand extends Cmd {
             Msg.send(p, "<red>That model is no longer in stock.");
             return;
         }
+        if (model.small() && !p.hasPermission("mccomm.admin")) {
+            var sc = plugin.settings().smallCells;
+            int macros = 0, smalls = 0;
+            for (Tower x : plugin.store().towersOf(c.id())) {
+                if (x.small()) smalls++;
+                else macros++;
+            }
+            if (smalls >= sc.perMacro() * macros) {
+                Msg.send(p, "<red><c> can have <white><n></white> small cell(s) per macro cell. Install another macro cell first.",
+                        Msg.p("c", c.name()), Msg.p("n", "" + sc.perMacro()));
+                return;
+            }
+            for (Tower x : plugin.store().towersOf(c.id())) {
+                if (!x.small() || !x.worldId().equals(b.getWorld().getUID())) continue;
+                double dx = x.x() - b.getX(), dy = x.y() - b.getY(), dz = x.z() - b.getZ();
+                if (dx * dx + dy * dy + dz * dz < (double) sc.minSpacing() * sc.minSpacing()) {
+                    Msg.send(p, "<red>Too close to small cell <white><t></white>: keep them <white><n></white> blocks apart.",
+                            Msg.p("t", x.name()), Msg.p("n", "" + sc.minSpacing()));
+                    return;
+                }
+            }
+        }
         long cost = plugin.settings().towerCost;
         if (cost > 0 && !p.hasPermission("mccomm.admin")) {
             if (c.balance() < cost) {

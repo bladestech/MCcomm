@@ -327,8 +327,13 @@ public final class CarrierMenu {
     private ItemStack towerItem(Carrier c, Tower t) {
         int stage = plugin.billing().decayStage(c);
         List<String> lore = new ArrayList<>();
-        lore.add("<gray>" + Items.esc(plugin.towers().modelName(t)) + " · Gen " + t.generation() + " · "
-                + (t.backhaul() == null ? "<red>no backhaul" : DepositMenu.TowerGuiNames.pretty(t.backhaul())));
+        String bh;
+        if (t.backhaul() != null) bh = DepositMenu.TowerGuiNames.pretty(t.backhaul());
+        else if (t.small() && t.wirelessLink() != 0) {
+            Tower link = plugin.store().tower(t.wirelessLink());
+            bh = "<aqua>wireless via " + Items.esc(link == null ? "?" : link.name());
+        } else bh = "<red>no backhaul";
+        lore.add("<gray>" + (t.small() ? "<aqua>Small cell</aqua> · " : "") + Items.esc(plugin.towers().modelName(t)) + " · Gen " + t.generation() + " · " + bh);
         lore.add("<gray>Users: <white>" + plugin.signal().usersOn(t) + (plugin.signal().simOn(t) > 0 ? " <dark_gray>+ " + plugin.signal().simOn(t) + " customers" : ""));
         if (plugin.workforce().enabled()) lore.add("<gray>Wear: " + OperationsMenu.wearBar(t.wear()) + " <white>" + Math.round(t.wear()) + "%");
         var job = plugin.workforce().job(t);
@@ -341,7 +346,7 @@ public final class CarrierMenu {
         lore.add("<dark_gray>" + (t.world() == null ? "?" : t.world().getName()) + " " + t.x() + ", " + t.y() + ", " + t.z());
         int ws = plugin.workforce().wearStage(t);
         Material icon = !t.online() || stage >= plugin.settings().silentStage() || ws >= 4 ? Material.IRON_BARS
-                : ws >= 2 ? Material.REDSTONE_TORCH : Material.LIGHTNING_ROD;
+                : ws >= 2 ? Material.REDSTONE_TORCH : t.small() ? Material.END_ROD : Material.LIGHTNING_ROD;
         return Items.of(icon, "<gold>" + Items.esc(t.name()), lore);
     }
 

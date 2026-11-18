@@ -56,6 +56,7 @@ See [Signal reference](../signal.md) for how these numbers are used.
 | Section | Controls |
 |---|---|
 | `simulation` | `users-per-real-user` (500) and `mode` (market or fixed). See [Simulated users](simulation.md) |
+| `small-cells` | Small cell range, wall loss, capacity, upkeep, wear and repair factors, wireless backhaul, limits per macro and spacing, cost and research. See [Towers](../carriers/towers.md#small-cells) |
 | `market` | Fair price, churn rates, shopping rate, satisfaction weights, coverage grid and band weights. See [The customer market](../carriers/market.md) |
 | `squaremap` | Map integration. See [squaremap](squaremap.md) |
 

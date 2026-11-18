@@ -38,6 +38,7 @@ public final class Settings {
     public final double simulationWeight;
     public final dev.mccomm.cell.workforce.WorkforceSettings workforce;
     public final dev.mccomm.cell.market.MarketSettings market;
+    public final dev.mccomm.cell.tower.SmallCellSettings smallCells;
     public final boolean squaremapEnabled, squaremapCoverage, squaremapPerBand, squaremapCoverageHidden,
             squaremapBandLayers, squaremapBandLayersHidden;
     public final int squaremapIntervalSeconds, squaremapIconSize;
@@ -192,6 +193,7 @@ public final class Settings {
         squaremapIconSize = Math.clamp(c.getInt("squaremap.icon-size", 20), 8, 64);
         workforce = dev.mccomm.cell.workforce.WorkforceSettings.read(c);
         market = dev.mccomm.cell.market.MarketSettings.read(c);
+        smallCells = dev.mccomm.cell.tower.SmallCellSettings.read(c);
         capacityPerGen = cap.isEmpty() ? List.of(4, 6, 9, 13, 18) : cap;
         speedtestCooldown = c.getInt("speedtest.cooldown-seconds", 10);
         jitterPercent = c.getDouble("speedtest.jitter-percent", 10);
@@ -329,7 +331,8 @@ public final class Settings {
 
     /** Upkeep one tower costs per upkeep period. */
     public long upkeepCost(Tower t) {
-        long cost = upkeepBase + upkeepPerGen * Math.max(0, t.generation() - 1);
+        long cost = t.small() ? smallCells.upkeepBase() + smallCells.upkeepPerGen() * Math.max(0, t.generation() - 1)
+                : upkeepBase + upkeepPerGen * Math.max(0, t.generation() - 1);
         if (t.backhaul() != null) cost += upkeepBackhaul.getOrDefault(t.backhaul(), 0L);
         return cost;
     }

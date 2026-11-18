@@ -195,6 +195,20 @@ public final class ManufacturerMenu {
                 research(p, m);
             });
         }
+        var sc = s().smallCells;
+        if (sc.enabled()) {
+            boolean done = m.smallCells();
+            boolean genOk = m.researchedGen() >= sc.minGeneration();
+            menu.set(37, Items.of(done ? Material.END_ROD : genOk ? Material.PAPER : Material.GRAY_DYE,
+                    (done ? "<green>" : genOk ? "<white>" : "<dark_gray>") + "Small cell form factor",
+                    "<gray>Short-range, high-capacity cells for", "<gray>busy spots and indoors.",
+                    done ? "<green>Researched" : !genOk ? "<dark_gray>Needs Gen " + sc.minGeneration() : "<yellow>" + sc.researchPoints() + " points · click to research"), e -> {
+                if (!owner || done || !genOk) return;
+                click(p);
+                mf().researchSmallCells(p, m);
+                research(p, m);
+            });
+        }
         if (owner) {
             menu.set(39, Items.of(Material.HOPPER, "<green>Fund with ores", "<gray>Ores go straight into research points."), e -> {
                 click(p);
@@ -272,7 +286,7 @@ public final class ManufacturerMenu {
     /** Specs and economics of a model. {@code makerView} adds cost/profit details. */
     public List<String> modelLore(Manufacturer m, TowerModel tm, boolean makerView) {
         List<String> lore = new ArrayList<>();
-        lore.add("<gray>Gen <white>" + tm.generation() + " <gray>· " + bandList(tm.bands()));
+        lore.add((tm.small() ? "<aqua>Small cell <gray>· " : "<gray>Macro cell · ") + "Gen <white>" + tm.generation() + " <gray>· " + bandList(tm.bands()));
         lore.add("<gray>Price: <gold>" + s().money(mf().price(tm)));
         if (makerView) {
             lore.add("<gray>Cost " + s().money(mf().cost(tm)) + " · profit <green>" + s().money(mf().profit(tm)) + " <dark_gray>(" + Math.round(tm.marginPercent()) + "%)");
@@ -365,8 +379,27 @@ public final class ManufacturerMenu {
                 editor(p, m, tm);
             });
         }
+        var sc = s().smallCells;
+        if (sc.enabled()) {
+            menu.set(40, Items.of(tm.small() ? Material.END_ROD : Material.LIGHTNING_ROD,
+                    "<white>Form factor: <aqua>" + (tm.small() ? "Small cell" : "Macro cell"),
+                    tm.small() ? "<gray>" + Math.round(sc.rangePercent() * 100) + "% range, ×" + sc.capacityMultiplier() + " capacity, "
+                            + Math.round(sc.costPercent() * 100) + "% of the cost." : "<gray>A full tower with the height bonus.",
+                    !m.smallCells() ? "<red>Research small cells first" : "<yellow>Click · switch"), e -> {
+                if (!m.smallCells()) return;
+                click(p);
+                tm.small(!tm.small());
+                if (tm.small()) {
+                    if (tm.generation() < sc.minGeneration()) tm.generation(Math.min(m.researchedGen(), sc.minGeneration()));
+                    tm.bands().removeIf(b -> s().spec(b).minGeneration() < sc.minGeneration());
+                }
+                plugin.store().markDirty();
+                editor(p, m, tm);
+            });
+        }
         Frame.help(menu, "Model editor", "Row 2: name, generation, margin, publish.", "Row 3: bands it includes (glowing).",
-                "Each band adds to the cost to make it.");
+                "Each band adds to the cost to make it.", "", "Small cells: short range, more capacity,",
+                "cheaper; 4G and 5G bands only.");
         menu.open(p);
     }
 
@@ -430,7 +463,7 @@ public final class ManufacturerMenu {
             lore.add("<gray>Upkeep: <white>" + s().money(upkeepFor(tm)) + " <gray>per " + BillingService.period(s().upkeepPeriodHours) + " + backhaul");
             lore.add("<gray>In your stock: <white>" + c.stock().getOrDefault(ManufacturerService.ref(m, tm), 0));
             lore.add("<yellow>Click · buy 1 · <yellow>Right-click · 5 · <yellow>Shift-click · any");
-            return Items.of(Material.LIGHTNING_ROD, "<gold><b>" + Items.esc(tm.name()), lore);
+            return Items.of(tm.small() ? Material.END_ROD : Material.LIGHTNING_ROD, "<gold><b>" + Items.esc(tm.name()), lore);
         }, (tm, e) -> {
             click(p);
             if (e.isShiftClick()) {
@@ -475,8 +508,8 @@ public final class ManufacturerMenu {
             Manufacturer m = mf().maker(ref);
             TowerModel tm = mf().model(ref);
             int n = c.stock().get(ref);
-            return Items.amount(Items.of(Material.LIGHTNING_ROD, "<gold>" + Items.esc(tm.name()) + " <gray>× " + n,
-                    "<gray>By " + m.styled() + " <gray>· Gen " + tm.generation(), "<gray>" + bandList(tm.bands()),
+            return Items.amount(Items.of(tm.small() ? Material.END_ROD : Material.LIGHTNING_ROD, "<gold>" + Items.esc(tm.name()) + " <gray>× " + n,
+                    "<gray>By " + m.styled() + " <gray>· " + (tm.small() ? "Small cell · " : "") + "Gen " + tm.generation(), "<gray>" + bandList(tm.bands()),
                     "<gray>Install: <white>/tower install <name>"), n);
         }, null, n -> stock(p, c));
         menu.set(40, Items.of(Material.EMERALD, "<green>Tower shop"), ev -> {
@@ -500,8 +533,8 @@ public final class ManufacturerMenu {
             Manufacturer m = mf().maker(ref);
             TowerModel tm = mf().model(ref);
             int n = c.stock().get(ref);
-            return Items.amount(Items.of(Material.LIGHTNING_ROD, "<gold>" + Items.esc(tm.name()) + " <gray>× " + n,
-                    "<gray>By " + m.styled(), "<gray>Gen " + tm.generation() + " · " + bandList(tm.bands()), "<yellow>Click · install"), n);
+            return Items.amount(Items.of(tm.small() ? Material.END_ROD : Material.LIGHTNING_ROD, "<gold>" + Items.esc(tm.name()) + " <gray>× " + n,
+                    "<gray>By " + m.styled(), "<gray>" + (tm.small() ? "Small cell · " : "") + "Gen " + tm.generation() + " · " + bandList(tm.bands()), "<yellow>Click · install"), n);
         }, (ref, ev) -> {
             click(p);
             p.closeInventory();

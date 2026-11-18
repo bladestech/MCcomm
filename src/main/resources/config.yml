@@ -282,6 +282,30 @@ manufacturing:
     enabled: true
     margin-percent: 40
 
+# Small cells: short-range, high-capacity cells for busy spots and indoors. Manufacturers
+# research the form factor and make small-cell models; carriers install them on wall signs
+# like any tower. Phones move onto a nearby small cell automatically (stronger signal).
+small-cells:
+  enabled: true
+  range-percent: 15           # of the band's range, with no height bonus
+  wall-loss: 0.5              # walls near a small cell cost half as much signal
+  capacity-multiplier: 2      # users per band at full speed, vs a macro of the same generation
+  min-generation: 3           # small-cell models need Gen 3+, and carry only bands from Gen 3 up
+  upkeep-base: 1              # per day, plus per generation above 1, plus the backhaul block
+  upkeep-per-generation: 1
+  wear-factor: 0.5            # wear per subscriber, vs a macro
+  repair-time-factor: 0.5
+  # Without a backhaul block a small cell links to the nearest working macro cell of its
+  # carrier within this range, using this share of the macro's backhaul (shared further
+  # by every small cell on the same macro). 0 = always need a block.
+  wireless-backhaul-range: 200
+  wireless-backhaul-multiplier: 0.8
+  per-macro: 8                # small cells allowed per macro cell a carrier owns
+  min-spacing: 8              # blocks between a carrier's small cells
+  cost-percent: 40            # manufacturing cost vs a macro model with the same bands
+  research-points: 300
+  coverage-weight: 0.5        # how much they count for market coverage
+
 # Owning companies: moving money, valuations, selling and liquidating.
 companies:
   # Fee on moving money between yourself and your carrier/manufacturer (either way).

@@ -63,6 +63,14 @@ A full-band Gen 5 tower costs 203 cr to make. At a 40% margin it sells for 284 c
 
 Specs are identical between manufacturers: same generation and bands means same range and speed. You compete on **price**, **band selection** and **naming**.
 
+### Small cells
+
+Research the **Small cell form factor** (300 points, needs Gen 3) on the Research tab.
+Then switch a model's **form factor** to Small cell in the model editor. Small-cell
+models need Gen 3 or newer, carry only 4G and 5G bands, and cost **40%** of a macro
+model with the same bands to make. See [Towers](carriers/towers.md#small-cells) for how
+they behave. Generic sells a small cell for every generation from Gen 3.
+
 ## Income
 
 - **Sales:** when a carrier buys, you receive `price − cost` per tower (the manufacturing cost leaves the economy).

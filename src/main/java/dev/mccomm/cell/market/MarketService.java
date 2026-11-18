@@ -394,13 +394,13 @@ public final class MarketService {
         Band[] bands = Band.values();
         for (Tower t : towers) {
             if (!working(t)) continue;
-            double mult = plugin.settings().rangeMultiplier(t.heightAboveGround());
+            double weight = t.small() ? plugin.settings().smallCells.coverageWeight() : 1;
             double maxRange = 0;
             List<Band> on = new ArrayList<>();
             for (Band b : bands) {
                 if (!t.enabledBands().contains(b) || !plugin.towers().available(t, b)) continue;
                 on.add(b);
-                maxRange = Math.max(maxRange, plugin.settings().spec(b).range() * mult);
+                maxRange = Math.max(maxRange, plugin.towers().range(t, b));
             }
             if (on.isEmpty()) continue;
             Map<Long, Double> cells = best.computeIfAbsent(t.worldId(), k -> new HashMap<>());
@@ -413,7 +413,7 @@ public final class MarketService {
                     if (d > maxRange) continue;
                     double w = 0;
                     for (Band b : on) {
-                        if (d <= plugin.settings().spec(b).range() * mult) w = Math.max(w, m().bandWeights()[b.ordinal()]);
+                        if (d <= plugin.towers().range(t, b)) w = Math.max(w, m().bandWeights()[b.ordinal()] * weight);
                     }
                     if (w <= 0) continue;
                     long key = ((long) cx << 32) ^ (cz & 0xFFFFFFFFL);

@@ -28,6 +28,7 @@ public final class Manufacturer {
     private long balance;
     private long researchPoints;
     private int researchedGen = 1;
+    private boolean smallCells; // small cell form factor researched
     private final EnumSet<Band> researchedBands = EnumSet.of(Band.G2, Band.G3);
     private final Map<String, TowerModel> models = new LinkedHashMap<>();
     private final List<LedgerEntry> ledger = new ArrayList<>();
@@ -57,6 +58,8 @@ public final class Manufacturer {
     public void researchPoints(long rp) { this.researchPoints = rp; }
     public int researchedGen() { return researchedGen; }
     public void researchedGen(int g) { this.researchedGen = g; }
+    public boolean smallCells() { return smallCells; }
+    public void smallCells(boolean v) { this.smallCells = v; }
     public EnumSet<Band> researchedBands() { return researchedBands; }
     public Map<String, TowerModel> models() { return models; }
     public List<LedgerEntry> ledger() { return ledger; }

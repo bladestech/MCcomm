@@ -108,6 +108,7 @@ public final class TowerManager {
         t.generation(model.generation());
         t.modelBands().addAll(model.bands());
         t.enabledBands().addAll(model.bands());
+        t.small(model.small());
         plugin.store().addTower(t);
         refresh(t);
         return t;
@@ -159,6 +160,48 @@ public final class TowerManager {
         plugin.screen().ensure(t);
     }
 
+    /** Reach of one band from this tower: macro cells get the height bonus, small cells a fixed share. */
+    public double range(Tower t, Band b) {
+        double base = s().spec(b).range();
+        return t.small() ? base * s().smallCells.rangePercent() : base * s().rangeMultiplier(t.heightAboveGround());
+    }
+
+    /** Small cells linked wirelessly to this macro cell. */
+    public int linkedCount(Tower macro) {
+        int n = 0;
+        for (Tower t : plugin.store().towers()) if (t.small() && t.backhaul() == null && t.wirelessLink() == macro.id()) n++;
+        return n;
+    }
+
+    /**
+     * Links every small cell without a backhaul block to the nearest working macro cell of its
+     * carrier within range (or unlinks it). Runs with the periodic validation.
+     */
+    public void updateWireless() {
+        int range = s().smallCells.wirelessRange();
+        for (Tower t : plugin.store().towers()) {
+            if (!t.small()) continue;
+            int before = t.wirelessLink();
+            int link = 0;
+            if (t.backhaul() == null && range > 0) {
+                double best = (double) range * range;
+                for (Tower m : plugin.store().towers()) {
+                    if (m.small() || m.backhaul() == null || m.enabledBands().isEmpty() || !m.carrierId().equals(t.carrierId())
+                            || !m.worldId().equals(t.worldId())) continue;
+                    if (plugin.billing().decayStage(m) >= s().silentStage() || plugin.workforce().silent(m)) continue;
+                    double dx = m.x() - t.x(), dy = m.y() - t.y(), dz = m.z() - t.z();
+                    double d2 = dx * dx + dy * dy + dz * dz;
+                    if (d2 <= best) {
+                        best = d2;
+                        link = m.id();
+                    }
+                }
+            }
+            t.wirelessLink(link);
+            if (before != link) refresh(t);
+        }
+    }
+
     /** The model name shown for this tower. */
     public String modelName(Tower t) {
         return t.modelName() != null ? t.modelName() : s().generation(t.generation()).model();
@@ -167,6 +210,7 @@ public final class TowerManager {
     /** True if this tower's model includes the band (it can be switched on). */
     public boolean available(Tower t, Band b) {
         if (!s().supports(t.generation(), b)) return false;
+        if (t.small() && s().spec(b).minGeneration() < s().smallCells.minGeneration()) return false;
         return t.modelBands().isEmpty() || t.modelBands().contains(b);
     }
 
@@ -174,7 +218,7 @@ public final class TowerManager {
         if (!(b.getState() instanceof org.bukkit.block.Sign sign)) return;
         Carrier c = plugin.store().carrier(t.carrierId());
         SignSide side = sign.getSide(Side.FRONT);
-        side.line(0, Msg.mm("<dark_aqua>[Cell Tower]"));
+        side.line(0, Msg.mm(t.small() ? "<dark_aqua>[Small Cell]" : "<dark_aqua>[Cell Tower]"));
         side.line(1, Component.text(c == null ? "?" : c.name()));
         side.line(2, Component.text(s().generation(t.generation()).model()));
         side.line(3, Component.text(t.name() + " · Gen " + t.generation()));
@@ -186,6 +230,7 @@ public final class TowerManager {
 
     /** Removes towers whose sign is gone, and respawns missing screens. Runs periodically. */
     public void validateLoaded() {
+        updateWireless();
         for (Tower t : new ArrayList<>(plugin.store().towers())) {
             if (!t.isChunkLoaded()) continue;
             Block b = t.block();

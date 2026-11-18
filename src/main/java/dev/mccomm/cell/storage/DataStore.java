@@ -266,6 +266,7 @@ public final class DataStore {
                     m.balance(s.getLong("balance", 0));
                     m.researchPoints(s.getLong("research-points", 0));
                     m.researchedGen(s.getInt("researched-gen", 1));
+                    m.smallCells(s.getBoolean("small-cells", false));
                     for (String bk : s.getStringList("researched-bands")) {
                         Band rb = Band.fromKey(bk);
                         if (rb != null) m.researchedBands().add(rb);
@@ -283,6 +284,7 @@ public final class DataStore {
                             }
                             tm.marginPercent(md.getDouble("margin-percent", 20));
                             tm.published(md.getBoolean("published", false));
+                            tm.small(md.getBoolean("small", false));
                             tm.sold(md.getInt("sold", 0));
                             m.models().put(mid, tm);
                         }
@@ -325,6 +327,7 @@ public final class DataStore {
                     t.heightAboveGround(s.getDouble("height", 0));
                     t.wear(s.getDouble("wear", 0));
                     t.wearAt(s.getLong("wear-at", 0));
+                    t.small(s.getBoolean("small", false));
                     t.manufacturerId(s.getString("manufacturer"));
                     t.modelName(s.getString("model"));
                     for (String bk : s.getStringList("model-bands")) {
@@ -582,6 +585,7 @@ public final class DataStore {
             ty.set(p + "height", Math.round(t.heightAboveGround() * 10) / 10.0);
             ty.set(p + "wear", Math.round(t.wear() * 100) / 100.0);
             ty.set(p + "wear-at", t.wearAt());
+            if (t.small()) ty.set(p + "small", true);
             ty.set(p + "world", t.worldId().toString());
             ty.set(p + "x", t.x());
             ty.set(p + "y", t.y());
@@ -651,6 +655,7 @@ public final class DataStore {
             my.set(p + "balance", m.balance());
             my.set(p + "research-points", m.researchPoints());
             my.set(p + "researched-gen", m.researchedGen());
+            my.set(p + "small-cells", m.smallCells());
             my.set(p + "researched-bands", m.researchedBands().stream().map(Band::key).toList());
             for (dev.mccomm.cell.model.TowerModel tm : m.models().values()) {
                 String q = p + "models." + tm.id() + ".";
@@ -659,6 +664,7 @@ public final class DataStore {
                 my.set(q + "bands", tm.bands().stream().map(Band::key).toList());
                 my.set(q + "margin-percent", tm.marginPercent());
                 my.set(q + "published", tm.published());
+                my.set(q + "small", tm.small());
                 my.set(q + "sold", tm.sold());
             }
             writeLedger(my, p + "ledger", m.ledger());

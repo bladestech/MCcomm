@@ -75,6 +75,34 @@ Each band of a tower serves a number of users at full speed before slowing down,
 
 Beyond that, the band's speed is split between its users. The generation also decides which bands a model can include; see [Signal reference](../signal.md#bands).
 
+## Small cells
+
+Besides full towers (**macro cells**), manufacturers can make **small cells**: cheap,
+short-range cells for busy spots, towns and indoors. You install them the same way, on a
+wall sign with `/tower install <name>`.
+
+| | Macro cell | Small cell |
+|---|---|---|
+| Range | Band range + height bonus | 15% of the band's range, no height bonus |
+| Walls near the cell | Normal loss | Half the loss |
+| Capacity per band | By generation | ×2 |
+| Bands | Any | 4G and 5G only (Gen 3+ models) |
+| Upkeep | 4 + 4 per generation + backhaul | 1 + 1 per generation + backhaul |
+| Wear and repairs | Normal | Half the wear per subscriber, half the repair time |
+
+- **Phones switch automatically.** Near a small cell its signal is stronger, so phones
+  use it and stop loading your macro; they move back as players walk away.
+- **Wireless backhaul.** A small cell without a backhaul block links to your nearest
+  working macro cell within 200 blocks, at 80% of that macro's backhaul, shared a little
+  more with every small cell on the same macro. If the macro goes down, so does the
+  small cell. Put a backhaul block in to make it independent.
+- **Limits:** up to 8 small cells per macro cell you own, at least 8 blocks apart.
+- **The market** counts small cells at half weight for coverage. They mainly help speed
+  and capacity.
+
+The tower screen shows `Small cell · via NV1` for a wirelessly linked one; the Network
+tab shows small cells with an end rod icon.
+
 ## Removing and protecting towers
 
 - **Breaking the sign**, or the block it hangs on, removes the tower. Only carrier staff and admins can break them.

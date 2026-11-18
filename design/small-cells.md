@@ -1,6 +1,6 @@
 # Design spec: Small cells
 
-Status: **draft for review.** Not built.
+Status: **built** with the defaults below. The compact tower screen and a separate squaremap layer were left out: small cells use the normal screen (marked "Small cell") and a smaller icon in the Cell towers layer.
 
 ## Why
 
