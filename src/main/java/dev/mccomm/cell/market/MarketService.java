@@ -38,6 +38,7 @@ public final class MarketService {
     private final Map<String, Long> shownRating = new HashMap<>(); // rating ×10 last shown on tower screens
     private final Map<String, Double> leaveAcc = new HashMap<>();
     private final Map<String, Double> joinAcc = new HashMap<>();
+    private final Map<String, Double> switchAcc = new HashMap<>();
     private double shopAcc;
     private final Map<String, int[]> today = new HashMap<>();     // carrier -> {joined, left} in the current day
     private final Map<String, int[]> yesterday = new HashMap<>(); // the last full day
@@ -185,6 +186,45 @@ public final class MarketService {
                 today.computeIfAbsent(c.id(), k -> new int[2])[1] += leave;
             }
         }
+        // Switching: some customers compare carriers even when they're fine where they are, and move
+        // to a rival that's clearly more attractive. This lets a better newcomer catch up with a leader.
+        Map<String, Integer> moves = new HashMap<>();
+        for (Carrier c : plugin.store().carriers()) {
+            Score own = scores.get(c.id());
+            if (own == null || c.simulatedUsers() <= 0) continue;
+            double bar = own.attraction() * (1 + m().loyalty());
+            List<Carrier> better = new ArrayList<>();
+            double gap = 0;
+            for (Carrier o : plugin.store().carriers()) {
+                Score so = scores.get(o.id());
+                if (o == c || so == null || so.attraction() <= bar) continue;
+                better.add(o);
+                gap += so.attraction() - bar;
+            }
+            if (better.isEmpty()) continue;
+            double acc = switchAcc.getOrDefault(c.id(), 0.0) + c.simulatedUsers() * m().switchPerDay() * frac;
+            int leaving = (int) Math.min(c.simulatedUsers(), Math.floor(acc));
+            switchAcc.put(c.id(), acc - leaving);
+            if (leaving <= 0) continue;
+            int given = 0;
+            for (int i = 0; i < better.size(); i++) {
+                Carrier o = better.get(i);
+                int n = i == better.size() - 1 ? leaving - given
+                        : (int) Math.round(leaving * (scores.get(o.id()).attraction() - bar) / gap);
+                n = Math.min(n, leaving - given);
+                if (n <= 0) continue;
+                moves.merge(o.id(), n, Integer::sum);
+                moves.merge(c.id(), -n, Integer::sum);
+                given += n;
+                today.computeIfAbsent(o.id(), k -> new int[2])[0] += n;
+                today.computeIfAbsent(c.id(), k -> new int[2])[1] += n;
+            }
+        }
+        for (var e : moves.entrySet()) {
+            Carrier c = plugin.store().carrier(e.getKey());
+            if (c != null) c.simulatedUsers(c.simulatedUsers() + e.getValue());
+        }
+
         // Shopping: carrier-less customers sign up with probability = the best carrier's attraction.
         List<Carrier> open = new ArrayList<>();
         double total = 0, best = 0;
@@ -312,15 +352,39 @@ public final class MarketService {
         return t.online() && plugin.billing().decayStage(t) < plugin.settings().silentStage() && !plugin.workforce().silent(t);
     }
 
-    /** 0..1: average speed factor across the network (silent or offline towers count 0). */
+    /**
+     * 0..1 service score. Reliability: how close towers run to full speed (worn, unpaid, silent or
+     * offline towers and understaffed engineering pull it down). Speed: the top speed towers can
+     * give (best band × backhaul × reliability), on a log scale against the reference speed, so
+     * newer generations, faster bands and better backhaul win customers.
+     */
     private double quality(List<Tower> towers) {
         if (towers.isEmpty()) return 0;
-        double sum = 0;
+        double rel = 0, speed = 0;
+        double ref = Math.log1p(m().speedReference());
         for (Tower t : towers) {
             if (!working(t)) continue;
-            sum += Math.min(plugin.billing().decaySpeed(t), plugin.workforce().wearSpeed(t)) * plugin.workforce().engineerSpeed(t);
+            double r = Math.min(plugin.billing().decaySpeed(t), plugin.workforce().wearSpeed(t)) * plugin.workforce().engineerSpeed(t);
+            rel += r;
+            double peak = 0;
+            int dropped = Math.max(plugin.billing().decayDroppedBands(t), plugin.workforce().wearDroppedBands(t));
+            Band[] all = Band.values();
+            for (int i = all.length - 1; i >= 0; i--) {
+                Band b = all[i];
+                if (!t.enabledBands().contains(b) || !plugin.towers().available(t, b)) continue;
+                if (dropped > 0) {
+                    dropped--;
+                    continue;
+                }
+                peak = plugin.settings().spec(b).maxMbps();
+                break;
+            }
+            double mbps = peak * plugin.signal().backhaulMultiplier(t) * r;
+            speed += Math.min(1, Math.log1p(mbps) / ref);
         }
-        return sum / towers.size();
+        rel /= towers.size();
+        speed /= towers.size();
+        return (1 - m().speedWeight()) * rel + m().speedWeight() * speed;
     }
 
     /** Covered area in grid cells, each weighted by the best band reaching it. */

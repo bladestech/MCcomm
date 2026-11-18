@@ -16,7 +16,11 @@ public record MarketSettings(
         double shopPerDay,            // share of carrier-less customers shopping each day
         double wQuality, double wCoverage, double wSupport, double wPrice,
         int cellSize,
-        double[] bandWeights) {
+        double[] bandWeights,
+        double switchPerDay,          // share of each carrier's customers comparing carriers each day
+        double loyalty,               // a rival must be this much more attractive (0.15 = 15%) to win them
+        double speedWeight,           // share of the service score that comes from speed (rest: reliability)
+        double speedReference) {      // Mbps that counts as full marks for speed
 
     public static MarketSettings read(FileConfiguration c) {
         ConfigurationSection m = c.getConfigurationSection("market");
@@ -40,6 +44,10 @@ public record MarketSettings(
                 Math.max(0, m.getDouble("weights.support", 0.20)),
                 Math.max(0, m.getDouble("weights.price", 0.25)),
                 Math.clamp(m.getInt("coverage-cell-size", 100), 16, 1000),
-                bw);
+                bw,
+                Math.clamp(m.getDouble("switching.per-day", 0.02), 0, 1),
+                Math.max(0, m.getDouble("switching.loyalty", 0.15)),
+                Math.clamp(m.getDouble("service.speed-weight", 0.4), 0, 1),
+                Math.max(1, m.getDouble("service.speed-reference-mbps", 300)));
     }
 }

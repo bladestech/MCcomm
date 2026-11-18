@@ -15,7 +15,7 @@ Every carrier gets a satisfaction score from 0 to 100%:
 
 | Part | Weight | What it measures |
 |---|---|---|
-| Service | 35% | Your towers' speed: worn, unpaid, silent or offline towers, and understaffed engineering, pull it down |
+| Service | 35% | 60% reliability (worn, unpaid, silent or offline towers and understaffed engineering pull it down) and 40% speed (the top speed your towers give: best band × backhaul, on a log scale where 300 Mbps is full marks) |
 | Coverage | 20% | Area your towers cover, weighted by band, compared with the best-covered carrier |
 | Support | 20% | Customer support staffing: 100% when staffed, lower when overloaded |
 | Price | 25% | Your average plan price per day against the going rate |
@@ -44,6 +44,13 @@ Every day a share of your customers leaves:
 
 If your network has no working towers at all, customers leave fast and nobody joins.
 
+## Switching
+
+Customers who are happy enough to stay still compare carriers now and then: **2% of each
+carrier's customers a day** look around, and move if a rival is at least **15% more
+attractive** (`market.switching`). So a clearly better newcomer can win customers from
+the leader, not just pick up the ones who left.
+
 ## Winning customers
 
 Customers without a carrier shop at about 30% a day. They pick carriers in
@@ -55,7 +62,8 @@ carrier is unappealing, many of them stay without a carrier.
 
 - **Raising prices** earns more per customer but loses customers. A monopoly can charge
   a premium, but well above the going rate it loses more than it gains.
-- **Coverage wins customers.** More area and better bands attract shoppers.
+- **Coverage and speed win customers.** More area, newer bands and better backhaul
+  all raise your score.
 - **Staff matter.** Too few support agents makes customers unhappy. Too few network
   engineers slows the whole network, real players included, which hurts service.
 - **Repairs matter.** Worn towers are slower, which lowers service.

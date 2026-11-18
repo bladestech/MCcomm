@@ -329,6 +329,16 @@ market:
     price: 0.03               # extra per day per (price ratio - 1) squared
     refused: 0.25             # per day when priced out
   shop-per-day: 0.3           # share of carrier-less customers shopping each day
+  switching:
+    # Customers with a carrier also compare now and then, and move to a rival that's
+    # clearly more attractive, so a better newcomer can win customers from a leader.
+    per-day: 0.02             # share of each carrier's customers comparing each day
+    loyalty: 0.15             # a rival must be 15% more attractive to win them
+  service:
+    # The service score blends reliability (towers running at full speed) with speed
+    # (the top speed towers give: band x backhaul), so upgrades win customers.
+    speed-weight: 0.4
+    speed-reference-mbps: 300 # this top speed or more counts as full marks
   # What satisfaction is made of (relative weights).
   weights:
     quality: 0.35             # towers working at full speed (wear, upkeep, engineers)
