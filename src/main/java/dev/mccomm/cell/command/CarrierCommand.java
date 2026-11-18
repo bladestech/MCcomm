@@ -173,6 +173,7 @@ public final class CarrierCommand extends Cmd {
         Msg.raw(s, "<gray>Owner: <white><o>", Msg.p("o", name(c.owner())));
         Msg.raw(s, "<gray>Employees: <white><e>", Msg.p("e", staff.isEmpty() ? "none" : String.join(", ", staff)));
         Msg.raw(s, "<gray>Towers: <white><n></white> <dark_gray>(<on> online)", Msg.p("n", "" + towers.size()), Msg.p("on", "" + online));
+        for (String line : plugin.market().ratingLore(c)) Msg.raw(s, line);
     }
 
     private static String name(UUID id) {

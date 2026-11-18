@@ -34,6 +34,8 @@ public final class MarketService {
 
     private final CellPlugin plugin;
     private Map<String, Score> scores = new HashMap<>();
+    private long computedAt;
+    private final Map<String, Long> shownRating = new HashMap<>(); // rating ×10 last shown on tower screens
     private final Map<String, Double> leaveAcc = new HashMap<>();
     private final Map<String, Double> joinAcc = new HashMap<>();
     private double shopAcc;
@@ -55,11 +57,52 @@ public final class MarketService {
 
     public Score score(Carrier c) {
         Score s = scores.get(c.id());
-        if (s == null) {
+        // Market mode refreshes hourly; otherwise (fixed mode) refresh on demand every few minutes.
+        if (s == null || (!active() && System.currentTimeMillis() - computedAt > 300_000L)) {
             recompute();
             s = scores.get(c.id());
         }
         return s;
+    }
+
+    // ================================================================ ratings
+
+    /** Public star rating, 1.0 to 5.0, from the satisfaction score. 0 if unknown. */
+    public double stars(Carrier c) {
+        Score s = score(c);
+        return s == null ? 0 : 1 + 4 * s.satisfaction() / 100.0;
+    }
+
+    private static double part(double v) {
+        return 1 + 4 * v;
+    }
+
+    /** Five stars, filled to the nearest whole star (MiniMessage). */
+    public static String starBar(double stars) {
+        int full = (int) Math.clamp(Math.round(stars), 0, 5);
+        return "<#FFD24A>" + "★".repeat(full) + "<#5A5E66>" + "☆".repeat(5 - full);
+    }
+
+    public static String starText(double stars) {
+        return String.format(java.util.Locale.ROOT, "%.1f", stars);
+    }
+
+    /** Rating lines for item lore: overall stars plus the four parts. */
+    public List<String> ratingLore(Carrier c) {
+        Score s = score(c);
+        if (s == null) return List.of();
+        double st = stars(c);
+        return List.of(
+                "<gray>Rating: " + starBar(st) + " <white>" + starText(st),
+                "<dark_gray>Service ★" + starText(part(s.quality())) + " · Coverage ★" + starText(part(s.coverage())),
+                "<dark_gray>Support ★" + starText(part(s.support())) + " · Price ★" + starText(part(s.price())));
+    }
+
+    /** Plain text for web popups: ★★★★☆ 4.2. */
+    public String ratingPlain(Carrier c) {
+        double st = stars(c);
+        int full = (int) Math.clamp(Math.round(st), 0, 5);
+        return "★".repeat(full) + "☆".repeat(5 - full) + " " + starText(st);
     }
 
     /** {joined, left} for the last full day. */
@@ -173,6 +216,12 @@ public final class MarketService {
         } else {
             shopAcc = 0;
         }
+        // Tower screens show the rating: refresh them when it changes.
+        for (Carrier c : plugin.store().carriers()) {
+            long r = Math.round(stars(c) * 10);
+            Long before = shownRating.put(c.id(), r);
+            if (before != null && before != r) for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
+        }
         if (++hourOfDay >= 24) {
             hourOfDay = 0;
             yesterday.clear();
@@ -219,6 +268,7 @@ public final class MarketService {
             out.put(c.id(), new Score(quality, covRel, support, priceScore, ratio, price, sat, Math.min(1, churn), attraction, refused));
         }
         scores = out;
+        computedAt = System.currentTimeMillis();
     }
 
     /** The price customers compare against: the config's fair price blended with rivals' average prices. */

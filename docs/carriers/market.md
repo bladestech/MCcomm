@@ -24,6 +24,15 @@ Every carrier gets a satisfaction score from 0 to 100%:
 12 cr/day by default) blended half and half with the median of rivals' prices. So
 prices matter even when you're the only carrier.
 
+## Ratings
+
+Players see each carrier's satisfaction as a **star rating** from 1 to 5:
+`rating = 1 + 4 × satisfaction`. It's shown in the phone's **SIMs and plans** list and on
+each carrier's plans page, after the model name on tower screens, in `/carrier info`,
+and in squaremap tower popups. Hovering shows a star score for each part (service,
+coverage, support, price), so players can see why a carrier rates high or low. In fixed
+mode the rating is worked out the same way, just without customers moving.
+
 ## Losing customers
 
 Every day a share of your customers leaves:

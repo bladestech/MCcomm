@@ -225,6 +225,7 @@ public final class SquaremapHook {
         sb.append("<div style='font-family:sans-serif;min-width:180px'>");
         sb.append("<b style='color:").append(hex).append("'>").append(esc(c == null ? "?" : c.name())).append("</b> &middot; <b>")
                 .append(esc(t.name())).append("</b><br>");
+        if (c != null) sb.append("<span style='color:#f5c542'>").append(esc(plugin.market().ratingPlain(c))).append("</span><br>");
         Manufacturer m = plugin.store().manufacturer(t.manufacturerId());
         sb.append(esc(plugin.towers().modelName(t))).append(" (Gen ").append(t.generation()).append(")");
         if (m != null) sb.append(" by ").append(esc(m.name()));

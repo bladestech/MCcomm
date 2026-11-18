@@ -427,7 +427,8 @@ public final class CarrierMenu {
         List<String> lore = new ArrayList<>();
         lore.add("<gray>Customers: <white>" + c.simulatedUsers() + " <dark_gray>(" + Math.round(100.0 * c.simulatedUsers() / size) + "% of " + size + ")");
         if (sc == null) return Items.of(Material.PLAYER_HEAD, "<white>Market", lore);
-        lore.add("<gray>Satisfaction: " + satColor(sc.satisfaction()) + Math.round(sc.satisfaction()) + "%");
+        lore.add("<gray>Satisfaction: " + satColor(sc.satisfaction()) + Math.round(sc.satisfaction()) + "% <gray>· shown to players as "
+                + dev.mccomm.cell.market.MarketService.starBar(mk.stars(c)) + " <white>" + dev.mccomm.cell.market.MarketService.starText(mk.stars(c)));
         lore.add("<dark_gray> Service " + pct(sc.quality()) + " · Coverage " + pct(sc.coverage()) + " · Support " + pct(sc.support()) + " · Price " + pct(sc.price()));
         lore.add("<gray>Price: <white>" + money(Math.round(sc.avgPrice())) + "</white>/day <dark_gray>(" + Math.round(sc.priceRatio() * 100) + "% of going rate)");
         if (sc.refused()) lore.add("<red>Too expensive: nobody will join.");

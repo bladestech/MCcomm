@@ -228,7 +228,9 @@ public final class TowerScreen {
         };
         setText(t, "badge", Msg.mm(badge), 0.14, W * 0.32, Align.RIGHT, badgeBg);
         setText(t, "name", Msg.mm((dim ? "<#7A7F8A>" : "<white>") + "<b>" + Msg.escape(t.name())), 0.6, W * 0.44, Align.LEFT, null);
-        setText(t, "model", Msg.mm("<#9AA0AA>" + Msg.escape(plugin.towers().modelName(t)) + " · Gen " + t.generation()),
+        double rating = c == null ? 0 : plugin.market().stars(c);
+        setText(t, "model", Msg.mm("<#9AA0AA>" + Msg.escape(plugin.towers().modelName(t)) + " · Gen " + t.generation()
+                        + (rating > 0 ? " · <#FFD24A>★<#9AA0AA>" + dev.mccomm.cell.market.MarketService.starText(rating) : "")),
                 0.15, W * 0.46, Align.LEFT, null);
 
         Band[] bands = Band.values();

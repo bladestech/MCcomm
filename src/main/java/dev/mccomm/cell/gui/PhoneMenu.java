@@ -607,6 +607,7 @@ public final class PhoneMenu {
             else lore.add("<gray>Towers: <white>" + towers.size() + " <dark_gray>(" + online + " online)");
             int partners = plugin.partners().roamingHosts(c).size();
             if (partners > 0) lore.add("<gray>Roaming partners: <white>" + partners);
+            lore.addAll(plugin.market().ratingLore(c));
             lore.add("<gray>Here: " + (l == null ? "<red>No coverage" : Msg.bars(l.bars()) + " <white>" + plugin.settings().spec(l.band()).name()));
             lore.add("<gray>Plans: <white>" + c.plans().size() + (c.plans().isEmpty() ? "" : " <dark_gray>(from "
                     + plugin.settings().money(c.plans().values().stream().mapToLong(Plan::price).min().orElse(0)) + ")"));
@@ -684,6 +685,7 @@ public final class PhoneMenu {
     public void plans(Player p, Carrier c) {
         PlayerProfile prof = prof(p);
         Menu m = menu(p, "Plans · " + Items.esc(c.name()), "plans");
+        Frame.title(m, Items.of(Material.BEACON, "<b>" + c.styled(), plugin.market().ratingLore(c)));
         Plan current = plugin.billing().planOf(prof, c.id());
         int slot = 9;
         for (Plan plan : c.plans().values()) {
