@@ -300,6 +300,10 @@ companies:
   paperweight-resale-percent: 5
   # Valuations include this many days of net income.
   valuation-income-days: 30
+  # A carrier that can't pay its upkeep or its staff for this many days in a row is
+  # declared bankrupt and closed like a liquidation (staff and MVNOs are paid first,
+  # the rest goes to the owner). The owner is warned 2 days and 1 day before. 0 = off.
+  bankruptcy-days: 7
 
 # Simulated users (/cellsim) for roleplay. They're counted separately from real
 # users; for tower load and congestion this many count as one real player.

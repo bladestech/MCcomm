@@ -82,6 +82,10 @@ public final class CarrierMenu {
             if (plugin.partners().suspended(c)) wallet.add("<dark_red>Your subscribers are suspended!");
         }
         if (c.balance() < upkeep) wallet.add("<gold>Not enough for the next upkeep!");
+        long owedWages = plugin.workforce().state(c.id()).wagesOwed();
+        if (owedWages > 0) wallet.add("<red>Wages & rent owed: " + plugin.settings().money(owedWages));
+        long bankrupt = plugin.companies().bankruptAt(c);
+        if (bankrupt > 0) wallet.add("<dark_red><b>Bankrupt in " + BillingService.until(bankrupt - now) + "</b> <red>unless bills are paid");
         m.set(10, Items.glow(Items.of(Material.GOLD_BLOCK, "<gold><b>" + plugin.settings().money(c.balance()), wallet)));
 
         m.set(12, Items.of(Material.HOPPER, "<green>Deposit ores", "<gray>Fund upkeep from your ores."), e -> {

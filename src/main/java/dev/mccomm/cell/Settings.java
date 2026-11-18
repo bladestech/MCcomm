@@ -87,6 +87,7 @@ public final class Settings {
     public final double transferFeePercent, liquidationFeePercent, mvnoFarewellPercent, towerScrapPercent,
             stockRefundPercent, paperweightPercent;
     public final int valuationDays;
+    public final int bankruptcyDays; // 0 = off
     public final double deprioritizedSpeed;
 
     /** Sign board geometry, in blocks, relative to the sign block's centre. */
@@ -293,6 +294,7 @@ public final class Settings {
         stockRefundPercent = Math.clamp(c.getDouble("companies.stock-refund-percent", 50), 0, 100);
         paperweightPercent = Math.clamp(c.getDouble("companies.paperweight-resale-percent", 5), 0, 100);
         valuationDays = Math.max(0, c.getInt("companies.valuation-income-days", 30));
+        bankruptcyDays = Math.max(0, c.getInt("companies.bankruptcy-days", 7));
         noticeHours = Math.max(0, c.getInt("partners.notice-hours", 24));
         deprioritizedSpeed = Math.clamp(c.getDouble("partners.deprioritized-speed", 0.5), 0.05, 1.0);
         mvnoGraceHours = Math.max(0, c.getInt("partners.mvno-grace-hours", 24));

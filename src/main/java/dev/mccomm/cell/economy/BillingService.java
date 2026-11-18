@@ -153,13 +153,14 @@ public final class BillingService implements Listener {
 
     /** If a carrier is behind on upkeep, tries to pay it now (after money came in) and repairs its towers. */
     public void retryUpkeep(Carrier c) {
-        plugin.workforce().retryWages(c);
-        if (c.unpaidSince() == 0) return;
-        chargeUpkeep(c, System.currentTimeMillis(), true);
-        if (c.unpaidSince() == 0) {
-            lastStage.put(c.id(), 0);
-            for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
+        if (c.unpaidSince() != 0) {
+            chargeUpkeep(c, System.currentTimeMillis(), true);
+            if (c.unpaidSince() == 0) {
+                lastStage.put(c.id(), 0);
+                for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
+            }
         }
+        if (c.unpaidSince() == 0) plugin.workforce().retryWages(c); // wages only once upkeep is covered
     }
 
     // ================================================================ phones
@@ -894,7 +895,6 @@ public final class BillingService implements Listener {
 
         plugin.partners().tick();
         plugin.simulation().payRevenue();
-        plugin.workforce().tick(now);
         flushPlanNotices(now);
         for (Carrier c : new ArrayList<>(plugin.store().carriers())) {
             if (c.nextUpkeep() == 0) c.nextUpkeep(now + s().upkeepPeriodHours * HOUR);
@@ -908,6 +908,9 @@ public final class BillingService implements Listener {
                 }
             }
         }
+        // Bills in order of importance: upkeep (above) first, then wages and rent, then repairs.
+        plugin.workforce().tick(now);
+        plugin.companies().checkBankruptcies(now);
 
         for (PlayerProfile p : new ArrayList<>(plugin.store().profiles())) {
             for (Map.Entry<String, Subscription> e : new ArrayList<>(p.subs().entrySet())) {

@@ -170,6 +170,17 @@ public final class WorkforceService {
         return w().rentBase() + w().rentPerSlot() * f.capacity();
     }
 
+    /** Money a carrier keeps back for its next upkeep (and MVNO share): paid before anything else. */
+    public long upkeepReserve(Carrier c) {
+        return plugin.billing().upkeepCost(c) + c.mvnoOwed();
+    }
+
+    /** Money kept back before paying for repairs: upkeep, wages owed and the next payday. */
+    public long repairReserve(Carrier c) {
+        StaffState st = states.get(c.id());
+        return upkeepReserve(c) + (st == null ? 0 : st.wagesOwed()) + dailyCost(c.id());
+    }
+
     /** Wages plus rent per day. */
     public long dailyCost(String companyId) {
         long sum = 0;
@@ -324,11 +335,12 @@ public final class WorkforceService {
     }
 
     private boolean charge(Carrier c, RepairJob j, long cost, String note) {
-        if (c.balance() < cost) {
+        long reserve = repairReserve(c);
+        if (c.balance() - cost < reserve) {
             if (!j.notifiedBroke()) {
                 j.notifiedBroke(true);
-                plugin.billing().notify(c.owner(), "<red><c> can't afford a repair (<white><a></white>). The tower keeps wearing until you deposit.",
-                        Msg.p("c", c.name()), Msg.p("a", plugin.settings().money(cost)));
+                plugin.billing().notify(c.owner(), "<red>A repair for <c> (<white><a></white>) is on hold: <white><r></white> is kept back for upkeep and wages first. The tower keeps wearing until you deposit.",
+                        Msg.p("c", c.name()), Msg.p("a", plugin.settings().money(cost)), Msg.p("r", plugin.settings().money(reserve)));
             }
             return false;
         }
@@ -357,6 +369,7 @@ public final class WorkforceService {
         Set<String> companies = new HashSet<>();
         for (Employee e : employees.values()) companies.add(e.companyId());
         for (Facility f : facilities.values()) companies.add(f.companyId());
+        for (var e : states.entrySet()) if (e.getValue().wagesOwed() > 0) companies.add(e.getKey());
         for (String id : companies) {
             Carrier c = plugin.store().carrier(id);
             if (c == null) continue;
@@ -368,15 +381,18 @@ public final class WorkforceService {
             for (int guard = 0; guard < 60 && now >= st.nextPayday(); guard++) {
                 long bill = dailyCost(id);
                 st.nextPayday(st.nextPayday() + DAY);
-                if (bill <= 0) continue;
+                if (bill <= 0 && st.wagesOwed() == 0) continue;
                 long total = st.wagesOwed() + bill;
-                if (c.balance() >= total) {
+                // Upkeep comes first: wages are only paid if the next upkeep stays covered.
+                if (c.unpaidSince() == 0 && c.balance() - total >= upkeepReserve(c)) {
                     c.balance(c.balance() - total);
                     c.log(-total, "Wages & rent (" + staffOf(id).size() + " staff, " + facilitiesOf(id).size() + " sites)");
                     st.wagesOwed(0);
+                    st.owedSince(0);
                     for (Employee e : staffOf(id)) e.unpaidDays(0);
                 } else {
                     st.wagesOwed(total);
+                    if (st.owedSince() == 0) st.owedSince(st.nextPayday() - DAY);
                     List<String> quit = new ArrayList<>();
                     for (Employee e : staffOf(id)) {
                         e.unpaidDays(e.unpaidDays() + 1);
@@ -397,11 +413,12 @@ public final class WorkforceService {
     /** After money comes in: pays owed wages and rent at once, and staff go back to work. */
     public void retryWages(Carrier c) {
         StaffState st = states.get(c.id());
-        if (st == null || st.wagesOwed() <= 0 || c.balance() < st.wagesOwed()) return;
+        if (st == null || st.wagesOwed() <= 0 || c.balance() - st.wagesOwed() < upkeepReserve(c)) return;
         long owed = st.wagesOwed();
         c.balance(c.balance() - owed);
         c.log(-owed, "Owed wages & rent");
         st.wagesOwed(0);
+        st.owedSince(0);
         for (Employee e : staffOf(c.id())) e.unpaidDays(0);
         plugin.billing().notify(c.owner(), "<green><c> paid its owed wages and rent. Everyone is back at work.", Msg.p("c", c.name()));
         plugin.store().markDirty();
@@ -666,7 +683,11 @@ public final class WorkforceService {
             j.queuedAt(j.queuedAt() - ms);
             if (j.repairAt() > 0) j.repairAt(j.repairAt() - ms);
         }
-        for (StaffState s : states.values()) if (s.nextPayday() > 0) s.nextPayday(s.nextPayday() - ms);
+        for (StaffState s : states.values()) {
+            if (s.nextPayday() > 0) s.nextPayday(s.nextPayday() - ms);
+            if (s.owedSince() > 0) s.owedSince(s.owedSince() - ms);
+            if (s.bankruptcyClock() > 0) s.bankruptcyClock(s.bankruptcyClock() - ms);
+        }
         for (Facility f : facilities.values()) f.checkedAt(f.checkedAt() - ms);
     }
 
@@ -825,6 +846,8 @@ public final class WorkforceService {
             StaffState st = state(key);
             st.nextPayday(s.getLong("next-payday"));
             st.wagesOwed(s.getLong("owed"));
+            st.owedSince(s.getLong("owed-since"));
+            st.bankruptcyClock(s.getLong("bankruptcy-clock"));
             st.contractors(s.getBoolean("contractors", true));
         }
         // Drop anything whose company or tower no longer exists.
@@ -884,6 +907,8 @@ public final class WorkforceService {
             String p = "companies." + e.getKey() + ".";
             y.set(p + "next-payday", e.getValue().nextPayday());
             y.set(p + "owed", e.getValue().wagesOwed());
+            y.set(p + "owed-since", e.getValue().owedSince());
+            y.set(p + "bankruptcy-clock", e.getValue().bankruptcyClock());
             y.set(p + "contractors", e.getValue().contractors());
         }
         try {

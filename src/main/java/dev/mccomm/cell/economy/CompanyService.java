@@ -266,6 +266,14 @@ public final class CompanyService {
             Msg.send(p, "<red>Only the owner can liquidate <white><c></white>.", Msg.p("c", c.name()));
             return;
         }
+        CarrierLiquidation l = close(c, "Liquidated " + c.name());
+        Msg.send(p, "<yellow><c> is liquidated.</yellow> <gray><white><a></white> was paid into your wallet (after the <white><f></white> fee"
+                        + (l.farewell() > 0 ? " and <white><fw></white> farewell money to MVNOs" : "") + ").",
+                Msg.p("c", c.name()), Msg.p("a", s().money(l.payout())), Msg.p("f", s().money(l.fee())), Msg.p("fw", s().money(l.farewell())));
+    }
+
+    /** Closes a carrier for good: pays MVNOs and creditors, drops subscribers and towers, pays the rest to the owner. */
+    private CarrierLiquidation close(Carrier c, String note) {
         CarrierLiquidation l = previewLiquidation(c);
         // Farewell money to hosted MVNOs.
         if (!l.mvnos().isEmpty() && l.farewell() > 0) {
@@ -294,12 +302,87 @@ public final class CompanyService {
         plugin.store().removeCarrier(c);
         PlayerProfile owner = prof(c.owner());
         owner.balance(owner.balance() + l.payout());
-        owner.log(l.payout(), "Liquidated " + c.name());
+        owner.log(l.payout(), note);
         plugin.billing().payOverdue(c.owner());
         plugin.store().markDirty();
-        Msg.send(p, "<yellow><c> is liquidated.</yellow> <gray><white><a></white> was paid into your wallet (after the <white><f></white> fee"
-                        + (l.farewell() > 0 ? " and <white><fw></white> farewell money to MVNOs" : "") + ").",
-                Msg.p("c", c.name()), Msg.p("a", s().money(l.payout())), Msg.p("f", s().money(l.fee())), Msg.p("fw", s().money(l.farewell())));
+        return l;
+    }
+
+    // ============================================================= bankruptcy
+
+    private final Map<String, Integer> bankruptcyWarned = new java.util.HashMap<>();
+
+    /** When a carrier went into default (upkeep or wages unpaid), or 0 if it's paid up. */
+    public long defaultSince(Carrier c) {
+        long since = c.unpaidSince();
+        long owed = plugin.workforce().state(c.id()).owedSince();
+        if (owed > 0 && (since == 0 || owed < since)) since = owed;
+        return since;
+    }
+
+    /** When this carrier will be declared bankrupt, or 0 if it isn't in default (or bankruptcy is off). */
+    public long bankruptAt(Carrier c) {
+        var st = plugin.workforce().state(c.id());
+        if (st.bankruptcyClock() == 0 || defaultSince(c) == 0 || s().bankruptcyDays <= 0) return 0;
+        return st.bankruptcyClock() + s().bankruptcyDays * 86_400_000L;
+    }
+
+    /**
+     * Starts or stops the bankruptcy countdown. It starts when the carrier went into default, but
+     * never so far back that it has under two days left: a carrier that was already in default
+     * (e.g. before an update) still gets both warnings.
+     */
+    private void updateClock(Carrier c, long now) {
+        var st = plugin.workforce().state(c.id());
+        long since = defaultSince(c);
+        if (since == 0) {
+            if (st.bankruptcyClock() != 0) {
+                st.bankruptcyClock(0);
+                plugin.store().markDirty();
+            }
+            return;
+        }
+        if (st.bankruptcyClock() == 0) {
+            long latestFair = now - Math.max(0, s().bankruptcyDays - 2) * 86_400_000L;
+            st.bankruptcyClock(Math.max(since, latestFair));
+            plugin.store().markDirty();
+        }
+    }
+
+    /**
+     * A carrier that stays in default (upkeep or wages unpaid) for {@code companies.bankruptcy-days}
+     * is declared bankrupt and closed like a liquidation: creditors (staff) first, then MVNOs, the
+     * rest to the owner. The owner is warned two days and one day before.
+     */
+    public void checkBankruptcies(long now) {
+        for (Carrier c : new ArrayList<>(plugin.store().carriers())) {
+            updateClock(c, now);
+            long at = bankruptAt(c);
+            if (at == 0) {
+                bankruptcyWarned.remove(c.id());
+                continue;
+            }
+            long left = at - now;
+            int level = bankruptcyWarned.getOrDefault(c.id(), 0);
+            if (left <= 0) {
+                bankruptcyWarned.remove(c.id());
+                String name = c.name();
+                java.util.UUID owner = c.owner();
+                long days = Math.max(s().bankruptcyDays, (now - defaultSince(c)) / 86_400_000L);
+                CarrierLiquidation l = close(c, "Bankruptcy of " + name);
+                plugin.billing().notify(owner, "<dark_red><b><c> has been declared bankrupt</b></dark_red> <gray>after <white><d></white> days without paying its bills. Its towers were sold off, staff and MVNOs paid, and <white><a></white> was left for you.",
+                        Msg.p("c", name), Msg.p("d", "" + days), Msg.p("a", s().money(l.payout())));
+                plugin.getLogger().info("Carrier " + name + " went bankrupt.");
+            } else if (left <= 86_400_000L && level < 2) {
+                bankruptcyWarned.put(c.id(), 2);
+                plugin.billing().notify(c.owner(), "<dark_red><b>Final warning:</b> <c> will be declared bankrupt in <white><t></white> unless its bills are paid. Deposit to save it.",
+                        Msg.p("c", c.name()), Msg.p("t", dev.mccomm.cell.economy.BillingService.until(left)));
+            } else if (left <= 2 * 86_400_000L && level < 1) {
+                bankruptcyWarned.put(c.id(), 1);
+                plugin.billing().notify(c.owner(), "<red><c> is in default and will be declared bankrupt in <white><t></white> if its bills stay unpaid.",
+                        Msg.p("c", c.name()), Msg.p("t", dev.mccomm.cell.economy.BillingService.until(left)));
+            }
+        }
     }
 
     /** What closing a manufacturer would pay out. Unsold stock carriers hold is refunded first. */

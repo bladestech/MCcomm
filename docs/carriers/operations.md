@@ -103,6 +103,28 @@ Hire them in **Operations**: a few job seekers appear every day.
 Wages, rent, parts and contractor fees are all spent. They leave the economy rather
 than going to anyone.
 
+## Which bills come first
+
+When money is short, bills are paid in this order:
+
+1. **Tower upkeep** (and an MVNO's share to its host).
+2. **Wages and station rent.** Payday only goes through if the next upkeep stays
+   covered; otherwise it's owed.
+3. **Repairs.** Parts and contractors are only paid if upkeep, owed wages and the
+   next payday stay covered. Otherwise the repair waits (you're told once).
+
+So a repair bill can never be what makes your towers go silent.
+
+## Bankruptcy
+
+A carrier that can't pay its upkeep or its staff for **7 days in a row** is declared
+**bankrupt**. It's closed like a [liquidation](../economy.md#liquidating-a-carrier): owed wages and
+severance are paid first, then MVNO farewell money, and whatever is left goes to the
+owner, minus the usual fee. Subscribers lose their SIMs, and the towers come down.
+
+The owner is warned 2 days and 1 day before, and `/carrier manage` shows the countdown
+on the wallet. Paying everything that's due stops the clock.
+
 ## In your company's numbers
 
 - **Income** in `/carrier manage` subtracts wages and rent.

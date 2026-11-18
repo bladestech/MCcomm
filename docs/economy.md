@@ -52,6 +52,10 @@ Each company page shows a **valuation**, a guide for setting a sale price:
 | Phones being financed | Become **paperweights**: locked to the dead carrier forever, sell for 5% |
 | Agreements | Roaming partners lose access; hosted MVNOs have no network until they find a new host |
 
+### Bankruptcy
+
+A carrier that can't pay its upkeep or its staff for 7 days in a row (`companies.bankruptcy-days`) is liquidated automatically, the same way, with owed wages and severance paid first. See [Operations](carriers/operations.md#bankruptcy).
+
 ## Liquidating a manufacturer
 
 - Carriers holding its unsold models are **refunded their purchase price** from the manufacturer's wallet first, scaled down if it can't cover them all.
