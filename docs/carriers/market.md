@@ -7,7 +7,7 @@ one carrier or with none, and every hour some of them move:
 - customers **leave** carriers they're unhappy with, or that charge too much;
 - customers **without a carrier** shop around and sign up with the most attractive one.
 
-Your standing is in `/carrier manage` → **Market**.
+Your standing is on the **Customers** tab of `/carrier manage` (and in the Overview).
 
 ## Satisfaction
 
@@ -63,7 +63,7 @@ no office staff (`workforce.self-service-subscribers`).
 | Customer support | 60 subscribers | Call centre | One seat (stairs) and one lectern each |
 | Network engineer | 100 subscribers on your towers (including MVNOs you host) | Network operations centre | One seat (stairs) and one observer each |
 
-Juniors cover 75% as much and seniors 135%. Hire them in **Operations**, build the
+Juniors cover 75% as much and seniors 135%. Hire them on the **Staff** tab, build the
 rooms with `/facility create callcentre <name>` or `/facility create noc <name>`.
 See [Operations and repairs](operations.md) for wages, hiring and payday.
 

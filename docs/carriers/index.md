@@ -16,23 +16,18 @@ A **carrier** (telco) owns towers, sells plans to players, and pays to keep its 
 
 ## The management screen
 
-**`/carrier manage [name]`**, or **My carrier** on the phone.
+**`/carrier manage [name]`**, or **Work** on the phone. Six tabs along the top:
 
-| Item | What it does |
+| Tab | What's in it |
 |---|---|
-| **Wallet** | Balance, upkeep per day, time until the next upkeep, and how many periods your balance covers |
-| **Deposit ores** | Fund the carrier wallet with ores |
-| **Income** | Paying subscribers (plus simulated ones), plan income per day, upkeep per day, net per day |
-| **Network health** | Green when upkeep is paid; shows decay or silence when it isn't |
-| **Branding** | Your name's colour or gradient |
-| **Trade-in program** | On/off and rate for phone trade-ins (see [Plans](plans.md#trade-in-program)) |
+| **Overview** | Balance (click to deposit), net income per day, subscribers and market share, upkeep health, **alerts** (worn towers, overloaded staff, wages owed, offers, stock to install) and quick actions |
+| **Network** | Every tower, most worn first, with status, wear and repairs; the **Tower shop**, **Stock**, **Facilities** and the contractors switch |
+| **Customers** | Market standing, the trade-in program (see [Plans](plans.md#trade-in-program)), branding, and your **plans** (click to edit, **New plan**) |
+| **Staff** | Technicians, support and engineers (click a role to hire and manage), payday, and players with access |
+| **Money** | Deposit, ledger, valuation, withdraw, add from your wallet, sell or liquidate (see [Companies and economy](../economy.md)) |
 | **Partners** | Roaming agreements and MVNO hosting |
-| **Plans** | Create and edit plans |
-| **Towers** | Every tower with status, decay, backhaul, height, users and upkeep |
-| **Ledger** | The last 30 transactions in and out |
-| **Staff** | Owner and employees |
-| **Company** | Valuation, money in and out, sell or liquidate (see [Companies and economy](../economy.md)) |
-| **Tower shop** · **Tower stock** | Buy tower models, and see the ones you haven't installed yet |
+
+Every page has a **Help** book in the bottom-right corner, and long lists have page arrows.
 
 ## Staff
 

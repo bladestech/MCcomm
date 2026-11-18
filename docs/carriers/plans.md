@@ -1,6 +1,6 @@
 # Plans
 
-Open **`/carrier manage` → Plans**. The owner can create, edit and delete plans; staff can view them.
+Open the **Customers** tab of **`/carrier manage`**; your plans are listed there. The owner can create, edit and delete plans; staff can view them.
 
 ## The plan editor
 

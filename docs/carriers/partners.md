@@ -1,6 +1,6 @@
 # Roaming and MVNOs
 
-Open **`/carrier manage` → Partners**. Agreements are always offered by the **host** (the carrier with the towers) and accepted by the **partner**.
+Open the **Partners** tab of **`/carrier manage`**. Agreements are always offered by the **host** (the carrier with the towers) and accepted by the **partner**.
 
 ## Roaming agreements
 

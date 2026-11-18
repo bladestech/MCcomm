@@ -6,7 +6,7 @@
 
 ```
 /manufacturer create <name>
-/manufacturer manage [name]      (or "My factory" on the phone)
+/manufacturer manage [name]      (or "Work" on the phone)
 ```
 
 Players can own **1 manufacturer** by default (`manufacturing.max-per-player`).
@@ -82,4 +82,4 @@ The server runs a manufacturer called **Generic**. It sells a full-band model fo
 
 ## Company
 
-Your **Company** page shows a valuation and lets the owner withdraw money, sell or liquidate. See [Companies and economy](economy.md).
+The **Money** tab shows a valuation and lets the owner withdraw money, sell or liquidate. See [Companies and economy](economy.md).

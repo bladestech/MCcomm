@@ -23,8 +23,8 @@ public final class SimulationMenu {
         p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
     }
 
-    private Menu menu(int rows, String title) {
-        return new Menu(rows, Msg.mm("<dark_gray>" + title), "simulation").fill(Items.of(Material.BLACK_STAINED_GLASS_PANE, "<gray> "));
+    private Menu menu(Player p, String title) {
+        return Frame.create(p, title, "simulation");
     }
 
     private List<String> split(Carrier c) {
@@ -43,11 +43,11 @@ public final class SimulationMenu {
             return;
         }
         boolean market = plugin.market().active();
-        Menu m = menu(6, market ? "Customer market" : "Simulated users");
+        Menu m = menu(p, market ? "Customer market" : "Simulated users");
         boolean revenue = plugin.store().simulatedRevenue();
-        int slot = 0;
+        int slot = 9;
         for (Carrier c : plugin.store().carriers()) {
-            if (slot >= 45) break;
+            if (slot > 44) break;
             if (market) {
                 m.set(slot++, plugin.carrierMenu().marketItem(c));
                 continue;
@@ -70,7 +70,7 @@ public final class SimulationMenu {
         boolean admin = p.hasPermission("mccomm.admin");
         if (market) {
             int size = plugin.store().marketSize();
-            m.set(47, Items.of(Material.BEACON, "<white>Market size: <aqua>" + size,
+            m.set(Frame.CLOSE - 4, Items.of(Material.BEACON, "<white>Market size: <aqua>" + size,
                     "<gray>Simulated customers on the server.",
                     "<gray>With a carrier: <white>" + plugin.market().customers(),
                     "<gray>Without one: <white>" + plugin.market().unassigned(),
@@ -96,7 +96,7 @@ public final class SimulationMenu {
                 open(p);
             });
         }
-        m.set(49, Items.of(revenue ? Material.EMERALD_BLOCK : Material.COAL_BLOCK,
+        m.set(Frame.CLOSE - 2, Items.of(revenue ? Material.EMERALD_BLOCK : Material.COAL_BLOCK,
                 "<white>Simulated revenue: " + (revenue ? "<green>ON" : "<red>OFF"),
                 "<gray>When on, simulated users pay their plan",
                 "<gray>into the carrier's wallet (hourly).",
@@ -110,13 +110,15 @@ public final class SimulationMenu {
             Msg.send(p, "<gray>Simulated revenue is now " + (!revenue ? "<green>on" : "<red>off") + "<gray>.");
             open(p);
         });
-        m.set(53, Items.of(Material.BARRIER, "<red>Close"), e -> p.closeInventory());
+        Frame.help(m, market ? "Customer market" : "Simulated users", market ? "Each carrier's customers and satisfaction."
+                : "Click a carrier to set its simulated users.", "Top: " + (market ? "market size and " : "") + "the revenue toggle.",
+                "", Math.round(1 / plugin.settings().simulationWeight) + " simulated users load a tower like", "one real player.");
         m.open(p);
     }
 
     public void carrier(Player p, Carrier c) {
         if (!p.hasPermission("mccomm.simulate")) return;
-        Menu m = menu(4, "Simulate · " + Items.esc(c.name()));
+        Menu m = menu(p, "Simulate · " + Items.esc(c.name()));
         List<String> info = new ArrayList<>();
         info.add("<gray>Simulated users: <white>" + c.simulatedUsers());
         int towers = plugin.simulation().towerCount(c);
@@ -129,7 +131,7 @@ public final class SimulationMenu {
         info.add(plugin.store().simulatedRevenue() ? "<green>They pay their plans (revenue is on)." : "<gray>They don't pay (revenue is off).");
         m.set(4, Items.glow(Items.of(Material.PLAYER_HEAD, "<b>" + c.styled(), info)));
         int[] deltas = {-100, -10, -1, 1, 10, 100};
-        int[] slots = {10, 11, 12, 14, 15, 16};
+        int[] slots = {19, 20, 21, 23, 24, 25};
         for (int i = 0; i < deltas.length; i++) {
             int d = deltas[i];
             m.set(slots[i], Items.of(d < 0 ? Material.RED_CONCRETE : Material.LIME_CONCRETE, (d < 0 ? "<red>" : "<green>+") + d), e -> {
@@ -137,7 +139,7 @@ public final class SimulationMenu {
                 set(p, c, c.simulatedUsers() + d);
             });
         }
-        m.set(13, Items.of(Material.NAME_TAG, "<white>Set exactly", "<yellow>Click to type a number"), e -> {
+        m.set(22, Items.of(Material.NAME_TAG, "<white>Set exactly", "<yellow>Click to type a number"), e -> {
             click(p);
             plugin.prompt().ask(p, "<aqua>How many simulated users for <white>" + Items.esc(c.name()) + "</white>?", in -> {
                 try {
@@ -148,14 +150,11 @@ public final class SimulationMenu {
                 }
             });
         });
-        m.set(22, Items.of(Material.BARRIER, "<white>Clear", "<gray>Remove all simulated users."), e -> {
+        m.set(31, Items.of(Material.BARRIER, "<white>Clear", "<gray>Remove all simulated users."), e -> {
             click(p);
             set(p, c, 0);
         });
-        m.set(27, Items.of(Material.ARROW, "<gray>« All carriers"), e -> {
-            click(p);
-            open(p);
-        });
+        Frame.back(m, p, "All carriers", () -> open(p));
         m.open(p);
     }
 

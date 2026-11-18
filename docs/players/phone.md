@@ -4,18 +4,25 @@ Type **`/cell`** to open your phone. Almost everything a player does happens her
 
 ## You need a phone first
 
-Phones are bought in the **eShop** (`/cell eshop`, or the eShop app). Without a phone you have **no service at all**, emergency calls included. See [Wallet and phones](wallet.md) for the models.
+Phones are bought in the **Shop** app (or `/cell eshop`). Without a phone you have **no service at all**, emergency calls included. See [Wallet and phones](wallet.md) for the models.
 
 ## Home screen
 
 | Where | What |
 |---|---|
-| Top-left | One status item per SIM slot, coloured by signal: green (4 bars), yellow (3), orange (2), red (1), grey (no service). Hover for band, dBm, tower, number and plan. |
-| Top-middle | **My numbers**: your phone numbers per carrier. |
-| Top-right | Your phone model (click to open the eShop) and the in-game clock. |
-| Apps | **Messages**, **Contacts**, **Dial a number**, **Speedtest**, **SIM cards**, **Carrier store**, **Nearby towers**, **Settings**. |
-| Bottom row of apps | **Wallet**, **eShop**, and if you run one, **My carrier** and **My factory**. |
-| Bottom bar | **Emergency 909**, call controls (Answer, Decline, Hang up) and Close. |
+| Top row | One status item per SIM slot, coloured by signal: green (4 bars), yellow (3), orange (2), red (1), grey (no service). Then **Your numbers**, your phone model, the clock and Close. |
+| Apps | **Messages**, **Contacts**, **Dial**, **Signal**, **SIMs and plans**, **Shop**, **Wallet**, **Settings**. |
+| Work | Shown if you run or work for a carrier or manufacturer; opens it (or asks which). |
+| Bottom row | **Emergency 909**, call controls (Answer, Decline, Hang up) and Help. |
+
+| App | What's in it |
+|---|---|
+| Signal | Each SIM's signal, a speedtest, and towers within 4 km |
+| SIMs and plans | Your active and inactive SIMs, your data SIM, and every carrier to subscribe to |
+| Shop | Phones to buy, use or sell, and trade-ins against a phone loan |
+| Wallet | Balance, deposits, subscriptions (change plan, top up, buy data), history, send credits |
+
+Every screen has the same frame: Back at the bottom left, page arrows in the middle when a list is long, and a **Help** book at the bottom right that explains the page.
 
 The home screen updates live while it's open.
 
@@ -41,9 +48,9 @@ Under the SIMs it shows any call, the carriers you run with their balances (gree
 
 Turn it off and on with **`/cell hud`** or in **Settings**.
 
-## Nearby towers and speedtest
+## Signal and speedtest
 
-- **Nearby towers** lists towers within 4 km: carrier, model, generation, bands, distance, height and status.
+- **Signal** lists towers within 4 km: carrier, model, generation, bands, distance, height and status.
 - **Speedtest** (`/cell speedtest`) measures ping, download and upload over a few seconds, shown in a boss bar.
     - It **uses real data**: speed × duration. A 1 Gbps test burns about 300 MB.
     - There's a 10-second cooldown.

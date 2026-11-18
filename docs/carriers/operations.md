@@ -2,7 +2,7 @@
 
 Towers wear down from the traffic they carry. To keep them running you need people to
 repair them: **field technicians**, working out of **maintenance stations** you build
-on the map. Open it all from `/carrier manage` → **Operations**.
+on the map. Tower wear and facilities are on the **Network** tab of `/carrier manage`, hiring on the **Staff** tab.
 
 ## Wear
 
@@ -56,7 +56,7 @@ While the repair runs, a technician in a hard hat stands at the foot of the towe
 If no technician can take a job within **30 minutes** (no station in range, or
 everyone busy), a **contractor** is booked. They arrive after **6 hours** and cost
 about **3×** a technician's job, at least 60 credits. You can turn contractors off in
-Operations; jobs then wait for your own staff.
+the Network tab; jobs then wait for your own staff.
 
 Contractors mean you never *need* staff: a small network can run on contractors
 alone. Stations pay off once you have many towers or a lot of traffic.
@@ -91,7 +91,7 @@ centres) are hired the same way. How many you need depends on your subscribers; 
 
 ## Technicians
 
-Hire them in **Operations**: a few job seekers appear every day.
+Hire them on the **Staff** tab: click a role to see three new job seekers each day.
 
 | Level | Wage (default) | Repair time |
 |---|---|---|

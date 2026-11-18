@@ -2,7 +2,7 @@
 
 ## Buying towers
 
-Towers are bought as **models** from manufacturers in **`/carrier manage` → Tower shop**.
+Towers are bought as **models** from manufacturers in the **Tower shop** on the **Network** tab of **`/carrier manage`**.
 
 - The server-run **Generic** manufacturer always sells standard full-band models of every generation. Player [manufacturers](../manufacturers.md) may sell cheaper or specialised ones.
 - To buy: click a model for 1, right-click for 5, or shift-click to type any amount.

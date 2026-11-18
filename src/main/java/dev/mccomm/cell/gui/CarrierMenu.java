@@ -12,21 +12,36 @@ import dev.mccomm.cell.model.PlayerProfile;
 import dev.mccomm.cell.model.Subscription;
 import dev.mccomm.cell.model.Tower;
 import dev.mccomm.cell.util.Msg;
+import dev.mccomm.cell.workforce.Employee;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/** /carrier manage: wallet and upkeep overview, ledger, deposit, plans (with editor), towers and staff. */
+/**
+ * /carrier manage: six tabs (Overview, Network, Customers, Staff, Money, Partners) plus their
+ * sub-pages (plan editor, branding, agreement terms). Every page uses the shared {@link Frame}.
+ */
 public final class CarrierMenu {
     private static final long CONFIRM_MS = 5000;
+    public static final String OVERVIEW = "overview", NETWORK = "network", CUSTOMERS = "customers", STAFF = "staff",
+            MONEY = "money", PARTNERS = "partners";
+    private static final List<Frame.Tab> TABS = List.of(
+            new Frame.Tab(OVERVIEW, Material.BEACON, "Overview"),
+            new Frame.Tab(NETWORK, Material.LIGHTNING_ROD, "Network"),
+            new Frame.Tab(CUSTOMERS, Material.PLAYER_HEAD, "Customers"),
+            new Frame.Tab(STAFF, Material.IRON_PICKAXE, "Staff"),
+            new Frame.Tab(MONEY, Material.GOLD_INGOT, "Money"),
+            new Frame.Tab(PARTNERS, Material.FILLED_MAP, "Partners"));
 
     private final CellPlugin plugin;
     private final Map<UUID, Long> confirm = new HashMap<>();
@@ -39,8 +54,8 @@ public final class CarrierMenu {
         p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
     }
 
-    private Menu menu(int rows, String title) {
-        return new Menu(rows, Msg.mm("<dark_gray>" + title), "carrier").fill(Items.of(Material.BLACK_STAINED_GLASS_PANE, "<gray> "));
+    private String money(long v) {
+        return plugin.settings().money(v);
     }
 
     private boolean isOwner(Player p, Carrier c) {
@@ -51,257 +66,345 @@ public final class CarrierMenu {
         return p.hasPermission("mccomm.admin") || c.isStaff(p.getUniqueId());
     }
 
-    // ================================================================ overview
+    /** A tab page: frame, tab row, and the name in the title. */
+    private Menu page(Player p, Carrier c, String tab) {
+        Menu m = Frame.create(p, Items.esc(c.name()), "carrier");
+        Frame.tabs(m, p, TABS, tab, key -> tab(p, c, key));
+        return m;
+    }
+
+    /** A sub-page: frame, title, Back. */
+    private Menu sub(Player p, String title, Runnable back, String backLabel) {
+        Menu m = Frame.create(p, title, "carrier");
+        Frame.back(m, p, backLabel, back);
+        return m;
+    }
 
     public void open(Player p, Carrier c) {
+        tab(p, c, OVERVIEW);
+    }
+
+    public void tab(Player p, Carrier c, String tab) {
         if (!canView(p, c)) {
             Msg.send(p, "<red>You don't work for <white><c></white>.", Msg.p("c", c.name()));
             return;
         }
-        Menu m = menu(5, Items.esc(c.name()) + " · Management");
-        long now = System.currentTimeMillis();
-        List<Tower> towers = plugin.store().towersOf(c.id());
-        long upkeep = plugin.billing().upkeepCost(c);
-        int stage = plugin.billing().decayStage(c);
-
-        m.set(4, Items.of(Material.BEACON, "<b>" + c.styled(),
-                "<gray>Owner: <white>" + name(c.owner()),
-                "<gray>Numbers: <white>" + c.prefix() + "-xxxx",
-                c.mvno() ? "<gray>Type: <light_purple>MVNO (virtual)" : "<gray>Towers: <white>" + towers.size(),
-                c.mvno() ? "<gray>Network: <white>" + mvnoNetworkName(c) : "<gray>Type: <white>Network operator"));
-
-        List<String> wallet = new ArrayList<>();
-        wallet.add("<gray>Upkeep: <white>" + plugin.settings().money(upkeep) + " <gray>every "
-                + BillingService.period(plugin.settings().upkeepPeriodHours));
-        wallet.add("<gray>Next upkeep in <white>" + BillingService.until(c.nextUpkeep() - now));
-        if (upkeep > 0) wallet.add("<gray>Covers <white>" + (c.balance() / upkeep) + "</white> more period(s)");
-        if (c.mvno()) {
-            var deal = plugin.partners().mvnoHost(c);
-            if (deal != null) wallet.add("<gray>Owed to " + Items.esc(deal.host().name()) + ": <white>" + plugin.settings().money(c.mvnoOwed())
-                    + " <dark_gray>(" + Math.round(deal.agreement().sharePercent()) + "% share, settled with upkeep)");
-            if (plugin.partners().suspended(c)) wallet.add("<dark_red>Your subscribers are suspended!");
+        switch (tab) {
+            case NETWORK -> network(p, c, 0);
+            case CUSTOMERS -> customers(p, c, 0);
+            case STAFF -> staff(p, c);
+            case MONEY -> money(p, c);
+            case PARTNERS -> partners(p, c);
+            default -> overview(p, c);
         }
-        if (c.balance() < upkeep) wallet.add("<gold>Not enough for the next upkeep!");
-        long owedWages = plugin.workforce().state(c.id()).wagesOwed();
-        if (owedWages > 0) wallet.add("<red>Wages & rent owed: " + plugin.settings().money(owedWages));
-        long bankrupt = plugin.companies().bankruptAt(c);
-        if (bankrupt > 0) wallet.add("<dark_red><b>Bankrupt in " + BillingService.until(bankrupt - now) + "</b> <red>unless bills are paid");
-        m.set(10, Items.glow(Items.of(Material.GOLD_BLOCK, "<gold><b>" + plugin.settings().money(c.balance()), wallet)));
+    }
 
-        m.set(12, Items.of(Material.HOPPER, "<green>Deposit ores", "<gray>Fund upkeep from your ores."), e -> {
-            click(p);
-            plugin.deposit().open(p, c, () -> open(p, c));
-        });
+    // ================================================================ overview
 
-        int subs = 0;
+    private double incomePerDay(Carrier c) {
         double perDay = 0;
         for (PlayerProfile pr : plugin.store().profiles()) {
             Subscription sub = pr.sub(c.id());
             if (sub == null || sub.planId() == null) continue;
             Plan plan = c.plans().get(sub.planId());
-            if (plan == null) continue;
-            subs++;
-            perDay += plan.price() * 24.0 / plan.periodHours();
+            if (plan != null) perDay += plan.price() * 24.0 / plan.periodHours();
         }
-        double upkeepPerDay = upkeep * 24.0 / plugin.settings().upkeepPeriodHours;
-        double simDay = plugin.simulation().revenuePerDay(c);
-        perDay += simDay;
+        return perDay + plugin.simulation().revenuePerDay(c);
+    }
+
+    private int realSubscribers(Carrier c) {
+        int n = 0;
+        for (PlayerProfile pr : plugin.store().profiles()) {
+            Subscription sub = pr.sub(c.id());
+            if (sub != null && sub.planId() != null && c.plans().containsKey(sub.planId())) n++;
+        }
+        return n;
+    }
+
+    private void overview(Player p, Carrier c) {
+        Menu m = page(p, c, OVERVIEW);
+        long now = System.currentTimeMillis();
+        List<Tower> towers = plugin.store().towersOf(c.id());
+        long upkeep = plugin.billing().upkeepCost(c);
+        int stage = plugin.billing().decayStage(c);
+
+        m.set(13, Items.of(Material.BEACON, "<b>" + c.styled(),
+                "<gray>Owner: <white>" + name(c.owner()),
+                "<gray>Numbers: <white>" + c.prefix() + "-xxxx",
+                c.mvno() ? "<gray>MVNO on <white>" + mvnoNetworkName(c) : "<gray>Towers: <white>" + towers.size()));
+
+        // Headline numbers
+        List<String> wallet = new ArrayList<>();
+        wallet.add("<gray>Upkeep: <white>" + money(upkeep) + " <gray>in " + BillingService.until(c.nextUpkeep() - now));
+        if (c.balance() < upkeep) wallet.add("<gold>Not enough for the next upkeep");
+        long bankrupt = plugin.companies().bankruptAt(c);
+        if (bankrupt > 0) wallet.add("<dark_red><b>Bankrupt in " + BillingService.until(bankrupt - now));
+        wallet.add("");
+        wallet.add("<yellow>Click · deposit ores");
+        m.set(19, Items.glow(Items.of(Material.GOLD_BLOCK, "<gold><b>" + money(c.balance()), wallet)), e -> {
+            click(p);
+            plugin.deposit().open(p, c, () -> overview(p, c));
+        });
+
+        double income = incomePerDay(c);
+        double upkeepDay = upkeep * 24.0 / plugin.settings().upkeepPeriodHours;
         long staffDay = plugin.workforce().dailyCost(c.id());
-        double net = perDay - upkeepPerDay - staffDay;
-        m.set(14, Items.of(Material.EMERALD, "<green>Income",
-                "<gray>Paying subscribers: <white>" + subs + (c.simulatedUsers() > 0 ? " <dark_gray>+ " + c.simulatedUsers()
-                        + (plugin.market().active() ? " customers" : " simulated") : ""),
-                "<gray>Plan income: <green>+" + plugin.settings().money(Math.round(perDay)) + "</green> /day",
-                "<gray>Upkeep: <red>-" + plugin.settings().money(Math.round(upkeepPerDay)) + "</red> /day",
-                "<gray>Wages & rent: <red>-" + plugin.settings().money(staffDay) + "</red> /day",
-                "<gray>Net: " + (net >= 0 ? "<green>+" : "<red>-") + plugin.settings().money(Math.round(Math.abs(net))) + " /day"));
+        double net = income - upkeepDay - staffDay;
+        m.set(21, Items.of(net >= 0 ? Material.EMERALD : Material.REDSTONE, (net >= 0 ? "<green>+" : "<red>-") + money(Math.round(Math.abs(net))) + " <gray>a day",
+                "<gray>Income: <green>+" + money(Math.round(income)),
+                "<gray>Upkeep: <red>-" + money(Math.round(upkeepDay)),
+                "<gray>Wages, rent, transit: <red>-" + money(staffDay)));
+
+        int real = realSubscribers(c);
+        if (plugin.market().active()) {
+            var sc = plugin.market().score(c);
+            int size = Math.max(1, plugin.store().marketSize());
+            m.set(23, Items.of(Material.PLAYER_HEAD, "<white>" + (real + c.simulatedUsers()) + " <gray>subscribers",
+                    "<gray>Players: <white>" + real + " <gray>· Customers: <white>" + c.simulatedUsers(),
+                    "<gray>Market share: <white>" + Math.round(100.0 * c.simulatedUsers() / size) + "%",
+                    sc == null ? "" : "<gray>Satisfaction: " + satColor(sc.satisfaction()) + Math.round(sc.satisfaction()) + "%",
+                    "", "<yellow>Click · Customers tab"), e -> {
+                click(p);
+                customers(p, c, 0);
+            });
+        } else {
+            m.set(23, Items.of(Material.PLAYER_HEAD, "<white>" + (real + c.simulatedUsers()) + " <gray>subscribers",
+                    "<gray>Players: <white>" + real + (c.simulatedUsers() > 0 ? " <gray>· Simulated: <white>" + c.simulatedUsers() : "")));
+        }
 
         if (stage == 0) {
-            m.set(16, Items.of(Material.LIME_DYE, "<green>Network healthy", "<gray>Upkeep is paid."));
+            m.set(25, Items.of(Material.LIME_DYE, "<green>Upkeep paid", "<gray>Your network runs normally."));
         } else {
             boolean silent = stage >= plugin.settings().silentStage();
-            List<String> lore = new ArrayList<>();
-            lore.add(silent ? "<dark_red>Your towers are silent." : "<gray>Decay stage <white>" + stage + "</white> of " + (plugin.settings().silentStage() - 1));
-            if (!silent) {
-                lore.add("<gray>Speed: <white>" + Math.round(plugin.settings().decaySpeed[stage - 1] * 100) + "%");
-                if (stage > 1) lore.add("<gray>Top <white>" + (stage - 1) + "</white> band(s) shut off");
-            }
-            lore.add("<gray>Unpaid for <white>" + BillingService.until(now - c.unpaidSince()));
-            lore.add("");
-            lore.add("<yellow>Deposit " + plugin.settings().money(upkeep) + "+ to repair everything");
-            m.set(16, Items.glow(Items.of(silent ? Material.REDSTONE_BLOCK : Material.REDSTONE, silent ? "<dark_red>Towers silent" : "<red>Towers decaying", lore)));
+            m.set(25, Items.glow(Items.of(silent ? Material.REDSTONE_BLOCK : Material.REDSTONE, silent ? "<dark_red>Towers silent" : "<red>Towers decaying",
+                    "<gray>Upkeep unpaid for <white>" + BillingService.until(now - c.unpaidSince()),
+                    silent ? "<dark_red>No service at all." : "<gray>Speed <white>" + Math.round(plugin.settings().decaySpeed[stage - 1] * 100) + "%",
+                    "", "<yellow>Deposit " + money(upkeep) + "+ to repair")));
         }
 
-        double resale = plugin.settings().resalePercent;
-        List<String> ti = new ArrayList<>();
-        ti.add("<gray>Subscribers paying off a phone with you can");
-        ti.add("<gray>trade in a phone they own: you credit them");
-        ti.add("<white>" + Math.round(c.tradeInPercent()) + "%</white> <gray>of its price off their loan and");
-        ti.add("<gray>resell it for <white>" + Math.round(resale) + "%</white>.");
-        double tiNet = c.tradeInPercent() - resale;
-        ti.add(tiNet > 0 ? "<gray>Costs you <red>" + Math.round(tiNet) + "%</red> of a phone's price per trade-in."
-                : "<gray>Earns you <green>" + Math.round(-tiNet) + "%</green> of a phone's price per trade-in.");
-        if (isOwner(p, c)) {
-            ti.add("");
-            ti.add("<yellow>Click <gray>turn " + (c.tradeIn() ? "off" : "on") + " · <yellow>Right-click <gray>set rate");
+        // Alerts
+        List<ItemStack> alerts = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
+        int worn = 0, silentWorn = 0;
+        for (Tower t : towers) {
+            int ws = plugin.workforce().wearStage(t);
+            if (ws >= 2) worn++;
+            if (ws >= 4) silentWorn++;
         }
-        m.set(22, Items.of(c.tradeIn() ? Material.HOPPER_MINECART : Material.MINECART,
-                "<white>Trade-in program: " + (c.tradeIn() ? "<green>on" : "<red>off"), ti), e -> {
-            if (!isOwner(p, c)) return;
+        if (worn > 0) {
+            alerts.add(Items.of(silentWorn > 0 ? Material.IRON_BARS : Material.REDSTONE_TORCH,
+                    (silentWorn > 0 ? "<red>" : "<gold>") + worn + " tower(s) badly worn", "<gray>They're slow or have lost bands.", "<yellow>Click · Network tab"));
+            actions.add(() -> network(p, c, 0));
+        }
+        if (plugin.workforce().enabled()) {
+            for (Employee.Role r : new Employee.Role[]{Employee.Role.SUPPORT, Employee.Role.ENGINEER}) {
+                if (r == Employee.Role.ENGINEER && c.mvno()) continue;
+                double load = plugin.workforce().load(c, r);
+                if (load <= 1) continue;
+                alerts.add(Items.of(r == Employee.Role.SUPPORT ? Material.BELL : Material.COMPARATOR,
+                        "<gold>" + r.display + " overloaded",
+                        "<gray>Workload: <white>" + (Double.isInfinite(load) ? "no staff" : Math.round(load * 100) + "%"),
+                        "<gray>Need about <white>" + plugin.workforce().needed(c, r) + "</white> in total.", "<yellow>Click · Staff tab"));
+                actions.add(() -> staff(p, c));
+            }
+            long owed = plugin.workforce().state(c.id()).wagesOwed();
+            if (owed > 0) {
+                alerts.add(Items.of(Material.SKELETON_SKULL, "<red>Wages owed: " + money(owed), "<gray>Unpaid staff don't work.", "<yellow>Click · deposit"));
+                actions.add(() -> plugin.deposit().open(p, c, () -> overview(p, c)));
+            }
+        }
+        int offers = plugin.partners().offersTo(c).size();
+        if (offers > 0) {
+            alerts.add(Items.of(Material.WRITABLE_BOOK, "<yellow>" + offers + " partner offer(s)", "<yellow>Click · Partners tab"));
+            actions.add(() -> partners(p, c));
+        }
+        if (c.plans().isEmpty()) {
+            alerts.add(Items.of(Material.PAPER, "<gold>No plans", "<gray>Nobody can subscribe.", "<yellow>Click · Customers tab"));
+            actions.add(() -> customers(p, c, 0));
+        }
+        int stock = plugin.manufacturerMenu().stockCount(c);
+        if (stock > 0 && !c.mvno()) {
+            alerts.add(Items.of(Material.CHEST, "<white>" + stock + " tower(s) in stock", "<gray>Install with <white>/tower install <name>"));
+            actions.add(() -> plugin.manufacturerMenu().stock(p, c));
+        }
+        if (alerts.isEmpty()) {
+            m.set(31, Items.of(Material.LIME_DYE, "<green>Nothing needs attention"));
+        } else {
+            int[] slots = {28, 29, 30, 31, 32, 33, 34};
+            for (int i = 0; i < alerts.size() && i < slots.length; i++) {
+                Runnable act = actions.get(i);
+                m.set(slots[i], alerts.get(i), e -> {
+                    click(p);
+                    act.run();
+                });
+            }
+        }
+
+        // Quick actions
+        m.set(38, Items.of(Material.HOPPER, "<green>Deposit ores"), e -> {
+            click(p);
+            plugin.deposit().open(p, c, () -> overview(p, c));
+        });
+        m.set(40, Items.of(Material.PAPER, "<white>Plans"), e -> {
+            click(p);
+            customers(p, c, 0);
+        });
+        m.set(42, Items.of(Material.PLAYER_HEAD, "<white>Hire staff"), e -> {
+            click(p);
+            staff(p, c);
+        });
+        Frame.help(m, "Running a carrier", "Build towers (Network), set plans", "(Customers), hire staff, keep the wallet",
+                "above upkeep and payday.", "", "Alerts in the middle row show what", "needs attention; click one to go there.");
+        m.open(p);
+    }
+
+    private static String satColor(double s) {
+        return s >= 75 ? "<green>" : s >= 50 ? "<yellow>" : "<red>";
+    }
+
+    // ================================================================= network
+
+    public void network(Player p, Carrier c, int pg) {
+        Menu m = page(p, c, NETWORK);
+        if (c.mvno()) {
+            var deal = plugin.partners().mvnoHost(c);
+            m.set(22, Items.of(Material.ENDER_EYE, "<white>Host network: " + mvnoNetworkName(c),
+                    deal == null ? "<red>You have no host: no service." : "<gray>Your subscribers use its towers.",
+                    "", "<yellow>Click · Partners tab"), e -> {
+                click(p);
+                partners(p, c);
+            });
+            Frame.help(m, "Network (MVNO)", "MVNOs have no towers of their own.", "Your host's towers are your network.");
+            m.open(p);
+            return;
+        }
+        List<Tower> towers = new ArrayList<>(plugin.store().towersOf(c.id()));
+        towers.sort(Comparator.comparingDouble((Tower x) -> x.wear()).reversed());
+        if (towers.isEmpty()) {
+            m.set(22, Frame.empty("No towers yet", "Buy one in the Tower shop, then look", "at a wall sign: /tower install <name>"));
+        } else {
+            Frame.page(m, p, towers, pg, Frame.rows(1, 3), t -> towerItem(c, t), null, n -> network(p, c, n));
+        }
+        if (plugin.workforce().enabled()) {
+            m.set(37, Items.of(Material.EMERALD, "<green>Tower shop", "<gray>Buy towers from manufacturers."), e -> {
+                click(p);
+                plugin.manufacturerMenu().shop(p, c);
+            });
+        } else {
+            m.set(38, Items.of(Material.EMERALD, "<green>Tower shop", "<gray>Buy towers from manufacturers."), e -> {
+                click(p);
+                plugin.manufacturerMenu().shop(p, c);
+            });
+        }
+        int stock = plugin.manufacturerMenu().stockCount(c);
+        m.set(plugin.workforce().enabled() ? 39 : 42, Items.amount(Items.of(Material.CHEST, "<white>Stock: " + stock,
+                "<gray>Bought, not installed yet.", "<gray>Install: <white>/tower install <name>"), Math.max(1, stock)), e -> {
+            click(p);
+            plugin.manufacturerMenu().stock(p, c);
+        });
+        if (plugin.workforce().enabled()) {
+            int sites = plugin.workforce().facilitiesOf(c.id()).size();
+            m.set(41, Items.of(Material.RED_BED, "<white>Facilities: " + sites, "<gray>Stations, call centres, NOCs.", "<yellow>Click · open"), e -> {
+                click(p);
+                plugin.operationsMenu().facilities(p, c, 0);
+            });
+            var st = plugin.workforce().state(c.id());
+            m.set(43, Items.of(st.contractors() ? Material.LIME_DYE : Material.GRAY_DYE, "<white>Contractors: " + (st.contractors() ? "<green>allowed" : "<red>never"),
+                    "<gray>Repair towers no technician can reach,", "<gray>slowly and for about " + Math.round(plugin.workforce().w().contractorMultiplier()) + "× the cost.",
+                    "<yellow>Click · toggle"), e -> {
+                click(p);
+                st.contractors(!st.contractors());
+                plugin.store().markDirty();
+                network(p, c, pg);
+            });
+        }
+        Frame.help(m, "Network", "Towers, most worn first. Wear builds", "with traffic; technicians from your",
+                "maintenance stations repair it, or", "contractors if none can reach.", "",
+                "Total upkeep: " + money(plugin.billing().upkeepCost(c)) + " per " + BillingService.period(plugin.settings().upkeepPeriodHours));
+        m.open(p);
+    }
+
+    private ItemStack towerItem(Carrier c, Tower t) {
+        int stage = plugin.billing().decayStage(c);
+        List<String> lore = new ArrayList<>();
+        lore.add("<gray>" + Items.esc(plugin.towers().modelName(t)) + " · Gen " + t.generation() + " · "
+                + (t.backhaul() == null ? "<red>no backhaul" : DepositMenu.TowerGuiNames.pretty(t.backhaul())));
+        lore.add("<gray>Users: <white>" + plugin.signal().usersOn(t) + (plugin.signal().simOn(t) > 0 ? " <dark_gray>+ " + plugin.signal().simOn(t) + " customers" : ""));
+        if (plugin.workforce().enabled()) lore.add("<gray>Wear: " + OperationsMenu.wearBar(t.wear()) + " <white>" + Math.round(t.wear()) + "%");
+        var job = plugin.workforce().job(t);
+        if (job != null) lore.add(job.started() ? "<aqua>⚒ Repair in progress" : "<yellow>Repair queued");
+        String status = !t.online() ? "<red>Offline" : stage >= plugin.settings().silentStage() ? "<dark_red>Silent (upkeep unpaid)"
+                : plugin.workforce().silent(t) ? "<dark_red>Silent (worn out)"
+                : stage > 0 ? "<gold>Decaying (upkeep unpaid)"
+                : plugin.workforce().wearStage(t) > 0 ? "<yellow>Worn: " + Math.round(plugin.workforce().wearSpeed(t) * 100) + "% speed" : "<green>Online";
+        lore.add(status);
+        lore.add("<dark_gray>" + (t.world() == null ? "?" : t.world().getName()) + " " + t.x() + ", " + t.y() + ", " + t.z());
+        int ws = plugin.workforce().wearStage(t);
+        Material icon = !t.online() || stage >= plugin.settings().silentStage() || ws >= 4 ? Material.IRON_BARS
+                : ws >= 2 ? Material.REDSTONE_TORCH : Material.LIGHTNING_ROD;
+        return Items.of(icon, "<gold>" + Items.esc(t.name()), lore);
+    }
+
+    // =============================================================== customers
+
+    public void customers(Player p, Carrier c, int pg) {
+        boolean owner = isOwner(p, c);
+        Menu m = page(p, c, CUSTOMERS);
+        if (plugin.market().active()) m.set(10, marketItem(c));
+        else m.set(10, Items.of(Material.PLAYER_HEAD, "<white>Subscribers", "<gray>Players: <white>" + realSubscribers(c),
+                c.simulatedUsers() > 0 ? "<gray>Simulated: <white>" + c.simulatedUsers() : ""));
+
+        double resale = plugin.settings().resalePercent;
+        double tiNet = c.tradeInPercent() - resale;
+        m.set(13, Items.of(c.tradeIn() ? Material.HOPPER_MINECART : Material.MINECART, "<white>Trade-ins: " + (c.tradeIn() ? "<green>on" : "<red>off"),
+                "<gray>Credit <white>" + Math.round(c.tradeInPercent()) + "%</white> of a phone's price off a loan,",
+                "<gray>resell it for " + Math.round(resale) + "%: " + (tiNet > 0 ? "<red>costs " + Math.round(tiNet) : "<green>earns " + Math.round(-tiNet)) + "%</red><gray> each.",
+                owner ? "<yellow>Click · toggle · <yellow>Right-click · set rate" : "<dark_gray>Only the owner can change this"), e -> {
+            if (!owner) return;
             click(p);
             if (e.isRightClick()) {
                 askDouble(p, "<aqua>Trade-in rate in percent of the phone's price (0-100):", 0, 100, v -> {
                     c.tradeInPercent(v);
                     plugin.store().markDirty();
-                    open(p, c);
+                    customers(p, c, pg);
                 });
             } else {
                 c.tradeIn(!c.tradeIn());
                 plugin.store().markDirty();
-                open(p, c);
+                customers(p, c, pg);
             }
         });
-
-        m.set(20, Items.of(Material.PAINTING, "<white>Branding: " + c.styled(),
+        m.set(16, Items.of(Material.PAINTING, "<white>Branding: " + c.styled(),
                 "<gray>" + dev.mccomm.cell.util.Style.describe(c.colors()),
-                "<gray>Your name's colour or gradient everywhere:",
-                "<gray>tower screens, phones, sidebar, /internet.",
-                isOwner(p, c) ? "<yellow>Click to change" : "<dark_gray>Only the owner can change this"), e -> {
-            if (!isOwner(p, c)) return;
+                owner ? "<yellow>Click · change" : "<dark_gray>Only the owner can change this"), e -> {
+            if (!owner) return;
             click(p);
             branding(p, "Branding · " + Items.esc(c.name()), c.name(), c.colors(), false, style -> {
                 c.colors(style);
                 plugin.store().markDirty();
                 for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
-            }, () -> open(p, c));
+            }, () -> customers(p, c, pg));
         });
 
-        int offers = plugin.partners().offersTo(c).size();
-        m.set(24, Items.of(Material.FILLED_MAP, "<white>Partners" + (offers > 0 ? " <yellow>(" + offers + " offer" + (offers == 1 ? "" : "s") + ")" : ""),
-                "<gray>Roaming agreements" + (c.mvno() ? " and your host network." : " and MVNOs you host."),
-                "<yellow>Click to open"), e -> {
-            click(p);
-            partners(p, c);
-        });
-
-        m.set(28, Items.of(Material.PAPER, "<white>Plans", "<gray>" + c.plans().size() + " plan(s)",
-                isOwner(p, c) ? "<yellow>Click to create and edit plans" : "<gray>Click to view plans"), e -> {
-            click(p);
-            plans(p, c);
-        });
-        if (plugin.market().active()) m.set(18, marketItem(c));
-        if (!c.mvno() && plugin.workforce().enabled()) {
-            int worn = 0;
-            for (Tower t : towers) if (plugin.workforce().wearStage(t) >= 2) worn++;
-            m.set(26, Items.of(Material.IRON_PICKAXE, "<gold>Operations" + (worn > 0 ? " <red>(" + worn + " worn)" : ""),
-                    "<gray>Tower wear, repairs, maintenance", "<gray>stations and technicians.",
-                    "<gray>Staff: <white>" + plugin.workforce().staffOf(c.id()).size() + " <gray>· Stations: <white>" + plugin.workforce().facilitiesOf(c.id()).size(),
-                    "<yellow>Click to open"), e -> {
-                click(p);
-                plugin.operationsMenu().open(p, c);
-            });
-        }
-        m.set(30, Items.of(Material.LIGHTNING_ROD, "<gold>Towers", "<gray>Status, decay and upkeep per tower."), e -> {
-            click(p);
-            towers(p, c);
-        });
-        List<String> hist = new ArrayList<>();
-        for (LedgerEntry le : c.ledger()) {
-            if (hist.size() >= 15) break;
-            hist.add(plugin.phone().ledgerLine(le, now));
-        }
-        if (hist.isEmpty()) hist.add("<dark_gray>Nothing yet");
-        m.set(32, Items.of(Material.BOOK, "<white>Ledger", hist));
-        List<String> staff = new ArrayList<>();
-        staff.add("<gray>Owner: <white>" + name(c.owner()));
-        for (UUID id : c.employees()) staff.add("<gray>• <white>" + name(id));
-        staff.add("");
-        staff.add("<dark_gray>/carrier employee add|remove " + Items.esc(c.name()) + " <player>");
-        m.set(34, Items.of(Material.PLAYER_HEAD, "<white>Staff", staff));
-
-        if (!c.mvno()) {
-            m.set(38, Items.of(Material.EMERALD, "<green>Tower shop", "<gray>Buy tower models from manufacturers,",
-                    "<gray>one at a time or in bulk."), e -> {
-                click(p);
-                plugin.manufacturerMenu().shop(p, c);
-            });
-            int stock = plugin.manufacturerMenu().stockCount(c);
-            m.set(42, Items.amount(Items.of(Material.CHEST, "<white>Tower stock", "<gray>" + stock + " tower(s) bought, not installed.",
-                    "<gray>Install with <white>/tower install <name>"), Math.max(1, stock)), e -> {
-                click(p);
-                plugin.manufacturerMenu().stock(p, c);
-            });
-        }
-        m.set(36, Items.of(Material.GOLD_INGOT, "<gold>Company", "<gray>Valuation " + plugin.settings().money(plugin.companies().valuation(c).total()),
-                "<gray>Withdraw, add money, sell or liquidate."), e -> {
-            click(p);
-            plugin.companyMenu().carrier(p, c);
-        });
-        m.set(40, Items.of(Material.BARRIER, "<red>Close"), e -> p.closeInventory());
-        m.open(p);
-    }
-
-    /** Market standing: customers, share, satisfaction and what drives it. */
-    public org.bukkit.inventory.ItemStack marketItem(Carrier c) {
-        var mk = plugin.market();
-        var sc = mk.score(c);
-        int size = Math.max(1, plugin.store().marketSize());
-        int[] day = mk.lastDay(c);
-        List<String> lore = new ArrayList<>();
-        lore.add("<gray>Customers: <white>" + c.simulatedUsers() + " <dark_gray>(" + Math.round(100.0 * c.simulatedUsers() / size) + "% of " + size + ")");
-        if (sc == null) return Items.of(Material.PLAYER_HEAD, "<white>Market", lore);
-        String col = sc.satisfaction() >= 75 ? "<green>" : sc.satisfaction() >= 50 ? "<yellow>" : "<red>";
-        lore.add("<gray>Satisfaction: " + col + Math.round(sc.satisfaction()) + "%");
-        lore.add("<dark_gray> · Service " + pct(sc.quality()) + " · Coverage " + pct(sc.coverage()));
-        lore.add("<dark_gray> · Support " + pct(sc.support()) + " · Price " + pct(sc.price()));
-        lore.add("<gray>Average price: <white>" + plugin.settings().money(Math.round(sc.avgPrice())) + "</white>/day <dark_gray>("
-                + Math.round(sc.priceRatio() * 100) + "% of the going rate)");
-        if (sc.refused()) lore.add("<red>Too expensive: customers are leaving and won't join.");
-        lore.add("<gray>Leaving: <white>~" + String.format("%.1f", sc.churnPerDay() * 100) + "%</white> a day");
-        lore.add("<gray>Yesterday: <green>+" + day[0] + "</green> <gray>joined, <red>-" + day[1] + "</red> <gray>left");
-        lore.add("");
-        lore.add("<dark_gray>Customers pick carriers on coverage, speed,");
-        lore.add("<dark_gray>support and price, and leave when unhappy.");
-        return Items.of(Material.PLAYER_HEAD, "<white>Market", lore);
-    }
-
-    private static String pct(double v) {
-        return Math.round(v * 100) + "%";
-    }
-
-    // =================================================================== plans
-
-    public void plans(Player p, Carrier c) {
-        boolean owner = isOwner(p, c);
-        Menu m = menu(4, Items.esc(c.name()) + " · Plans");
-        int slot = 0;
-        for (Plan plan : new ArrayList<>(c.plans().values())) {
-            if (slot >= 27) break;
+        m.set(22, Items.of(Material.BOOK, "<white>Plans <dark_gray>(" + c.plans().size() + ")", "<gray>Below. Click a plan to edit it."));
+        List<Plan> plans = new ArrayList<>(c.plans().values());
+        var counts = plugin.simulation().planCounts(c);
+        if (plans.isEmpty()) m.set(31, Frame.empty("No plans", "Nobody can subscribe until you add one."));
+        Frame.page(m, p, plans, pg, Frame.range(27, 43), plan -> {
             List<String> lore = new ArrayList<>(plugin.phone().planLore(plan));
-            int simOnPlan = plugin.simulation().planCounts(c).getOrDefault(plan.id(), 0);
-            lore.add("<gray>Subscribers: <white>" + plugin.billing().subscribers(c, plan) + (simOnPlan > 0 ? " <dark_gray>+ " + simOnPlan + " simulated" : ""));
-            if (owner) {
-                lore.add("");
-                lore.add("<yellow>Click <gray>edit · <yellow>Shift-right <gray>delete");
-            }
-            m.set(slot++, Items.of(Material.PAPER, "<b>" + plan.styled(c), lore), e -> {
-                if (!owner) return;
-                click(p);
-                if (e.isShiftClick() && e.isRightClick()) deletePlan(p, c, plan);
-                else editor(p, c, plan);
-            });
-        }
-        m.set(27, Items.of(Material.ARROW, "<gray>« Back"), e -> {
+            int sim = counts.getOrDefault(plan.id(), 0);
+            lore.add("<gray>Subscribers: <white>" + plugin.billing().subscribers(c, plan) + (sim > 0 ? " <dark_gray>+ " + sim + " customers" : ""));
+            if (owner) lore.add("<yellow>Click · edit · <yellow>Shift-right · delete");
+            return Items.of(Material.PAPER, "<b>" + plan.styled(c), lore);
+        }, (plan, e) -> {
+            if (!owner) return;
             click(p);
-            open(p, c);
-        });
+            if (e.isShiftClick() && e.isRightClick()) deletePlan(p, c, plan);
+            else editor(p, c, plan);
+        }, n -> customers(p, c, n));
         if (owner) {
-            m.set(31, Items.of(Material.WRITABLE_BOOK, "<green>New plan", "<gray>Starts as a copy of the default plan."), e -> {
+            m.set(44, Items.of(Material.WRITABLE_BOOK, "<green>New plan", "<gray>Starts as a copy of the default."), e -> {
                 click(p);
-                if (c.plans().size() >= 27) {
-                    Msg.send(p, "<red>That's the maximum number of plans.");
-                    return;
-                }
                 plugin.prompt().ask(p, "<aqua>Name for the new plan:", in -> {
                     Plan plan = plugin.billing().addDefaultPlan(c);
                     plan.name(clip(in, 24));
@@ -310,6 +413,88 @@ public final class CarrierMenu {
                 });
             });
         }
+        Frame.help(m, "Customers", "Customers pick carriers on coverage,", "speed, support and price, and leave",
+                "when unhappy or overcharged.", "", "Plans: price, period, band and speed", "caps, data, roaming and phone deals.");
+        m.open(p);
+    }
+
+    /** Market standing: customers, share, satisfaction and what drives it. */
+    public ItemStack marketItem(Carrier c) {
+        var mk = plugin.market();
+        var sc = mk.score(c);
+        int size = Math.max(1, plugin.store().marketSize());
+        int[] day = mk.lastDay(c);
+        List<String> lore = new ArrayList<>();
+        lore.add("<gray>Customers: <white>" + c.simulatedUsers() + " <dark_gray>(" + Math.round(100.0 * c.simulatedUsers() / size) + "% of " + size + ")");
+        if (sc == null) return Items.of(Material.PLAYER_HEAD, "<white>Market", lore);
+        lore.add("<gray>Satisfaction: " + satColor(sc.satisfaction()) + Math.round(sc.satisfaction()) + "%");
+        lore.add("<dark_gray> Service " + pct(sc.quality()) + " · Coverage " + pct(sc.coverage()) + " · Support " + pct(sc.support()) + " · Price " + pct(sc.price()));
+        lore.add("<gray>Price: <white>" + money(Math.round(sc.avgPrice())) + "</white>/day <dark_gray>(" + Math.round(sc.priceRatio() * 100) + "% of going rate)");
+        if (sc.refused()) lore.add("<red>Too expensive: nobody will join.");
+        lore.add("<gray>Leaving ~" + String.format("%.1f", sc.churnPerDay() * 100) + "%/day · Yesterday <green>+" + day[0] + " <red>-" + day[1]);
+        return Items.of(Material.PLAYER_HEAD, "<white>Market <b>" + c.styled(), lore);
+    }
+
+    private static String pct(double v) {
+        return Math.round(v * 100) + "%";
+    }
+
+    // =================================================================== staff
+
+    public void staff(Player p, Carrier c) {
+        Menu m = page(p, c, STAFF);
+        long now = System.currentTimeMillis();
+        if (plugin.workforce().enabled()) {
+            var st = plugin.workforce().state(c.id());
+            List<String> sum = new ArrayList<>();
+            sum.add("<gray>Wages, rent, transit: <red>" + money(plugin.workforce().dailyCost(c.id())) + "</red>/day");
+            sum.add("<gray>Next payday in <white>" + (st.nextPayday() == 0 ? "-" : BillingService.until(st.nextPayday() - now)));
+            if (st.wagesOwed() > 0) sum.add("<red>Owed " + money(st.wagesOwed()) + ": unpaid staff don't work");
+            m.set(13, Items.of(Material.CLOCK, "<white>" + plugin.workforce().staffOf(c.id()).size() + " <gray>employees", sum));
+            Employee.Role[] roles = Employee.Role.values();
+            int[] slots = {20, 22, 24};
+            for (int i = 0; i < roles.length; i++) {
+                Employee.Role r = roles[i];
+                if (c.mvno() && r != Employee.Role.SUPPORT) continue;
+                m.set(slots[i], plugin.operationsMenu().roleItem(c, r, now, true), e -> {
+                    click(p);
+                    plugin.operationsMenu().role(p, c, r, 0);
+                });
+            }
+        } else {
+            m.set(22, Frame.empty("Virtual staff are off", "workforce.enabled is false on this server."));
+        }
+        List<String> team = new ArrayList<>();
+        team.add("<gray>Owner: <white>" + name(c.owner()));
+        for (UUID id : c.employees()) team.add("<gray>• <white>" + name(id));
+        team.add("");
+        team.add("<dark_gray>/carrier employee add|remove " + Items.esc(c.name()) + " <player>");
+        m.set(40, Items.of(Material.PLAYER_HEAD, "<white>Players with access", team));
+        Frame.help(m, "Staff", "Technicians repair towers from stations.", "Support agents keep customers happy.",
+                "Engineers keep the network fast.", "", "Each works in its own facility:", "build it, then hire into it.",
+                "Hiring costs " + plugin.workforce().w().recruitDays() + " days of wage, firing " + plugin.workforce().w().severanceDays() + ".");
+        m.open(p);
+    }
+
+    // =================================================================== money
+
+    public void money(Player p, Carrier c) {
+        Menu m = page(p, c, MONEY);
+        long now = System.currentTimeMillis();
+        m.set(20, Items.of(Material.HOPPER, "<green>Deposit ores", "<gray>Balance: <white>" + money(c.balance())), e -> {
+            click(p);
+            plugin.deposit().open(p, c, () -> money(p, c));
+        });
+        List<String> hist = new ArrayList<>();
+        for (LedgerEntry le : c.ledger()) {
+            if (hist.size() >= 15) break;
+            hist.add(plugin.phone().ledgerLine(le, now));
+        }
+        if (hist.isEmpty()) hist.add("<dark_gray>Nothing yet");
+        m.set(24, Items.of(Material.BOOK, "<white>Ledger", hist));
+        plugin.companyMenu().carrierItems(m, p, c, () -> money(p, c));
+        Frame.help(m, "Money", "Deposit ores into the company wallet.", "Moving money between you and the",
+                "company costs " + plugin.settings().transferFeePercent + "%. Valuation is a guide for", "selling; liquidating closes it for good.");
         m.open(p);
     }
 
@@ -326,11 +511,11 @@ public final class CarrierMenu {
         c.plans().remove(plan.id());
         plugin.billing().planDeleted(c, plan);
         Msg.send(p, "<yellow>Deleted plan <white><n></white>.", Msg.p("n", plan.name()));
-        plans(p, c);
+        customers(p, c, 0);
     }
 
     public void editor(Player p, Carrier c, Plan plan) {
-        Menu m = menu(6, "Edit · " + Items.esc(plan.name()));
+        Menu m = sub(p, "Edit · " + Items.esc(plan.name()), () -> customers(p, c, 0), "Plans");
         Plan before = plan.copy(); // state before this screen's edit, to tell subscribers what changed
         var st = plugin.settings();
         boolean prepaid = plan.prepaid();
@@ -558,10 +743,8 @@ public final class CarrierMenu {
             }
         }
 
-        m.set(45, Items.of(Material.ARROW, "<gray>« Plans"), e -> {
-            click(p);
-            plans(p, c);
-        });
+        Frame.help(m, "Editing a plan", "Changes in subscribers' favour apply", "now; anything worse applies at their",
+                "next renewal (they're told).", "", "Simulated customers pick plans evenly,", "so every plan counts towards your price.");
         m.open(p);
     }
 
@@ -602,12 +785,12 @@ public final class CarrierMenu {
 
     public void partners(Player p, Carrier c) {
         boolean owner = isOwner(p, c);
-        Menu m = menu(6, Items.esc(c.name()) + " · Partners");
+        Menu m = page(p, c, PARTNERS);
         long now = System.currentTimeMillis();
-        m.set(4, Items.of(Material.FILLED_MAP, "<b>" + c.styled(),
-                c.mvno() ? "<light_purple>MVNO: you run on a host network." : "<gray>Network operator: you own towers.",
-                "<gray>Roaming: your subscribers use partners'", "<gray>towers where you have no coverage.",
-                c.mvno() ? "<gray>Host: their towers are your home network." : "<gray>MVNOs: virtual carriers that rent your network."));
+        Frame.help(m, "Partners", c.mvno() ? "MVNO: you run on a host network." : "You own towers.",
+                "Roaming: your subscribers use partners'", "towers where you have no coverage.",
+                c.mvno() ? "Host: its towers are your home network." : "MVNOs: virtual carriers renting your network.",
+                "", "Top rows: agreements. Row 4: offers.");
 
         // Row 1-2: active agreements (as host, then as partner)
         int slot = 9;
@@ -648,7 +831,7 @@ public final class CarrierMenu {
                 confirmEnd(p, c, deal);
             });
         }
-        if (slot == 9) m.set(13, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No agreements yet"));
+        if (slot == 9) m.set(13, Frame.empty("No agreements yet", "Offer roaming or MVNO hosting below."));
 
         // Row 3: offers received and offers sent
         slot = 27;
@@ -690,12 +873,8 @@ public final class CarrierMenu {
             });
         }
 
-        m.set(45, Items.of(Material.ARROW, "<gray>« Back"), e -> {
-            click(p);
-            open(p, c);
-        });
         if (owner && !c.mvno()) {
-            m.set(48, Items.of(Material.COMPASS, "<green>Offer roaming", "<gray>Let another carrier's subscribers", "<gray>use your towers, for a fee per GB."), e -> {
+            m.set(39, Items.of(Material.COMPASS, "<green>Offer roaming", "<gray>Let another carrier's subscribers", "<gray>use your towers, for a fee per GB."), e -> {
                 click(p);
                 plugin.prompt().ask(p, "<aqua>Offer roaming to which carrier?", in -> {
                     Carrier other = plugin.store().carrier(in);
@@ -710,7 +889,7 @@ public final class CarrierMenu {
                     }
                 });
             });
-            m.set(50, Items.of(Material.ENDER_EYE, "<green>Offer MVNO hosting", "<gray>Let a virtual carrier run on your", "<gray>network for a share of its revenue."), e -> {
+            m.set(41, Items.of(Material.ENDER_EYE, "<green>Offer MVNO hosting", "<gray>Let a virtual carrier run on your", "<gray>network for a share of its revenue."), e -> {
                 click(p);
                 plugin.prompt().ask(p, "<aqua>Host which MVNO?", in -> {
                     Carrier other = plugin.store().carrier(in);
@@ -756,12 +935,12 @@ public final class CarrierMenu {
     /** Host-side terms editor (works on an offer or an active agreement). */
     public void terms(Player p, Carrier host, Agreement a, Runnable back) {
         Carrier partner = plugin.store().carrier(a.partnerId());
-        Menu m = menu(3, "Terms · " + Items.esc(partner == null ? "?" : partner.name()));
+        Menu m = sub(p, "Terms · " + Items.esc(partner == null ? "?" : partner.name()), back, "Partners");
         var st = plugin.settings();
         m.set(4, Items.of(a.kind() == Agreement.Kind.MVNO ? Material.ENDER_EYE : Material.COMPASS,
                 "<white>" + (a.kind() == Agreement.Kind.MVNO ? "MVNO hosting for " : "Roaming for ") + (partner == null ? "?" : partner.styled()), terms(a)));
         if (a.kind() == Agreement.Kind.ROAMING) {
-            m.set(10, Items.of(Material.GOLD_INGOT, "<white>Rate: <gold>" + st.money(a.perGb()) + " <white>per GB",
+            m.set(20, Items.of(Material.GOLD_INGOT, "<white>Rate: <gold>" + st.money(a.perGb()) + " <white>per GB",
                     "<gray>Paid by their carrier for data", "<gray>their roamers use on your towers.", "<yellow>Click to change"), e -> {
                 click(p);
                 askLong(p, "<aqua>Wholesale price per GB:", 0, 100_000, v -> {
@@ -771,7 +950,7 @@ public final class CarrierMenu {
                 });
             });
         } else {
-            m.set(10, Items.of(Material.GOLD_INGOT, "<white>Revenue share: <gold>" + Math.round(a.sharePercent()) + "%",
+            m.set(20, Items.of(Material.GOLD_INGOT, "<white>Revenue share: <gold>" + Math.round(a.sharePercent()) + "%",
                     "<gray>Your cut of every plan payment,", "<gray>top-up, data pack and overage they collect.", "<yellow>Click to change"), e -> {
                 click(p);
                 askDouble(p, "<aqua>Revenue share in percent (0-90):", 0, 90, v -> {
@@ -781,7 +960,7 @@ public final class CarrierMenu {
                 });
             });
         }
-        m.set(12, Items.of(Material.LIGHTNING_ROD, "<white>Max band: <aqua>" + (a.maxBand() == null ? "All bands" : st.spec(a.maxBand()).name()),
+        m.set(22, Items.of(Material.LIGHTNING_ROD, "<white>Max band: <aqua>" + (a.maxBand() == null ? "All bands" : st.spec(a.maxBand()).name()),
                 "<gray>Their users can't go above this on your towers.", "<yellow>Click <gray>next · <yellow>Right-click <gray>previous"), e -> {
             click(p);
             Band[] all = Band.values();
@@ -793,16 +972,12 @@ public final class CarrierMenu {
             plugin.store().markDirty();
             terms(p, host, a, back);
         });
-        m.set(14, Items.of(a.deprioritize() ? Material.HOPPER : Material.CHEST, "<white>Priority: <aqua>" + (a.deprioritize() ? "Below your customers" : "Equal"),
+        m.set(24, Items.of(a.deprioritize() ? Material.HOPPER : Material.CHEST, "<white>Priority: <aqua>" + (a.deprioritize() ? "Below your customers" : "Equal"),
                 "<gray>When a band is busy, deprioritized users", "<gray>get " + Math.round(st.deprioritizedSpeed * 100) + "% of the speed.", "<yellow>Click to toggle"), e -> {
             click(p);
             a.deprioritize(!a.deprioritize());
             plugin.store().markDirty();
             terms(p, host, a, back);
-        });
-        m.set(18, Items.of(Material.ARROW, "<gray>« Back"), e -> {
-            click(p);
-            back.run();
         });
         m.open(p);
     }
@@ -815,7 +990,7 @@ public final class CarrierMenu {
      */
     public void branding(Player p, String title, String sample, List<net.kyori.adventure.text.format.TextColor> current,
                          boolean allowReset, java.util.function.Consumer<List<net.kyori.adventure.text.format.TextColor>> apply, Runnable back) {
-        Menu m = menu(6, title);
+        Menu m = sub(p, title, back, "Back");
         m.set(4, Items.glow(Items.of(Material.NAME_TAG, "<b>" + dev.mccomm.cell.util.Style.mm(current, sample),
                 "<gray>Current: <white>" + dev.mccomm.cell.util.Style.describe(current))));
         int[] solidSlots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25};
@@ -865,53 +1040,6 @@ public final class CarrierMenu {
                 back.run();
             });
         }
-        m.set(45, Items.of(Material.ARROW, "<gray>« Back"), e -> {
-            click(p);
-            back.run();
-        });
-        m.open(p);
-    }
-
-    // ================================================================== towers
-
-    public void towers(Player p, Carrier c) {
-        Menu m = menu(6, Items.esc(c.name()) + " · Towers");
-        int stage = plugin.billing().decayStage(c);
-        int slot = 0;
-        for (Tower t : plugin.store().towersOf(c.id())) {
-            if (slot >= 45) break;
-            String world = t.world() == null ? "?" : t.world().getName();
-            List<String> lore = new ArrayList<>();
-            var maker = plugin.store().manufacturer(t.manufacturerId());
-            lore.add("<gray>Model: <white>" + Items.esc(plugin.towers().modelName(t)) + " <dark_gray>(Gen " + t.generation() + ")");
-            lore.add("<gray>Made by: " + (maker == null ? "<white>?" : maker.styled()));
-            lore.add("<gray>Backhaul: <white>" + (t.backhaul() == null ? "<red>none" : DepositMenu.TowerGuiNames.pretty(t.backhaul())));
-            lore.add("<gray>Height: <white>" + Math.round(t.heightAboveGround()) + " blocks");
-            lore.add("<gray>Users now: <white>" + plugin.signal().usersOn(t)
-                    + (plugin.signal().simOn(t) > 0 ? " <dark_gray>+ " + plugin.signal().simOn(t) + " simulated" : ""));
-            lore.add("<gray>Upkeep: <white>" + plugin.settings().money(plugin.settings().upkeepCost(t)) + " <gray>per "
-                    + BillingService.period(plugin.settings().upkeepPeriodHours));
-            lore.add("<gray>Location: <white>" + world + " " + t.x() + ", " + t.y() + ", " + t.z());
-            if (plugin.workforce().enabled()) {
-                lore.add("<gray>Wear: " + OperationsMenu.wearBar(t.wear()) + " <white>" + Math.round(t.wear()) + "%");
-                var job = plugin.workforce().job(t);
-                if (job != null) lore.add(job.started() ? "<aqua>⚒ Repair in progress" : "<yellow>Repair queued");
-            }
-            String status = !t.online() ? "<red>Offline" : stage >= plugin.settings().silentStage() ? "<dark_red>Silent (unpaid)"
-                    : plugin.workforce().silent(t) ? "<dark_red>Silent (worn out)"
-                    : stage > 0 ? "<gold>Decaying (stage " + stage + ")" : "<green>Online";
-            lore.add(status);
-            Material icon = !t.online() || stage >= plugin.settings().silentStage() ? Material.IRON_BARS : Material.LIGHTNING_ROD;
-            m.set(slot++, Items.of(icon, "<gold>" + Items.esc(t.name()), lore));
-        }
-        if (slot == 0) m.set(22, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No towers yet",
-                "<dark_gray>Look at a wall sign: /tower create " + Items.esc(c.name()) + " <name>"));
-        m.set(45, Items.of(Material.ARROW, "<gray>« Back"), e -> {
-            click(p);
-            open(p, c);
-        });
-        m.set(49, Items.of(Material.GOLD_NUGGET, "<gold>Total upkeep: " + plugin.settings().money(plugin.billing().upkeepCost(c)),
-                "<gray>per " + BillingService.period(plugin.settings().upkeepPeriodHours)));
         m.open(p);
     }
 

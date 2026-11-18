@@ -13,7 +13,7 @@ MCcomm is a plugin for **Paper and Purpur 26.1+** (Java 25). It's open source un
 
 - **Cell towers on wall signs.** A layered screen on the sign shows the carrier, status, model, bands and load. There are 8 bands, 2G to 5G mmWave, each with its own range and speed.
 - **Real signal.** Distance, walls around you, depth underground, weather and tower height all count. You drop to lower bands as you move away.
-- **Phones and a phone GUI.** Six phone models with different band support and SIM slots. `/cell` opens messages, contacts, a dialer, speedtest, SIM manager, wallet, eShop and more.
+- **Phones and a phone GUI.** Six phone models with different band support and SIM slots. `/cell` opens eight apps: messages, contacts, dial, signal and speedtest, SIMs and plans, shop, wallet and settings.
 - **Numbers, texts, calls and `/internet`.** Every subscription gets a phone number. `/internet` is a second chat that uses mobile data.
 - **Carriers.** Plans (postpaid, financed phones, prepaid), data allowances, tower upkeep and decay, roaming agreements, MVNOs and branding.
 - **Manufacturers.** Research generations and bands, design tower models, set your margin and sell to carriers.

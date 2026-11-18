@@ -41,7 +41,7 @@ Open **`/carrier manage`** and put credits into the carrier's wallet: use **Comp
 
 ### 4. Buy and install a tower
 
-In `/carrier manage`, open the **Tower shop**. The server-run **Generic** manufacturer always sells standard towers. Buy one, then place a **wall sign** on a tall pillar, look at it, and run:
+In `/carrier manage`, open the **Network** tab and the **Tower shop**. The server-run **Generic** manufacturer always sells standard towers. Buy one, then place a **wall sign** on a tall pillar, look at it, and run:
 
 ```
 /tower install NM1
@@ -55,7 +55,7 @@ Pick the model from your stock. The tower is **offline** until you right-click t
 /cell
 ```
 
-Open the **Carrier store**, pick NovaMobile and choose a plan. You now have a phone number and service. The sidebar shows your signal, band and data.
+Open **SIMs and plans**, pick NovaMobile and choose a plan. You now have a phone number and service. The sidebar shows your signal, band and data.
 
 !!! tip
     Run `/cell speedtest` to see your speed. Walk away from the tower and watch the band drop from 5G to 4G to 3G.

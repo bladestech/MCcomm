@@ -24,7 +24,7 @@ Credits never turn back into ores.
 | Your carrier or manufacturer → you | **5%** |
 | You → your carrier or manufacturer | **5%** |
 
-Company transfers are on the **Company** page (`/carrier company`, `/manufacturer company`), owner only. You're warned if a withdrawal leaves the carrier short of its next upkeep. Fees **round up** and payouts **round down**, so rounding never creates credits.
+Company transfers are on the **Money** tab of `/carrier manage` and `/manufacturer manage` (or `/carrier company`, `/manufacturer company`), owner only. You're warned if a withdrawal leaves the carrier short of its next upkeep. Fees **round up** and payouts **round down**, so rounding never creates credits.
 
 ## Valuation
 
@@ -35,7 +35,7 @@ Each company page shows a **valuation**, a guide for setting a sale price:
 
 ## Selling a company
 
-**Company → Sell the company**: name an online player and a price. They get clickable **Accept** and **Decline** buttons, valid for 5 minutes. The price moves from their wallet to yours, and **everything else carries over unchanged**: towers, plans, subscribers, agreements, loans, research and models.
+**Money → Sell the company**: name an online player and a price. They get clickable **Accept** and **Decline** buttons, valid for 5 minutes. The price moves from their wallet to yours, and **everything else carries over unchanged**: towers, plans, subscribers, agreements, loans, research and models.
 
 ## Liquidating a carrier
 

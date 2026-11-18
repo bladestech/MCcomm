@@ -32,7 +32,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/** The /cell phone: home screen with apps (messages, contacts, dialer, SIMs, store, towers, settings). */
+/** The /cell phone: a home screen with eight apps (messages, contacts, dial, signal, SIMs and plans, shop, wallet, settings) and Work. */
 public final class PhoneMenu {
     private static final String HOME = "home";
     private static final long CONFIRM_MS = 5000;
@@ -52,19 +52,17 @@ public final class PhoneMenu {
         return Items.of(Material.BLACK_STAINED_GLASS_PANE, "<gray> ");
     }
 
-    private Menu menu(int rows, String title, String page) {
-        return new Menu(rows, Msg.mm("<dark_gray>" + title), page).fill(bg());
+    private Menu menu(Player p, String title, String page) {
+        Menu m = Frame.create(p, title, page);
+        return m;
     }
 
     private void click(Player p) {
         p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
     }
 
-    private void back(Menu m, int slot, Player p) {
-        m.set(slot, Items.of(Material.ARROW, "<gray>« Back"), e -> {
-            click(p);
-            open(p);
-        });
+    private void back(Menu m, Player p) {
+        Frame.back(m, p, "Home", () -> open(p));
     }
 
     /** Re-renders the home screen if the player is looking at it (called every signal update). */
@@ -84,113 +82,90 @@ public final class PhoneMenu {
 
     private void renderHome(Player p, Menu m) {
         m.clearActions();
-        m.fill(bg());
+        ItemStack content = bg(), chrome = Items.of(Material.GRAY_STAINED_GLASS_PANE, "<gray> ");
+        for (int i = 0; i < 54; i++) m.set(i, i < 9 || i >= 45 ? chrome : content);
         SignalService.Status st = plugin.signal().status(p);
         PlayerProfile prof = prof(p);
         boolean service = st.hasService();
 
-        // Status bar: one item per SIM slot.
+        // Status bar: one item per SIM slot, your numbers, phone, clock, close.
         int slots = plugin.billing().simSlots(p);
-        for (int i = 0; i < slots && i < 4; i++) {
+        for (int i = 0; i < slots && i < 3; i++) {
             SignalService.SimStatus sim = st.slot(i + 1);
             m.set(i, simStatusItem(p, i + 1, sim, st.emergency(), sim != null && st.isDataSim(sim)), e -> {
                 click(p);
-                sims(p);
+                sims(p, 0);
             });
         }
-        String time = clock(p);
-        m.set(8, Items.of(Material.CLOCK, "<white>" + time, "<gray>Day " + (p.getWorld().getFullTime() / 24000 + 1)));
-        PhoneModel phone = st.phone();
-        m.set(7, phone == null
-                ? Items.glow(Items.of(Material.BARRIER, "<red>No phone", "<gray>You need a phone for service.", "<yellow>Click to open the eShop"))
-                : Items.of(phone.icon(), "<white>" + Items.esc(phone.name()), "<gray>Up to <white>" + plugin.settings().spec(phone.maxBand()).name(),
-                "<gray>" + phone.sims() + " SIM slot" + (phone.sims() == 1 ? "" : "s"), "<yellow>Click to open the eShop"), e -> {
-            click(p);
-            eshop(p);
-        });
-
         List<String> nums = new ArrayList<>();
         for (String cid : prof.active()) {
             Carrier c = plugin.store().carrier(cid);
             if (c != null) nums.add("<gray>" + Items.esc(c.name()) + ": <white>" + Numbers.format(prof.number(cid)));
         }
         if (nums.isEmpty()) nums.add("<gray>No active SIM.");
-        m.set(4, Items.of(Material.NAME_TAG, "<aqua>My numbers", nums));
+        m.set(4, Items.of(Material.NAME_TAG, "<aqua>Your numbers", nums));
+        PhoneModel phone = st.phone();
+        m.set(6, phone == null
+                ? Items.glow(Items.of(Material.BARRIER, "<red>No phone", "<gray>You need a phone for service.", "<yellow>Click · Shop"))
+                : Items.of(phone.icon(), "<white>" + Items.esc(phone.name()), "<gray>Up to <white>" + plugin.settings().spec(phone.maxBand()).name()
+                + " <gray>· " + phone.sims() + " SIM slot" + (phone.sims() == 1 ? "" : "s"), "<yellow>Click · Shop"), e -> {
+            click(p);
+            eshop(p);
+        });
+        m.set(7, Items.of(Material.CLOCK, "<white>" + clock(p), "<gray>Day " + (p.getWorld().getFullTime() / 24000 + 1)));
+        m.set(8, Items.of(Material.BARRIER, "<red>Close"), e -> p.closeInventory());
 
-        // Apps
+        // Apps: two rows of four.
         int unread = prof.unread();
-        ItemStack msgs = Items.of(Material.WRITABLE_BOOK, "<yellow>Messages" + (unread > 0 ? " <red>(" + unread + " new)" : ""),
-                "<gray>Read and send texts.");
+        ItemStack msgs = Items.of(Material.WRITABLE_BOOK, "<yellow>Messages" + (unread > 0 ? " <red>(" + unread + " new)" : ""), "<gray>Read and send texts.");
         if (unread > 0) Items.glow(Items.amount(msgs, unread));
         m.set(19, msgs, e -> {
             click(p);
-            messages(p);
+            messages(p, 0);
         });
-        m.set(21, Items.of(Material.PLAYER_HEAD, "<green>Contacts", "<gray>Call, text and manage contacts.",
-                "<dark_gray>" + prof.contacts().size() + " saved"), e -> {
+        m.set(21, Items.of(Material.PLAYER_HEAD, "<green>Contacts", "<gray>" + prof.contacts().size() + " saved"), e -> {
             click(p);
-            contacts(p);
+            contacts(p, 0);
         });
         if (service) {
-            m.set(23, Items.of(Material.LEVER, "<aqua>Dial a number", "<gray>Call any number."), e -> {
+            m.set(23, Items.of(Material.LEVER, "<aqua>Dial", "<gray>Call a number, contact or player."), e -> {
                 click(p);
                 plugin.prompt().ask(p, "<aqua>Enter a number, contact or player to call:", in -> dial(p, in));
             });
-            m.set(25, Items.of(Material.SPYGLASS, "<light_purple>Speedtest", "<gray>Test your connection."), e -> {
-                click(p);
-                p.closeInventory();
-                plugin.speedTest().start(p, 0);
-            });
         } else {
-            m.set(23, Items.of(Material.GRAY_DYE, "<dark_gray>Dial a number", "<red>No Service"));
-            m.set(25, Items.of(Material.GRAY_DYE, "<dark_gray>Speedtest", "<red>No Service"));
+            m.set(23, Items.of(Material.GRAY_DYE, "<dark_gray>Dial", "<red>No Service"));
         }
-        m.set(28, Items.of(Material.IRON_INGOT, "<white>SIM cards", "<gray>Activate, swap or remove SIMs."), e -> {
+        m.set(25, Items.of(Material.SPYGLASS, "<light_purple>Signal", "<gray>Speedtest and nearby towers."), e -> {
             click(p);
-            sims(p);
+            signal(p, 0);
         });
-        m.set(30, Items.of(Material.EMERALD, "<green>Carrier store", "<gray>Browse carriers and subscribe."), e -> {
+        m.set(28, Items.of(Material.IRON_INGOT, "<white>SIMs and plans", "<gray>Your SIMs, carriers and plans."), e -> {
             click(p);
-            store(p);
+            sims(p, 0);
         });
-        m.set(32, Items.of(Material.LIGHTNING_ROD, "<gold>Nearby towers", "<gray>Towers around you."), e -> {
+        m.set(30, Items.of(Material.ENDER_CHEST, "<light_purple>Shop", "<gray>Buy, switch, sell or trade in phones."), e -> {
             click(p);
-            towers(p);
+            eshop(p);
         });
-        m.set(34, Items.of(Material.COMPARATOR, "<gray>Settings", "<dark_gray>HUD, Do Not Disturb."), e -> {
-            click(p);
-            settings(p);
-        });
-
-        m.set(38, Items.of(Material.GOLD_INGOT, "<gold>Wallet", "<gray>Balance: <white>" + plugin.settings().money(prof.balance()),
+        m.set(32, Items.of(Material.GOLD_INGOT, "<gold>Wallet", "<gray>Balance: <white>" + plugin.settings().money(prof.balance()),
                 prof.totalOverdue() > 0 ? "<red>Overdue: " + plugin.settings().money(prof.totalOverdue()) : "<gray>Plans, deposits, history."), e -> {
             click(p);
             wallet(p);
         });
-        m.set(40, Items.of(Material.ENDER_CHEST, "<light_purple>eShop", "<gray>Buy or switch phones."), e -> {
+        m.set(34, Items.of(Material.COMPARATOR, "<gray>Settings", "<dark_gray>Sidebar, Do Not Disturb."), e -> {
             click(p);
-            eshop(p);
+            settings(p);
         });
-        List<Carrier> staffOf = new ArrayList<>();
-        for (Carrier c : plugin.store().carriers()) if (c.isStaff(p.getUniqueId())) staffOf.add(c);
-        if (!staffOf.isEmpty()) {
-            m.set(42, Items.of(Material.BEACON, "<aqua>My carrier", "<gray>" + Items.esc(staffOf.getFirst().name())
-                    + (staffOf.size() > 1 ? " <dark_gray>+" + (staffOf.size() - 1) : ""), "<gray>Wallet, upkeep, plans, towers."), e -> {
+        List<Runnable> work = workApps(p);
+        if (!work.isEmpty()) {
+            m.set(40, Items.of(Material.BUNDLE, "<aqua>Work", "<gray>Your carrier or factory."), e -> {
                 click(p);
-                plugin.carrierMenu().open(p, staffOf.getFirst());
+                if (work.size() == 1) work.getFirst().run();
+                else work(p);
             });
         }
 
-        for (dev.mccomm.cell.model.Manufacturer mf : plugin.store().manufacturers()) {
-            if (!mf.isStaff(p.getUniqueId())) continue;
-            m.set(44, Items.of(Material.SMITHING_TABLE, "<gold>My factory", "<gray>" + Items.esc(mf.name()), "<gray>Research, models, sales."), e -> {
-                click(p);
-                plugin.manufacturerMenu().open(p, mf);
-            });
-            break;
-        }
-
-        // Bottom: emergency, call controls, close.
+        // Bottom: emergency, call controls, help.
         String sos = plugin.settings().emergencyNumber;
         m.set(45, Items.of(Material.RED_DYE, "<red><b>Emergency " + sos, st.emergency() ? "<gray>Click to dial." : "<dark_gray>No signal at all."),
                 e -> {
@@ -221,8 +196,42 @@ public final class PhoneMenu {
                 plugin.calls().end(p, "<gray>Call ended.");
             });
         }
-        m.set(53, Items.of(Material.BARRIER, "<red>Close"), e -> p.closeInventory());
+        Frame.help(m, "Your phone", "Top: your SIMs (click for details),", "numbers, phone and the time.",
+                "", "Need service? Buy a phone in Shop,", "add credits in Wallet, then pick a", "carrier in SIMs and plans.");
     }
+
+    /** One opener per company the player works for (carriers first). */
+    private List<Runnable> workApps(Player p) {
+        List<Runnable> out = new ArrayList<>();
+        for (Carrier c : plugin.store().carriers()) if (c.isStaff(p.getUniqueId())) out.add(() -> plugin.carrierMenu().open(p, c));
+        for (dev.mccomm.cell.model.Manufacturer mf : plugin.store().manufacturers()) {
+            if (!mf.system() && mf.isStaff(p.getUniqueId())) out.add(() -> plugin.manufacturerMenu().open(p, mf));
+        }
+        return out;
+    }
+
+    /** Pick which company to open when the player works for several. */
+    public void work(Player p) {
+        Menu m = menu(p, "Work", "work");
+        back(m, p);
+        int slot = 10;
+        for (Carrier c : plugin.store().carriers()) {
+            if (!c.isStaff(p.getUniqueId()) || slot > 34) continue;
+            m.set(slot++, Items.of(Material.BEACON, "<b>" + c.styled(), "<gray>Carrier", "<yellow>Click · open"), e -> {
+                click(p);
+                plugin.carrierMenu().open(p, c);
+            });
+        }
+        for (dev.mccomm.cell.model.Manufacturer mf : plugin.store().manufacturers()) {
+            if (mf.system() || !mf.isStaff(p.getUniqueId()) || slot > 34) continue;
+            m.set(slot++, Items.of(Material.SMITHING_TABLE, "<b>" + mf.styled(), "<gray>Manufacturer", "<yellow>Click · open"), e -> {
+                click(p);
+                plugin.manufacturerMenu().open(p, mf);
+            });
+        }
+        m.open(p);
+    }
+
 
     private ItemStack simStatusItem(Player p, int slot, SignalService.SimStatus sim, boolean emergency, boolean data) {
         if (sim == null) {
@@ -259,6 +268,30 @@ public final class PhoneMenu {
         return String.format(Locale.ROOT, "%02d:%02d", h, min);
     }
 
+    /** Prev/next buttons for a manually paged list (36 per page in rows 1-4). */
+    private void pager(Menu m, Player p, int pg, int total, int per, java.util.function.IntConsumer reopen) {
+        int pages = Math.max(1, (total + per - 1) / per);
+        if (pages <= 1) return;
+        m.set(Frame.PAGE, Items.of(Material.PAPER, "<white>Page " + (pg + 1) + "/" + pages));
+        if (pg > 0) m.set(Frame.PREV, Items.of(Material.SPECTRAL_ARROW, "<white>« Previous page"), e -> {
+            click(p);
+            reopen.accept(pg - 1);
+        });
+        if (pg < pages - 1) m.set(Frame.NEXT, Items.of(Material.SPECTRAL_ARROW, "<white>Next page »"), e -> {
+            click(p);
+            reopen.accept(pg + 1);
+        });
+    }
+
+    private static <T> List<T> slice(List<T> all, int pg, int per) {
+        int from = Math.min(all.size(), pg * per);
+        return all.subList(from, Math.min(all.size(), from + per));
+    }
+
+    private static int clampPage(int pg, int total, int per) {
+        return Math.clamp(pg, 0, Math.max(0, (total - 1) / per));
+    }
+
     private void dial(Player p, String input) {
         if (input.equals(plugin.settings().emergencyNumber)) {
             plugin.calls().dialEmergency(p);
@@ -280,16 +313,21 @@ public final class PhoneMenu {
     // =============================================================== messages
 
     public void messages(Player p) {
+        messages(p, 0);
+    }
+
+    public void messages(Player p, int page) {
         PlayerProfile prof = prof(p);
-        Menu m = menu(6, "Messages", "messages");
+        Menu m = menu(p, "Messages", "messages");
         long now = System.currentTimeMillis();
-        int slot = 0;
-        for (SmsMessage msg : prof.inbox()) {
-            if (slot >= 45) break;
+        List<SmsMessage> all = new ArrayList<>(prof.inbox());
+        int pg = clampPage(page, all.size(), 36);
+        int slot = 9;
+        for (SmsMessage msg : slice(all, pg, 36)) {
             List<String> lore = new ArrayList<>(Items.wrap(msg.text(), 32, "<white>"));
             lore.add("");
             lore.add("<dark_gray>" + ago(now - msg.time()) + " · to " + Numbers.format(msg.toNumber()));
-            lore.add("<yellow>Click <gray>reply · <yellow>Right-click <gray>save contact · <yellow>Shift-click <gray>delete");
+            lore.add("<yellow>Click · reply · <yellow>Right-click · save · <yellow>Shift-click · delete");
             String from = Items.esc(plugin.sims().displayName(p, msg.fromNumber()));
             ItemStack it = Items.of(msg.read() ? Material.PAPER : Material.MAP, (msg.read() ? "<gray>" : "<yellow>● ") + from, lore);
             if (!msg.read()) Items.glow(it);
@@ -298,7 +336,7 @@ public final class PhoneMenu {
                 if (e.isShiftClick()) {
                     prof.inbox().remove(msg);
                     plugin.store().markDirty();
-                    messages(p);
+                    messages(p, pg);
                 } else if (e.isRightClick()) {
                     saveContactPrompt(p, msg.fromNumber(), msg.fromName());
                 } else {
@@ -306,9 +344,10 @@ public final class PhoneMenu {
                 }
             });
         }
-        if (prof.inbox().isEmpty()) m.set(22, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No messages yet"));
-        back(m, 45, p);
-        m.set(49, Items.of(Material.FEATHER, "<aqua>New message", "<gray>Text a number, contact or player."), e -> {
+        if (prof.inbox().isEmpty()) m.set(22, Frame.empty("No messages yet"));
+        back(m, p);
+        pager(m, p, pg, all.size(), 36, n -> messages(p, n));
+        m.set(46, Items.of(Material.FEATHER, "<aqua>New message", "<gray>Text a number, contact or player."), e -> {
             click(p);
             plugin.prompt().ask(p, "<aqua>Text who? Enter a number, contact or player:", in -> {
                 String n = plugin.sims().resolve(p, in);
@@ -316,11 +355,11 @@ public final class PhoneMenu {
                 else textTo(p, n);
             });
         });
-        m.set(53, Items.of(Material.LAVA_BUCKET, "<red>Delete all", "<gray>Shift-click to clear your inbox."), e -> {
+        m.set(52, Items.of(Material.LAVA_BUCKET, "<red>Delete all", "<gray>Shift-click to clear your inbox."), e -> {
             if (!e.isShiftClick()) return;
             prof.inbox().clear();
             plugin.store().markDirty();
-            messages(p);
+            messages(p, 0);
         });
         m.open(p);
         // Seen now: next time they show as read.
@@ -345,11 +384,16 @@ public final class PhoneMenu {
     // =============================================================== contacts
 
     public void contacts(Player p) {
+        contacts(p, 0);
+    }
+
+    public void contacts(Player p, int page) {
         PlayerProfile prof = prof(p);
-        Menu m = menu(6, "Contacts", "contacts");
-        int slot = 0;
-        for (Map.Entry<String, String> c : new ArrayList<>(prof.contacts().entrySet())) {
-            if (slot >= 45) break;
+        Menu m = menu(p, "Contacts", "contacts");
+        List<Map.Entry<String, String>> all = new ArrayList<>(prof.contacts().entrySet());
+        int pg = clampPage(page, all.size(), 36);
+        int slot = 9;
+        for (Map.Entry<String, String> c : slice(all, pg, 36)) {
             String number = c.getKey();
             DataStore.NumberOwner owner = plugin.store().numberOwner(number);
             OfflinePlayer op = owner == null ? null : Bukkit.getOfflinePlayer(owner.player());
@@ -358,8 +402,8 @@ public final class PhoneMenu {
             lore.add("<gray>" + Numbers.format(number));
             lore.add(owner == null ? "<red>Not in service" : online != null ? "<green>Reachable" : "<dark_gray>Unavailable");
             lore.add("");
-            lore.add("<yellow>Click <gray>call · <yellow>Right-click <gray>text");
-            lore.add("<yellow>Shift-click <gray>rename · <yellow>Shift-right <gray>delete");
+            lore.add("<yellow>Click · call · <yellow>Right-click · text");
+            lore.add("<yellow>Shift-click · rename · <yellow>Shift-right · delete");
             m.set(slot++, Items.head(op, "<white>" + Items.esc(c.getValue()), lore), e -> {
                 click(p);
                 if (e.isShiftClick() && e.isRightClick()) {
@@ -382,10 +426,10 @@ public final class PhoneMenu {
                 }
             });
         }
-        if (prof.contacts().isEmpty()) m.set(22, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No contacts yet",
-                "<dark_gray>Add someone below."));
-        back(m, 45, p);
-        m.set(48, Items.of(Material.OAK_SIGN, "<aqua>Add by number", "<gray>Type a number and a name."), e -> {
+        if (prof.contacts().isEmpty()) m.set(22, Frame.empty("No contacts yet", "Add someone below."));
+        back(m, p);
+        pager(m, p, pg, all.size(), 36, n -> contacts(p, n));
+        m.set(46, Items.of(Material.OAK_SIGN, "<aqua>Add by number", "<gray>Type a number and a name."), e -> {
             click(p);
             plugin.prompt().ask(p, "<aqua>Contact's number (like 312-4821):", in -> {
                 String n = Numbers.normalize(in);
@@ -396,7 +440,7 @@ public final class PhoneMenu {
                 saveContactPrompt(p, n, null);
             });
         });
-        m.set(50, Items.of(Material.PLAYER_HEAD, "<aqua>Add online player", "<gray>Pick from players with a SIM."), e -> {
+        m.set(47, Items.of(Material.PLAYER_HEAD, "<aqua>Add online player", "<gray>Pick from players with a SIM."), e -> {
             click(p);
             people(p);
         });
@@ -424,11 +468,11 @@ public final class PhoneMenu {
     }
 
     public void people(Player p) {
-        Menu m = menu(6, "Add a contact", "people");
+        Menu m = menu(p, "Add a contact", "people");
         PlayerProfile prof = prof(p);
-        int slot = 0;
+        int slot = 9;
         for (Player o : Bukkit.getOnlinePlayers()) {
-            if (slot >= 45) break;
+            if (slot > 44) break;
             if (o.equals(p)) continue;
             String n = plugin.sims().outgoingNumber(o);
             if (n == null) continue;
@@ -442,19 +486,21 @@ public final class PhoneMenu {
                 }
             });
         }
-        if (slot == 0) m.set(22, Items.of(Material.LIGHT_GRAY_DYE, "<gray>Nobody online has a SIM"));
-        m.set(45, Items.of(Material.ARROW, "<gray>« Back"), e -> {
-            click(p);
-            contacts(p);
-        });
+        if (slot == 9) m.set(22, Frame.empty("Nobody online has a SIM"));
+        Frame.back(m, p, "Contacts", () -> contacts(p, 0));
         m.open(p);
     }
 
     // ==================================================================== sims
 
     public void sims(Player p) {
+        sims(p, 0);
+    }
+
+    /** SIMs and plans: your SIMs on top, carriers to subscribe to below. */
+    public void sims(Player p, int page) {
         PlayerProfile prof = prof(p);
-        Menu m = menu(5, "SIM cards", "sims");
+        Menu m = menu(p, "SIMs and plans", "sims");
         SignalService.Status st = plugin.signal().status(p);
         m.set(4, Items.of(Material.BOOK, "<white>SIM cards", "<gray>Up to " + plugin.billing().simSlots(p) + " active (your phone) and "
                 + plugin.settings().maxInactive + " inactive.", "<gray>Only active SIMs get calls and texts."));
@@ -472,54 +518,53 @@ public final class PhoneMenu {
                                 + (data ? " <dark_gray>[<aqua>Data</aqua>]" : ""),
                         "<gray>SIM " + (i + 1) + " · <white>" + Numbers.format(prof.number(c.id())), signal,
                         data ? "<aqua>Used for data, calls and texts" : "<dark_gray>Backup for data", "",
-                        "<yellow>Click <gray>deactivate · <yellow>Right-click <gray>use for data",
-                        "<yellow>Shift-click <gray>unsubscribe");
+                        "<yellow>Click · deactivate · <yellow>Right-click · use for data",
+                        "<yellow>Shift-click · unsubscribe");
                 m.set(slot, data ? Items.glow(it) : it, e -> {
                     click(p);
                     if (e.isShiftClick()) confirmUnsub(p, c);
                     else if (e.isRightClick()) plugin.sims().setDataSim(p, c);
                     else plugin.sims().deactivate(p, c);
                     plugin.signal().tick();
-                    sims(p);
+                    sims(p, page);
                 });
             } else {
-                m.set(slot, Items.of(Material.GRAY_STAINED_GLASS_PANE, "<dark_gray>Empty slot", "<gray>Activate a SIM below or visit the store."));
+                m.set(slot, Items.of(Material.GRAY_STAINED_GLASS_PANE, "<dark_gray>Empty slot", "<gray>Activate a SIM or pick a carrier below."));
             }
         }
-        m.set(28, Items.of(Material.GRAY_STAINED_GLASS_PANE, "<gray>Inactive"));
+        m.set(19, Items.of(Material.GRAY_STAINED_GLASS_PANE, "<gray>Inactive"));
         for (int i = 0; i < plugin.settings().maxInactive && i < 6; i++) {
-            int slot = 29 + i;
+            int slot = 20 + i;
             if (i < prof.inactive().size()) {
                 Carrier c = plugin.store().carrier(prof.inactive().get(i));
                 if (c == null) continue;
                 m.set(slot, Items.of(Material.IRON_NUGGET, c.styled(),
                         "<gray>Number: <white>" + Numbers.format(prof.number(c.id())), "<dark_gray>Inactive", "",
-                        "<yellow>Click <gray>activate · <yellow>Shift-click <gray>unsubscribe"), e -> {
+                        "<yellow>Click · activate · <yellow>Shift-click · unsubscribe"), e -> {
                     click(p);
                     if (e.isShiftClick()) confirmUnsub(p, c);
                     else plugin.sims().activate(p, c);
-                    sims(p);
+                    sims(p, page);
                 });
             } else {
                 m.set(slot, Items.of(Material.BLACK_STAINED_GLASS_PANE, "<dark_gray>Empty"));
             }
         }
-        back(m, 36, p);
-        m.set(40, Items.of(Material.EMERALD, "<green>Carrier store"), e -> {
-            click(p);
-            store(p);
-        });
+        back(m, p);
+        storeRows(p, m, page);
         Carrier ds = prof.dataSim() == null ? null : plugin.store().carrier(prof.dataSim());
-        m.set(42, Items.of(Material.REPEATER, "<aqua>Data SIM: <white>" + (ds == null ? "Automatic" : Items.esc(ds.name())),
+        m.set(17, Items.of(Material.REPEATER, "<aqua>Data SIM: <white>" + (ds == null ? "Automatic" : Items.esc(ds.name())),
                 "<gray>Speedtests, data and outgoing calls/texts", "<gray>use this SIM. If it has no service,", "<gray>the other SIM takes over.",
                 "", ds == null ? "<dark_gray>Right-click a SIM above to choose one" : "<yellow>Click <gray>switch to automatic"), e -> {
             click(p);
             if (prof.dataSim() != null) {
                 plugin.sims().setDataSim(p, null);
                 plugin.signal().tick();
-                sims(p);
+                sims(p, page);
             }
         });
+        Frame.help(m, "SIMs and plans", "Row 1: active SIMs (your phone's slots).", "Row 2: inactive SIMs.",
+                "Rows 3-4: carriers. Click one to see its", "plans and subscribe; each gives a number.");
         m.open(p);
     }
 
@@ -538,13 +583,19 @@ public final class PhoneMenu {
 
     // =================================================================== store
 
+    /** Old entry point: the SIMs and plans page. */
     public void store(Player p) {
-        Menu m = menu(6, "Carrier store", "store");
+        sims(p, 0);
+    }
+
+    /** Carriers to subscribe to, in rows 3-4 of the SIMs page (paged). */
+    private void storeRows(Player p, Menu m, int page) {
         PlayerProfile prof = prof(p);
         Map<String, SignalService.Link> here = plugin.signal().bestLinks(p);
-        int slot = 0;
-        for (Carrier c : plugin.store().carriers()) {
-            if (slot >= 45) break;
+        List<Carrier> all = new ArrayList<>(plugin.store().carriers());
+        int pg = clampPage(page, all.size(), 18);
+        int slot = 27;
+        for (Carrier c : slice(all, pg, 18)) {
             boolean has = prof.has(c.id());
             List<Tower> towers = plugin.store().towersOf(c.id());
             long online = towers.stream().filter(Tower::online).count();
@@ -557,10 +608,8 @@ public final class PhoneMenu {
             int partners = plugin.partners().roamingHosts(c).size();
             if (partners > 0) lore.add("<gray>Roaming partners: <white>" + partners);
             lore.add("<gray>Here: " + (l == null ? "<red>No coverage" : Msg.bars(l.bars()) + " <white>" + plugin.settings().spec(l.band()).name()));
-            lore.add("");
             lore.add("<gray>Plans: <white>" + c.plans().size() + (c.plans().isEmpty() ? "" : " <dark_gray>(from "
                     + plugin.settings().money(c.plans().values().stream().mapToLong(Plan::price).min().orElse(0)) + ")"));
-            lore.add("");
             lore.add(has ? "<green>Subscribed · " + Numbers.format(prof.number(c.id())) + " <dark_gray>· click to change plan"
                     : "<yellow>Click to see plans");
             ItemStack it = Items.of(has ? Material.LIME_DYE : Material.EMERALD, "<b>" + c.styled(), lore);
@@ -569,19 +618,34 @@ public final class PhoneMenu {
                 plans(p, c);
             });
         }
-        if (slot == 0) m.set(22, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No carriers yet", "<dark_gray>Start one with /carrier create"));
-        back(m, 45, p);
-        m.set(49, Items.of(Material.IRON_INGOT, "<white>My SIM cards"), e -> {
-            click(p);
-            sims(p);
-        });
-        m.open(p);
+        if (all.isEmpty()) m.set(31, Frame.empty("No carriers yet", "Start one with /carrier create"));
+        pager(m, p, pg, all.size(), 18, n -> sims(p, n));
     }
 
     // ================================================================== towers
 
+    /** Old entry point: the Signal app. */
     public void towers(Player p) {
-        Menu m = menu(6, "Nearby towers", "towers");
+        signal(p, 0);
+    }
+
+    /** Signal: your SIMs' signal, a speedtest, and towers around you. */
+    public void signal(Player p, int page) {
+        Menu m = menu(p, "Signal", "signal");
+        SignalService.Status st = plugin.signal().status(p);
+        for (int i = 0; i < plugin.billing().simSlots(p) && i < 3; i++) {
+            SignalService.SimStatus sim = st.slot(i + 1);
+            m.set(10 + i, simStatusItem(p, i + 1, sim, st.emergency(), sim != null && st.isDataSim(sim)));
+        }
+        if (st.hasService()) {
+            m.set(15, Items.of(Material.SPYGLASS, "<light_purple>Run a speedtest", "<gray>Uses the data it downloads.", "<yellow>Click · start"), e -> {
+                click(p);
+                p.closeInventory();
+                plugin.speedTest().start(p, 0);
+            });
+        } else {
+            m.set(15, Items.of(Material.GRAY_DYE, "<dark_gray>Speedtest", "<red>No Service"));
+        }
         Location eye = p.getEyeLocation();
         double h = plugin.settings().antennaHeight;
         List<Tower> near = new ArrayList<>();
@@ -591,9 +655,9 @@ public final class PhoneMenu {
             if (a != null && a.distanceSquared(eye) <= 4000.0 * 4000.0) near.add(t);
         }
         near.sort(Comparator.comparingDouble(t -> t.antenna(h).distanceSquared(eye)));
-        int slot = 0;
-        for (Tower t : near) {
-            if (slot >= 45) break;
+        int pg = clampPage(page, near.size(), 27);
+        int slot = 18;
+        for (Tower t : slice(near, pg, 27)) {
             Carrier c = plugin.store().carrier(t.carrierId());
             List<String> bands = new ArrayList<>();
             for (Band b : t.enabledBands()) bands.add(plugin.settings().spec(b).name());
@@ -606,8 +670,11 @@ public final class PhoneMenu {
                             + Math.round((plugin.settings().rangeMultiplier(t.heightAboveGround()) - 1) * 100) + "% range)",
                     t.online() ? "<green>Online" : "<red>Offline"));
         }
-        if (slot == 0) m.set(22, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No towers within 4 km"));
-        back(m, 45, p);
+        if (near.isEmpty()) m.set(31, Frame.empty("No towers within 4 km"));
+        back(m, p);
+        pager(m, p, pg, near.size(), 27, n -> signal(p, n));
+        Frame.help(m, "Signal", "Row 1: each SIM's signal and a speedtest.", "Below: towers within 4 km, nearest first.",
+                "", "Walls right around you, depth, weather", "and distance all weaken the signal.");
         m.open(p);
     }
 
@@ -616,11 +683,11 @@ public final class PhoneMenu {
     /** A carrier's plans; clicking one subscribes (or switches plan if already subscribed). */
     public void plans(Player p, Carrier c) {
         PlayerProfile prof = prof(p);
-        Menu m = menu(4, "Plans · " + Items.esc(c.name()), "plans");
+        Menu m = menu(p, "Plans · " + Items.esc(c.name()), "plans");
         Plan current = plugin.billing().planOf(prof, c.id());
-        int slot = 0;
+        int slot = 9;
         for (Plan plan : c.plans().values()) {
-            if (slot >= 27) break;
+            if (slot > 35) break;
             boolean mine = current != null && current.id().equals(plan.id());
             List<String> lore = new ArrayList<>(planLore(plan));
             if (plan.financed() && c.tradeIn()) {
@@ -639,12 +706,9 @@ public final class PhoneMenu {
                 plans(p, c);
             });
         }
-        if (c.plans().isEmpty()) m.set(13, Items.of(Material.LIGHT_GRAY_DYE, "<gray>This carrier has no plans yet"));
-        m.set(27, Items.of(Material.ARROW, "<gray>« Back"), e -> {
-            click(p);
-            store(p);
-        });
-        m.set(31, Items.of(Material.GOLD_INGOT, "<gold>Balance: <white>" + plugin.settings().money(prof.balance()),
+        if (c.plans().isEmpty()) m.set(22, Frame.empty("This carrier has no plans yet"));
+        Frame.back(m, p, "SIMs and plans", () -> sims(p, 0));
+        m.set(40, Items.of(Material.GOLD_INGOT, "<gold>Balance: <white>" + plugin.settings().money(prof.balance()),
                 prof.totalOverdue() > 0 ? "<red>Overdue: " + plugin.settings().money(prof.totalOverdue()) : "<gray>Click to open your wallet"), e -> {
             click(p);
             wallet(p);
@@ -700,7 +764,7 @@ public final class PhoneMenu {
 
     public void eshop(Player p) {
         PlayerProfile prof = prof(p);
-        Menu m = menu(4, "eShop", "eshop");
+        Menu m = menu(p, "Shop", "eshop");
         int i = 0;
         for (PhoneModel pm : plugin.settings().phones.values()) {
             if (i >= 12) break;
@@ -724,7 +788,7 @@ public final class PhoneMenu {
             }
             lore.add(using ? "<green>In use" : owned ? "<yellow>Owned · click to use" : "<yellow>Click to buy");
             boolean sellable = owned && plugin.billing().cantPart(prof, pm) == null;
-            if (sellable) lore.add("<yellow>Shift-right-click <gray>sell for " + plugin.settings().money(plugin.billing().sellValue(prof, pm)));
+            if (sellable) lore.add("<yellow>Shift-right-click · sell for " + plugin.settings().money(plugin.billing().sellValue(prof, pm)));
             ItemStack it = Items.of(pm.icon(), (using ? "<green><b>" : "<white><b>") + Items.esc(pm.name()), lore);
             m.set(slotFor(i++), using ? Items.glow(it) : it, e -> {
                 click(p);
@@ -744,14 +808,27 @@ public final class PhoneMenu {
                 eshop(p);
             });
         }
-        m.set(27, Items.of(Material.ARROW, "<gray>« Back"), e -> {
-            click(p);
-            open(p);
-        });
-        m.set(31, Items.of(Material.GOLD_INGOT, "<gold>Balance: <white>" + plugin.settings().money(prof.balance()), "<gray>Click to open your wallet"), e -> {
+        back(m, p);
+        // Trade-ins: carriers you're paying a phone off with that run a trade-in program.
+        int ts = 28;
+        for (String cid : prof.active()) {
+            Carrier c = plugin.store().carrier(cid);
+            Subscription sub = prof.sub(cid);
+            if (c == null || sub == null || !sub.financing() || !c.tradeIn() || ts > 34) continue;
+            m.set(ts++, Items.of(Material.HOPPER_MINECART, "<aqua>Trade in · " + c.styled(),
+                    "<gray>" + Math.round(c.tradeInPercent()) + "% of a phone's price off your", "<gray>phone loan (" + plugin.settings().money(sub.financeRemaining()) + " left).",
+                    "<yellow>Click · choose a phone"), e -> {
+                click(p);
+                tradeIn(p, c);
+            });
+        }
+        m.set(40, Items.of(Material.GOLD_INGOT, "<gold>Balance: <white>" + plugin.settings().money(prof.balance()), "<yellow>Click · Wallet"), e -> {
             click(p);
             wallet(p);
         });
+        Frame.help(m, "Shop", "Rows 1-2: phones, in pairs (the + model", "has two SIM slots). Click to buy or use;",
+                "shift-right-click to sell one you own", "for " + Math.round(plugin.settings().resalePercent) + "% of its price.", "",
+                "Row 3: trade-ins against a phone loan.");
         m.open(p);
     }
 
@@ -771,7 +848,7 @@ public final class PhoneMenu {
             wallet(p);
             return;
         }
-        Menu m = menu(4, "Trade in · " + Items.esc(c.name()), "tradein");
+        Menu m = menu(p, "Trade in · " + Items.esc(c.name()), "tradein");
         m.set(4, Items.of(Material.PAPER, "<white>Phone loan: <gold>" + plugin.settings().money(sub.financeRemaining()) + " left",
                 "<gray>Now " + plugin.settings().money(sub.financeInstallment()) + " per period.",
                 "<gray>" + Items.esc(c.name()) + " gives " + Math.round(c.tradeInPercent()) + "% of a phone's price.",
@@ -779,7 +856,7 @@ public final class PhoneMenu {
         int slot = 9;
         for (String id : new ArrayList<>(prof.ownedPhones())) {
             PhoneModel pm = plugin.settings().phone(id);
-            if (pm == null || slot >= 27) continue;
+            if (pm == null || slot > 35) continue;
             String why = plugin.billing().cantPart(prof, pm);
             long value = plugin.billing().tradeInValue(c, pm);
             List<String> lore = new ArrayList<>();
@@ -808,11 +885,8 @@ public final class PhoneMenu {
                 }
             });
         }
-        if (slot == 9) m.set(13, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No phones to trade in", "<dark_gray>Only phones you fully own count."));
-        m.set(27, Items.of(Material.ARROW, "<gray>« Wallet"), e -> {
-            click(p);
-            wallet(p);
-        });
+        if (slot == 9) m.set(22, Frame.empty("No phones to trade in", "Only phones you fully own count."));
+        Frame.back(m, p, "Shop", () -> eshop(p));
         m.open(p);
     }
 
@@ -835,9 +909,9 @@ public final class PhoneMenu {
 
     public void wallet(Player p) {
         PlayerProfile prof = prof(p);
-        Menu m = menu(5, "Wallet", "wallet");
+        Menu m = menu(p, "Wallet", "wallet");
         long now = System.currentTimeMillis();
-        m.set(4, Items.glow(Items.of(Material.GOLD_BLOCK, "<gold><b>" + plugin.settings().money(prof.balance()),
+        m.set(13, Items.glow(Items.of(Material.GOLD_BLOCK, "<gold><b>" + plugin.settings().money(prof.balance()),
                 "<gray>Your balance pays your plans.")));
         if (prof.totalOverdue() > 0) {
             List<String> lore = new ArrayList<>();
@@ -849,19 +923,19 @@ public final class PhoneMenu {
             }
             lore.add("");
             lore.add("<yellow>Deposits pay this off first.");
-            m.set(6, Items.of(Material.REDSTONE_BLOCK, "<red>Overdue: " + plugin.settings().money(prof.totalOverdue()), lore));
+            m.set(15, Items.of(Material.REDSTONE_BLOCK, "<red>Overdue: " + plugin.settings().money(prof.totalOverdue()), lore));
         }
-        m.set(2, Items.of(Material.HOPPER, "<green>Deposit ores", "<gray>Turn ores into credits."), e -> {
+        m.set(11, Items.of(Material.HOPPER, "<green>Deposit ores", "<gray>Turn ores into credits."), e -> {
             click(p);
             plugin.deposit().open(p, null, () -> wallet(p));
         });
 
         // Subscriptions: row 2
-        int slot = 18;
+        int slot = 19;
         List<String> sims = new ArrayList<>(prof.active());
         sims.addAll(prof.inactive());
         for (String cid : sims) {
-            if (slot > 26) break;
+            if (slot > 34) break;
             Carrier c = plugin.store().carrier(cid);
             if (c == null) continue;
             Subscription sub = prof.sub(cid);
@@ -894,13 +968,13 @@ public final class PhoneMenu {
                 }
             }
             lore.add("");
-            lore.add("<yellow>Click <gray>" + (plan == null ? "choose a plan" : "change plan"));
-            if (plan != null && plan.prepaid()) lore.add("<yellow>Right-click <gray>top up (" + plugin.settings().money(plan.price()) + ")");
+            lore.add("<yellow>Click · " + (plan == null ? "choose a plan" : "change plan"));
+            if (plan != null && plan.prepaid()) lore.add("<yellow>Right-click · top up (" + plugin.settings().money(plan.price()) + ")");
             else if (plan != null && !plan.unlimited() && plan.packMB() > 0)
-                lore.add("<yellow>Right-click <gray>buy " + Settings.data(plan.packMB()) + " (" + plugin.settings().money(plan.packPrice()) + ")");
+                lore.add("<yellow>Right-click · buy " + Settings.data(plan.packMB()) + " (" + plugin.settings().money(plan.packPrice()) + ")");
             if (sub != null && sub.financing()) {
-                lore.add("<yellow>Shift-click <gray>pay off phone (" + plugin.settings().money(sub.financeRemaining()) + ")");
-                if (c.tradeIn()) lore.add("<yellow>Shift-right-click <gray>trade in a phone (" + Math.round(c.tradeInPercent()) + "% of its price)");
+                lore.add("<yellow>Shift-click · pay off phone (" + plugin.settings().money(sub.financeRemaining()) + ")");
+                if (c.tradeIn()) lore.add("<yellow>Shift-right-click · trade in a phone");
             }
             final Plan fplan = plan;
             final Subscription fsub = sub;
@@ -922,7 +996,7 @@ public final class PhoneMenu {
                 }
             });
         }
-        if (sims.isEmpty()) m.set(22, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No subscriptions", "<dark_gray>Visit the Carrier store."));
+        if (sims.isEmpty()) m.set(22, Frame.empty("No subscriptions", "Pick a carrier in SIMs and plans."));
 
         // History
         List<String> hist = new ArrayList<>();
@@ -931,16 +1005,13 @@ public final class PhoneMenu {
             hist.add(ledgerLine(le, now));
         }
         if (hist.isEmpty()) hist.add("<dark_gray>Nothing yet");
-        m.set(31, Items.of(Material.BOOK, "<white>History", hist));
-        m.set(36, Items.of(Material.ARROW, "<gray>« Back"), e -> {
+        m.set(40, Items.of(Material.BOOK, "<white>History", hist));
+        back(m, p);
+        m.set(42, Items.of(Material.IRON_INGOT, "<white>SIMs and plans"), e -> {
             click(p);
-            open(p);
+            sims(p, 0);
         });
-        m.set(40, Items.of(Material.EMERALD, "<green>Carrier store"), e -> {
-            click(p);
-            store(p);
-        });
-        m.set(44, Items.of(Material.PAPER, "<aqua>Send credits", "<gray>To another player. Free."), e -> {
+        m.set(38, Items.of(Material.PAPER, "<aqua>Send credits", "<gray>To another player. Free."), e -> {
             click(p);
             plugin.prompt().ask(p, "<aqua>Send credits to which player?", who -> {
                 org.bukkit.OfflinePlayer to = Bukkit.getOfflinePlayerIfCached(who);
@@ -957,6 +1028,8 @@ public final class PhoneMenu {
                 });
             });
         });
+        Frame.help(m, "Wallet", "Deposit ores for credits; they pay your", "plans. Row 2: your subscriptions (click",
+                "to change plan, right-click to top up", "or buy data). Sending credits is free.");
         m.open(p);
     }
 
@@ -970,9 +1043,9 @@ public final class PhoneMenu {
 
     public void settings(Player p) {
         PlayerProfile prof = prof(p);
-        Menu m = menu(3, "Settings", "settings");
+        Menu m = menu(p, "Settings", "settings");
         boolean hud = plugin.hud().enabled(p);
-        m.set(11, Items.of(hud ? Material.REDSTONE_TORCH : Material.LEVER, "<white>Signal sidebar: " + (hud ? "<green>on" : "<red>off"),
+        m.set(20, Items.of(hud ? Material.REDSTONE_TORCH : Material.LEVER, "<white>Signal sidebar: " + (hud ? "<green>on" : "<red>off"),
                 "<gray>Shows your signal on the right of the screen.", "<yellow>Click to toggle"), e -> {
             click(p);
             prof.hud(!hud);
@@ -982,14 +1055,14 @@ public final class PhoneMenu {
             settings(p);
         });
         boolean dnd = prof.dnd();
-        m.set(15, Items.of(dnd ? Material.BELL : Material.NOTE_BLOCK, "<white>Do Not Disturb: " + (dnd ? "<green>on" : "<red>off"),
+        m.set(24, Items.of(dnd ? Material.BELL : Material.NOTE_BLOCK, "<white>Do Not Disturb: " + (dnd ? "<green>on" : "<red>off"),
                 "<gray>Blocks incoming calls and silences texts.", "<yellow>Click to toggle"), e -> {
             click(p);
             prof.dnd(!dnd);
             plugin.store().markDirty();
             settings(p);
         });
-        back(m, 18, p);
+        back(m, p);
         m.open(p);
     }
 }

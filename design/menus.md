@@ -1,6 +1,6 @@
 # Design spec: Menu reorganization
 
-Status: **agreed, not built yet.**
+Status: **built** (shared Frame, tabbed carrier and manufacturer menus, 8-app phone).
 
 ## Why
 

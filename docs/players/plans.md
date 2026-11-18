@@ -2,7 +2,7 @@
 
 ## Subscribing
 
-Open **`/cell` → Carrier store** (or `/cell subscribe <carrier>`), pick a carrier and choose one of its plans. The **first period is charged immediately** from your wallet.
+Open **`/cell` → SIMs and plans** (or `/cell subscribe <carrier>`), pick a carrier and choose one of its plans. The **first period is charged immediately** from your wallet.
 
 You get a **phone number** for that carrier, like `297-7402`. The first three digits are the carrier's prefix. You keep the number while you're subscribed (active or inactive) and lose it when you unsubscribe.
 
