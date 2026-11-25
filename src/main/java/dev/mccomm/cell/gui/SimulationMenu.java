@@ -74,6 +74,9 @@ public final class SimulationMenu {
                     "<gray>Simulated customers on the server.",
                     "<gray>With a carrier: <white>" + plugin.market().customers(),
                     "<gray>Without one: <white>" + plugin.market().unassigned(),
+                    plugin.settings().market.growthPerDay() > 0
+                            ? "<gray>Grows <white>" + Math.round(plugin.settings().market.growthPerDay() * 1000) / 10.0 + "%</white>/day"
+                            + (plugin.settings().market.growthMax() > 0 ? " up to " + plugin.settings().market.growthMax() : "") : "<gray>Growth: off",
                     "",
                     "<gray>Carriers win and lose customers on",
                     "<gray>coverage, speed, support and price.",
@@ -96,6 +99,16 @@ public final class SimulationMenu {
                 open(p);
             });
         }
+        m.set(Frame.CLOSE - 6, Items.of(Material.SCAFFOLDING, "<white>Spread evenly",
+                market ? "<gray>Shares the whole pool equally between" : "<gray>Evens out the users carriers have so",
+                market ? "<gray>all carriers (nobody is left without)." : "<gray>every carrier has the same number.",
+                "<gray>Customers then move on as usual.", "", "<yellow>Click to spread"), e -> {
+            click(p);
+            int n = plugin.market().spreadEvenly();
+            if (n == 0) Msg.send(p, "<red>There are no simulated users to spread.");
+            else Msg.send(p, "<green>Spread simulated users evenly across <n> carrier(s).", Msg.p("n", "" + n));
+            open(p);
+        });
         m.set(Frame.CLOSE - 2, Items.of(revenue ? Material.EMERALD_BLOCK : Material.COAL_BLOCK,
                 "<white>Simulated revenue: " + (revenue ? "<green>ON" : "<red>OFF"),
                 "<gray>When on, simulated users pay their plan",

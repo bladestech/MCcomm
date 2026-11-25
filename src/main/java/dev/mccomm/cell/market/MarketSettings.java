@@ -20,7 +20,9 @@ public record MarketSettings(
         double switchPerDay,          // share of each carrier's customers comparing carriers each day
         double loyalty,               // a rival must be this much more attractive (0.15 = 15%) to win them
         double speedWeight,           // share of the service score that comes from speed (rest: reliability)
-        double speedReference) {      // Mbps that counts as full marks for speed
+        double speedReference,        // Mbps that counts as full marks for speed
+        double growthPerDay,          // the market's pool of customers grows by this share per day (0 = never)
+        int growthMax) {              // growth stops at this pool size (0 = no limit)
 
     public static MarketSettings read(FileConfiguration c) {
         ConfigurationSection m = c.getConfigurationSection("market");
@@ -48,6 +50,8 @@ public record MarketSettings(
                 Math.clamp(m.getDouble("switching.per-day", 0.02), 0, 1),
                 Math.max(0, m.getDouble("switching.loyalty", 0.15)),
                 Math.clamp(m.getDouble("service.speed-weight", 0.4), 0, 1),
-                Math.max(1, m.getDouble("service.speed-reference-mbps", 300)));
+                Math.max(1, m.getDouble("service.speed-reference-mbps", 300)),
+                Math.clamp(m.getDouble("growth.per-day", 0.01), 0, 1),
+                Math.max(0, m.getInt("growth.max-size", 10_000)));
     }
 }
