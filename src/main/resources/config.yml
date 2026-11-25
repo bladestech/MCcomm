@@ -312,6 +312,9 @@ small-cells:
 # See docs/isps.md and design/broadband.md.
 broadband:
   enabled: true
+  # Node, router and computer signs get the same layered display screen as cell towers
+  # (colour stripe, status badge, chips, footer). false = plain sign text.
+  fancy-screens: true
   max-isps-per-player: 1        # admins are exempt; -1 = unlimited
   max-nodes-per-isp: -1
   max-plans-per-isp: 8

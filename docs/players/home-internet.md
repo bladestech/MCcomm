@@ -2,6 +2,9 @@
 
 Put a router in your house, pick an internet provider, and every computer and phone within Wi-Fi range of it is online. It's separate from your phone's mobile data: **`/internet` over home Wi-Fi uses no data**, and it works without a phone.
 
+!!! info "The signs are screens"
+    Nodes, routers and computers show the same kind of live screen as cell towers: a colour stripe in the ISP's colours, a status badge (ONLINE, FAULT, SUSPENDED...), chips (the node's technology, the router's Wi-Fi generation), and a footer with load or speed. Server owners can switch this off with `broadband.fancy-screens: false` for plain sign text.
+
 ## Set it up
 
 1. **Place a wall sign** inside your home, then look at it and run:

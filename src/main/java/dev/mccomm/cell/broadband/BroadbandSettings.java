@@ -41,7 +41,8 @@ public record BroadbandSettings(
         Faults faults,
         FixedWireless fixedWireless,
         Market market,
-        Browser browser) {
+        Browser browser,
+        boolean screens) {       // layered display screens on node, router and computer signs (like cell towers)
 
     /** One access technology. {@code range <= 0} means it reaches anywhere in the world (satellite). */
     public record TechSpec(
@@ -241,7 +242,7 @@ public record BroadbandSettings(
                 Math.max(0, s.getDouble("tier-upkeep-step", 50)) / 100.0,
                 Math.max(0, s.getDouble("throttle-mbps", 1)),
                 Math.clamp(s.getDouble("bundle-max-discount", 30), 0, 90),
-                wifi, transit, faults, fixed, market, browser);
+                wifi, transit, faults, fixed, market, browser, s.getBoolean("fancy-screens", true));
     }
 
     /** Built-in values, used when a technology is missing from config.yml. */

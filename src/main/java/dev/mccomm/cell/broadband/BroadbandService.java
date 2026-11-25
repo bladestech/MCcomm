@@ -98,14 +98,21 @@ public final class BroadbandService {
     private final Map<UUID, BukkitTask> lines = new HashMap<>();
     private long lastTick;
     private boolean simReady;
+    private final DeviceScreen screens;
 
     public BroadbandService(CellPlugin plugin) {
         this.plugin = plugin;
         this.store = new BroadbandStore(plugin);
+        this.screens = new DeviceScreen(plugin);
     }
 
     public BroadbandStore store() {
         return store;
+    }
+
+    /** The fancy screens on node, router and computer signs. */
+    public DeviceScreen screens() {
+        return screens;
     }
 
     public BroadbandSettings cfg() {
@@ -971,6 +978,7 @@ public final class BroadbandService {
         for (Router r : store.routers()) if (r.nodeId() == n.id()) r.nodeId(0); // rebound on the next tick
         if (clearSign) clearSign(key);
         signText.remove(key);
+        screens.remove(key);
         users.remove(n.id());
         simUsers.remove(n.id());
     }
@@ -1103,6 +1111,7 @@ public final class BroadbandService {
 
     public void removeRouter(Router r, boolean clearSign) {
         BlockKey key = r.key();
+        screens.remove(key);
         store.removeRouter(r);
         if (clearSign) clearSign(key);
         signText.remove(key);
@@ -1110,6 +1119,7 @@ public final class BroadbandService {
 
     public void removeComputer(Computer c, boolean clearSign) {
         BlockKey key = c.key();
+        screens.remove(key);
         store.removeComputer(c);
         if (clearSign) clearSign(key);
         signText.remove(key);
@@ -1553,7 +1563,7 @@ public final class BroadbandService {
         if (store.listings().removeIf(l -> now - l.time() > ttl)) store.markDirty();
     }
 
-    private List<Device> allDevices() {
+    public List<Device> allDevices() {
         List<Device> out = new ArrayList<>(store.nodes());
         out.addAll(store.routers());
         out.addAll(store.computers());
@@ -1572,7 +1582,13 @@ public final class BroadbandService {
             case Router r -> routerLines(r);
             case Computer c -> computerLines(c);
         };
-        write(d.key(), lines);
+        if (cfg().screens()) {
+            // The screen entities show everything; the sign itself stays blank (and waxed).
+            write(d.key(), new Component[]{Component.empty(), Component.empty(), Component.empty(), Component.empty()});
+            screens.ensure(d);
+        } else {
+            write(d.key(), lines);
+        }
     }
 
     private static String trunc(String s, int n) {

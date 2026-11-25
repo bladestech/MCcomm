@@ -316,7 +316,7 @@ public final class TowerScreen {
     }
 
     /** Rough width of Minecraft's default font in pixels (bold adds one per glyph). */
-    private static double widthPx(String s, boolean bold) {
+    public static double widthPx(String s, boolean bold) {
         double w = 0;
         for (char ch : s.toCharArray()) {
             w += switch (ch) {
@@ -343,7 +343,7 @@ public final class TowerScreen {
             Map.entry(Material.BROWN_CONCRETE, 0x603C20));
 
     /** The concrete block whose colour is closest to {@code rgb} (for the accent stripe). */
-    static Material nearestConcrete(int rgb) {
+    public static Material nearestConcrete(int rgb) {
         Material best = Material.LIGHT_BLUE_CONCRETE;
         double bestD = Double.MAX_VALUE;
         int r = rgb >> 16 & 255, gr = rgb >> 8 & 255, b = rgb & 255;

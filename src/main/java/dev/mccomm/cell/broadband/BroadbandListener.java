@@ -20,6 +20,7 @@ import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
 import java.util.ArrayList;
@@ -144,6 +145,12 @@ public final class BroadbandListener implements Listener {
                 return;
             }
         }
+    }
+
+    @EventHandler
+    public void onEntitiesLoad(EntitiesLoadEvent e) {
+        if (!bb().cfg().screens()) return;
+        bb().screens().onEntitiesLoad(e.getEntities(), e.getChunk().getX(), e.getChunk().getZ(), e.getWorld().getUID());
     }
 
     @EventHandler(ignoreCancelled = true)
