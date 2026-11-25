@@ -53,9 +53,9 @@ A satellite node is a *ground station*: homes anywhere in the world can use it, 
 
 Price your plans against what the line can really deliver: customers see a **quote** for their address before they order. Edits to a plan reach existing customers **at their next renewal**, not before. Deleting a plan cancels its subscribers (no refunds).
 
-**Ordering plans.** Plans show in your list's order. Open a plan and use **Move earlier** / **Move later** (shift-click for the top or bottom). The order is saved.
+**Ordering plans.** Plans show in your list's order. In `/isp` → **Plans**, **right-click** a plan to move it later or **shift-left-click** to move it earlier. Or open a plan and use **Move earlier** / **Move later** (shift-click for the top or bottom). The order is saved.
 
-**Removing plans.** A new ISP starts with a plan for every technology, so delete the ones you don't sell: shift-click a plan in `/isp` → **Plans**, use **Delete plan** in the plan editor, or:
+**Removing plans.** A new ISP starts with a plan for every technology, so delete the ones you don't sell: shift-right-click a plan in `/isp` → **Plans**, use **Delete plan** in the plan editor, or:
 
 ```
 /isp plan delete <name...>

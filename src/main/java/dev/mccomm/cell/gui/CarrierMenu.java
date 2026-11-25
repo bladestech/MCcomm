@@ -399,13 +399,19 @@ public final class CarrierMenu {
             List<String> lore = new ArrayList<>(plugin.phone().planLore(plan));
             int sim = counts.getOrDefault(plan.id(), 0);
             lore.add("<gray>Subscribers: <white>" + plugin.billing().subscribers(c, plan) + (sim > 0 ? " <dark_gray>+ " + sim + " customers" : ""));
-            if (owner) lore.add("<yellow>Click · edit · <yellow>Shift-right · delete");
+            if (owner) {
+                lore.add("<yellow>Click · edit · <yellow>Right · move later");
+                lore.add("<yellow>Shift-left · move earlier · <yellow>Shift-right · delete");
+            }
             return Items.of(Material.PAPER, "<b>" + plan.styled(c), lore);
         }, (plan, e) -> {
             if (!owner) return;
             click(p);
             if (e.isShiftClick() && e.isRightClick()) deletePlan(p, c, plan);
-            else editor(p, c, plan);
+            else if (e.isShiftClick() || e.isRightClick()) {
+                if (dev.mccomm.cell.util.Reorder.move(c.plans(), plan.id(), e.isShiftClick() ? -1 : 1)) plugin.store().markDirty();
+                customers(p, c, pg);
+            } else editor(p, c, plan);
         }, n -> customers(p, c, n));
         if (owner) {
             m.set(44, Items.of(Material.WRITABLE_BOOK, "<green>New plan", "<gray>Starts as a copy of the default."), e -> {

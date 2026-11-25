@@ -224,7 +224,12 @@ public final class BroadbandMenu {
         if (plans.isEmpty()) m.set(22, Frame.empty("No plans", "Add one with the button below."));
         Frame.page(m, p, plans, page, LIST3, pl -> planItem(isp, pl), (pl, e) -> {
             Frame.click(p);
-            if (e.isShiftClick()) { // quick delete, with a confirmation
+            if (e.isShiftClick() ? e.isLeftClick() : e.isRightClick()) { // shift-left earlier, right later
+                if (dev.mccomm.cell.util.Reorder.move(isp.plans(), pl.id(), e.isShiftClick() ? -1 : 1)) store().markDirty();
+                isp(p, isp, PLANS, page);
+                return;
+            }
+            if (e.isShiftClick()) { // shift-right: quick delete, with a confirmation
                 long subs = store().routersOfIsp(isp.id()).stream().filter(r -> pl.id().equals(r.planId())).count();
                 confirm(p, "<red>Delete " + Items.esc(pl.name()) + "?", List.of("<gray>" + subs + " subscriber(s) will be cancelled, no refunds."), () -> {
                     bb().planDeleted(isp, pl);
@@ -245,16 +250,24 @@ public final class BroadbandMenu {
     }
 
     private ItemStack planItem(Isp isp, InternetPlan pl) {
+        return planItem(isp, pl, true);
+    }
+
+    private ItemStack planItem(Isp isp, InternetPlan pl, boolean hints) {
         TechSpec s = spec(pl.tech());
         long subs = store().routersOfIsp(isp.id()).stream().filter(r -> pl.id().equals(r.planId())).count();
-        return Items.of(s.icon(), "<white>" + Items.esc(pl.name()), List.of(
+        List<String> lore = new ArrayList<>(List.of(
                 "<gray>Technology: <white>" + s.name(),
                 "<gray>Price: <white>" + money(pl.price()) + " <gray>per " + BillingService.period(pl.periodHours()),
                 "<gray>Speed cap: <white>" + Msg.speed(pl.speedCapMbps()),
                 "<gray>Data: <white>" + dataText(pl) + (pl.unlimited() ? "" : " <gray>then " + Msg.speed(bb().cfg().throttleMbps())),
                 "<gray>Install fee: <white>" + money(pl.installFee()),
-                "<gray>Subscribers: <white>" + subs,
-                "<yellow>Click to edit · shift-click to delete"));
+                "<gray>Subscribers: <white>" + subs));
+        if (hints) {
+            lore.add("<yellow>Click · edit · <yellow>Right · move later");
+            lore.add("<yellow>Shift-left · move earlier · <yellow>Shift-right · delete");
+        }
+        return Items.of(s.icon(), "<white>" + Items.esc(pl.name()), lore);
     }
 
     private void newPlan(Player p, Isp isp) {
@@ -292,7 +305,7 @@ public final class BroadbandMenu {
         }
         TechSpec s = spec(pl.tech());
         Menu m = Frame.create(p, "Plan · " + Items.esc(pl.name()), "bb-plan");
-        m.set(13, planItem(isp, pl));
+        m.set(13, planItem(isp, pl, false));
         Runnable again = () -> plan(p, isp, pl);
         m.set(20, Items.of(Material.GOLD_INGOT, "<gold>Price", "<gray>Now: <white>" + money(pl.price()),
                 "<gray>Existing customers keep their old price", "<gray>until their next renewal.", "<yellow>Click to change"),

@@ -64,7 +64,7 @@ In the management screen, turn on the **Trade-in program** and set a **rate** (d
 
 ## Ordering plans
 
-Plans show to subscribers in the order they appear in your list. Open a plan and use **Move earlier** and **Move later** (shift-click to jump to the top or bottom) to put your best offers first. The order is saved.
+Plans show to subscribers in the order they appear in your list. In the Plans list, **right-click** a plan to move it later or **shift-left-click** to move it earlier. Or open a plan and use **Move earlier** and **Move later** (shift-click to jump to the top or bottom). The order is saved.
 
 ## Deleting a plan
 
