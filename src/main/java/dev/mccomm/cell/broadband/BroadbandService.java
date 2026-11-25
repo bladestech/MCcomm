@@ -873,7 +873,7 @@ public final class BroadbandService {
         double nominal = 0;
         for (InternetPlan p : isp.plans().values()) {
             double cap = Math.min(p.speedCapMbps(), spec(p.tech()).maxMbps());
-            nominal = Math.max(nominal, Math.min(1, Math.log10(1 + cap) / Math.log10(1 + 2000)));
+            nominal = Math.max(nominal, Math.min(1, Math.log10(1 + cap) / Math.log10(1 + 10000)));
             double ppd = p.price() * 24.0 / p.periodHours();
             TechSpec s = spec(p.tech());
             double ref = (s.maxMbps() * 0.5) / (s.starterPrice() + 1);

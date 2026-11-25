@@ -187,7 +187,7 @@ public record BroadbandSettings(
 
         ConfigurationSection tr = s.getConfigurationSection("transit");
         Transit transit = new Transit(
-                tr == null ? 1500 : Math.max(1, tr.getDouble("mbps-per-tier", 1500)),
+                tr == null ? 5000 : Math.max(1, tr.getDouble("mbps-per-tier", 5000)),
                 tr == null ? 5 : Math.clamp(tr.getInt("max-tier", 5), 1, 20),
                 tr == null ? 30 : Math.max(0, tr.getLong("upkeep-per-tier", 30)),
                 tr == null ? 400 : Math.max(0, tr.getLong("upgrade-cost", 400)),
@@ -256,7 +256,7 @@ public record BroadbandSettings(
                     800, 400, 0.1, 15, 2.0, 0.5, false, 1, 1, 25, 450, 6, 25, 25, 3, 0.15, 0.01, 3, 100);
             case FIBER -> new TechSpec(t, "Fiber", Material.END_ROD,
                     "Light down glass. Huge speeds and tiny ping that barely care about distance, but nodes are costly.",
-                    1500, 2000, 1.0, 4, 4.0, 0.9, false, 1, 1, 80, 1500, 12, 80, 55, 3, 0.4, 0.002, 1, 300);
+                    1500, 10000, 1.0, 4, 4.0, 0.9, false, 1, 1, 80, 1500, 12, 80, 55, 3, 0.4, 0.002, 1, 300);
             case SATELLITE -> new TechSpec(t, "Satellite", Material.SPYGLASS,
                     "A dish and a view of the sky. Works anywhere in the world, but slow, laggy and weather-sensitive.",
                     0, 120, 0.2, 550, 0, 1.0, true, 0.5, 0.2, 20, 900, 10, 60, 30, 3, 0, 0.004, 2, 200);

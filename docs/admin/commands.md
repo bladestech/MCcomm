@@ -92,6 +92,7 @@
 | `/isp manage [isp]` | The ISP menu (or just `/isp`) |
 | `/isp node install <dsl\|cable\|fiber\|satellite> <name> [isp]` | Build a node on the sign you look at |
 | `/isp plan add <tech> <price> <mbps> <name...>` | Add a plan |
+| `/isp plan delete <name...>` · `delete tech <tech>` · `list` | Delete plans (cancelling their subscribers), or list them |
 | `/isp deposit\|withdraw <amount> [isp]` | Move credits in or out |
 | `/isp info [isp]` · `/isp list` | Details · all ISPs |
 | `/isp employee add\|remove <isp> <player>` | Staff |

@@ -224,6 +224,14 @@ public final class BroadbandMenu {
         if (plans.isEmpty()) m.set(22, Frame.empty("No plans", "Add one with the button below."));
         Frame.page(m, p, plans, page, LIST3, pl -> planItem(isp, pl), (pl, e) -> {
             Frame.click(p);
+            if (e.isShiftClick()) { // quick delete, with a confirmation
+                long subs = store().routersOfIsp(isp.id()).stream().filter(r -> pl.id().equals(r.planId())).count();
+                confirm(p, "<red>Delete " + Items.esc(pl.name()) + "?", List.of("<gray>" + subs + " subscriber(s) will be cancelled, no refunds."), () -> {
+                    bb().planDeleted(isp, pl);
+                    isp(p, isp, PLANS, 0);
+                }, () -> isp(p, isp, PLANS, 0));
+                return;
+            }
             plan(p, isp, pl);
         }, pg -> isp(p, isp, PLANS, pg));
         m.set(40, Items.of(Material.WRITABLE_BOOK, "<green>New plan", "<gray>Pick a technology, then name it."), e -> {
@@ -246,7 +254,7 @@ public final class BroadbandMenu {
                 "<gray>Data: <white>" + dataText(pl) + (pl.unlimited() ? "" : " <gray>then " + Msg.speed(bb().cfg().throttleMbps())),
                 "<gray>Install fee: <white>" + money(pl.installFee()),
                 "<gray>Subscribers: <white>" + subs,
-                "<yellow>Click to edit"));
+                "<yellow>Click to edit · shift-click to delete"));
     }
 
     private void newPlan(Player p, Isp isp) {

@@ -24,7 +24,7 @@ The node is paid from the ISP's balance. Names are unique within the ISP.
 | | DSL | Cable | Fiber | Satellite |
 |---|---|---|---|---|
 | Homes can be within | 400 blocks | 800 | 1500 | anywhere |
-| Peak speed | 40 Mbps | 400 | 2,000 | 120 |
+| Peak speed | 40 Mbps | 400 | 10,000 | 120 |
 | Customers at full speed | 40 | 25 | 80 | 20 |
 | Node cost | 150 cr | 450 | 1,500 | 900 |
 | Upkeep per day | 3 cr | 6 | 12 | 10 |
@@ -53,6 +53,16 @@ A satellite node is a *ground station*: homes anywhere in the world can use it, 
 
 Price your plans against what the line can really deliver: customers see a **quote** for their address before they order. Edits to a plan reach existing customers **at their next renewal**, not before. Deleting a plan cancels its subscribers (no refunds).
 
+**Removing plans.** A new ISP starts with a plan for every technology, so delete the ones you don't sell: shift-click a plan in `/isp` → **Plans**, use **Delete plan** in the plan editor, or:
+
+```
+/isp plan delete <name...>
+/isp plan delete tech <dsl|cable|fiber|satellite>
+/isp plan list
+```
+
+Subscribers of a deleted plan are cancelled (no refunds).
+
 ## Rating
 
 Every ISP has a **1-5 star rating** from the speed its customers actually get, how much of the time the network is up, value for money and coverage. Customers see it in the Providers list. If the server enables the household market, simulated households pick providers by rating, load your nodes, and pay your plans.
@@ -63,7 +73,7 @@ Nodes break down now and then (more in storms; copper and coax suffer most). A f
 
 ## Transit and peering
 
-Your customers share the ISP's **backbone** (transit): 1,500 Mbps per tier. If what customers pull at once (plan speeds, about 20%) goes over it, **every customer slows down** in proportion. Buy more in the ISP menu (`/isp transit`); every tier above the first adds daily upkeep.
+Your customers share the ISP's **backbone** (transit): 5,000 Mbps per tier. If what customers pull at once (plan speeds, about 20%) goes over it, **every customer slows down** in proportion. Buy more in the ISP menu (`/isp transit`); every tier above the first adds daily upkeep.
 
 **Peering** shares backbone with another ISP (+25% for each peer): `/isp peer offer <isp>`, then they `/isp peer accept <isp>`; `/isp peer end <isp>` stops it.
 
@@ -120,6 +130,7 @@ Staff can build and take down nodes and edit plans. Only the owner withdraws or 
 | `/isp peer offer\|accept\|end <isp> [your isp]` | Peering |
 | `/isp bundle offer\|accept\|end\|list` | Bundles with carriers |
 | `/isp plan add <tech> <price> <mbps> <name...>` | Add a plan |
+| `/isp plan delete <name...>` · `delete tech <tech>` · `list` | Delete plans, or list them |
 | `/isp deposit\|withdraw <amount> [isp]` | Move credits |
 | `/isp info [isp]` · `/isp list` | Details · all ISPs |
 | `/isp employee add\|remove <isp> <player>` | Staff |

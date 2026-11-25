@@ -355,8 +355,25 @@ public final class IspCommand extends Cmd {
     private void plan(CommandSender s, String[] args) {
         Player p = player(s);
         if (p == null) return;
-        if (args.length < 6 || !args[1].equalsIgnoreCase("add")) {
-            Msg.send(p, "<red>Usage: /isp plan add <tech> <price> <mbps> <name...>");
+        String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        if (sub.equals("list")) {
+            Isp isp = myIsp(p, args.length > 2 ? args[2] : null);
+            if (isp == null) return;
+            Msg.raw(p, "<dark_gray>━━━ <aqua>Plans</aqua> · " + isp.styled() + " <dark_gray>━━━");
+            for (InternetPlan pl : isp.plans().values()) {
+                long subs = bb().store().routersOfIsp(isp.id()).stream().filter(r -> pl.id().equals(r.planId())).count();
+                Msg.raw(p, "<dark_gray> · <white><n> <gray>(<t>) · <white><price> · cap <white><cap> <gray>· <subs> subscriber(s)",
+                        Msg.p("n", pl.name()), Msg.p("t", bb().cfg().spec(pl.tech()).name()), Msg.p("price", plugin.settings().money(pl.price())),
+                        Msg.p("cap", Msg.speed(pl.speedCapMbps())), Msg.p("subs", "" + subs));
+            }
+            return;
+        }
+        if (sub.equals("delete") || sub.equals("remove")) {
+            deletePlans(p, args);
+            return;
+        }
+        if (args.length < 6 || !sub.equals("add")) {
+            Msg.send(p, "<red>Usage: /isp plan add <tech> <price> <mbps> <name...> · /isp plan delete <name...> · /isp plan delete tech <tech> · /isp plan list");
             return;
         }
         Isp isp = myIsp(p, null);
@@ -390,6 +407,38 @@ public final class IspCommand extends Cmd {
         isp.plans().put(pl.id(), pl);
         bb().store().markDirty();
         Msg.send(p, "<green>Plan <white><n></white> added. Edit its period and install fee in <white>/isp manage</white> → Plans.", Msg.p("n", name));
+    }
+
+    /** /isp plan delete <name...> or /isp plan delete tech <tech>: removes plans; their subscribers are cancelled (no refunds). */
+    private void deletePlans(Player p, String[] args) {
+        if (args.length < 3) {
+            Msg.send(p, "<red>Usage: /isp plan delete <name...> · /isp plan delete tech <dsl|cable|fiber|satellite|fixed-wireless>");
+            return;
+        }
+        Isp isp = myIsp(p, null);
+        if (isp == null) return;
+        List<InternetPlan> doomed = new ArrayList<>();
+        if (args[2].equalsIgnoreCase("tech") && args.length >= 4) {
+            Technology t = Technology.fromKey(args[3]);
+            if (t == null) {
+                Msg.send(p, "<red>Unknown technology.");
+                return;
+            }
+            for (InternetPlan pl : isp.plans().values()) if (pl.tech() == t) doomed.add(pl);
+        } else {
+            String name = join(args, 2);
+            for (InternetPlan pl : isp.plans().values()) {
+                if (pl.name().equalsIgnoreCase(name) || pl.id().equalsIgnoreCase(name)) doomed.add(pl);
+            }
+        }
+        if (doomed.isEmpty()) {
+            Msg.send(p, "<red>No matching plan. See <white>/isp plan list</white>.");
+            return;
+        }
+        int subs = 0;
+        for (InternetPlan pl : doomed) subs += bb().store().routersOfIsp(isp.id()).stream().filter(r -> pl.id().equals(r.planId())).count();
+        for (InternetPlan pl : doomed) bb().planDeleted(isp, pl);
+        Msg.send(p, "<yellow>Deleted <white><n></white> plan(s). <subs> subscriber(s) were cancelled.", Msg.p("n", "" + doomed.size()), Msg.p("subs", "" + subs));
     }
 
     private void money(CommandSender s, String[] args, boolean deposit) {
@@ -487,8 +536,10 @@ public final class IspCommand extends Cmd {
                 if (args.length == 5) return filter(ispNames(), args[4]);
             }
             case "plan" -> {
-                if (args.length == 2) return filter(List.of("add"), args[1]);
-                if (args.length == 3) return filter(techs, args[2]);
+                if (args.length == 2) return filter(List.of("add", "delete", "list"), args[1]);
+                if (args.length == 3 && args[1].equalsIgnoreCase("delete")) return filter(List.of("tech"), args[2]);
+                if (args.length == 4 && args[1].equalsIgnoreCase("delete")) return filter(techs, args[3]);
+                if (args.length == 3 && args[1].equalsIgnoreCase("add")) return filter(techs, args[2]);
             }
             case "employee" -> {
                 if (args.length == 2) return filter(List.of("add", "remove"), args[1]);

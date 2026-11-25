@@ -45,7 +45,7 @@ Each technology is a block of config, so servers can retune or rename them. A fi
 | | DSL | Cable | Fiber | Satellite |
 |---|---|---|---|---|
 | Reach from a node | 400 blocks | 800 | 1500 | **anywhere** (same world) |
-| Peak speed | 40 Mbps | 400 | 2000 | 120 |
+| Peak speed | 40 Mbps | 400 | 10000 | 120 |
 | Upload ÷ download | 0.1 | 0.1 | **1.0** | 0.2 |
 | Base ping | 30 ms | 15 | 4 | **550** |
 | Distance cost | linear: 10% left at the edge | gentle: 50% left | tiny: 90% left | none |
@@ -201,7 +201,7 @@ Nodes develop random **faults** (a per-technology chance per hour, multiplied in
 Faults run on the node's own timer and don't use the carrier workforce system: a deliberate simplification.
 
 ### 9. Transit and peering
-Each non-carrier ISP buys **transit tiers** (1500 Mbps per tier, +30 credits per day for every tier above the first). The customers' plan speeds, times a 0.2 utilisation factor, are the demand. When demand beats capacity, **every customer's speed is scaled down** by `capacity / demand`.
+Each non-carrier ISP buys **transit tiers** (5000 Mbps per tier, +30 credits per day for every tier above the first). The customers' plan speeds, times a 0.2 utilisation factor, are the demand. When demand beats capacity, **every customer's speed is scaled down** by `capacity / demand`.
 **Peering** (`/isp peer offer|accept|end`) gives both ISPs +25% capacity per peer.
 
 ### 10. Bundles

@@ -360,7 +360,7 @@ broadband:
   # Transit: the backbone an ISP buys, shared by all its customers. When their plan speeds
   # (times utilization) add up to more than the ISP's capacity, every customer slows down.
   transit:
-    mbps-per-tier: 1500
+    mbps-per-tier: 5000
     max-tier: 5
     upkeep-per-tier: 30         # per upkeep period, for each tier above the first
     upgrade-cost: 400           # times the current tier
@@ -461,7 +461,7 @@ broadband:
       icon: END_ROD
       description: "Light down glass. Huge speeds and tiny ping that barely care about distance, but nodes are costly."
       range: 1500
-      max-mbps: 2000
+      max-mbps: 10000
       upload-ratio: 1.0
       ping-ms: 4
       falloff: 4.0
