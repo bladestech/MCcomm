@@ -49,7 +49,7 @@ public final class SmsService {
             Msg.send(from, "<red>You can't text yourself.");
             return;
         }
-        int delay = plugin.settings().spec(sim.link().band()).smsDelayTicks();
+        int delay = sim.link() == null ? 40 : plugin.settings().spec(sim.link().band()).smsDelayTicks();
         String shown = plugin.sims().displayName(from, toNumber);
         Msg.send(from, "<gray>Sending to <white><to></white>…", Msg.p("to", shown));
         UUID senderId = from.getUniqueId();

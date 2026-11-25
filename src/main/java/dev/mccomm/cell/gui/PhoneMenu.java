@@ -244,7 +244,7 @@ public final class PhoneMenu {
         SignalService.Link l = sim.link();
         String planLine = sim.plan() == null ? "<red>No plan" : "<gray>Plan: " + sim.plan().styled(c);
         if (l == null) {
-            String why = sim.issue() != null ? "<red>" + Items.esc(sim.issue())
+            String why = sim.wifi() ? "<aqua>Wi-Fi calling <dark_gray>· calls and texts over your home Wi-Fi" : sim.issue() != null ? "<red>" + Items.esc(sim.issue())
                     : emergency ? "<red>No Service · SOS only" : "<dark_gray>No Signal";
             return Items.of(Material.GRAY_STAINED_GLASS_PANE, head, why, number);
         }
@@ -511,7 +511,7 @@ public final class PhoneMenu {
                 Carrier c = plugin.store().carrier(prof.active().get(i));
                 if (c == null) continue;
                 SignalService.SimStatus sim = st.slot(i + 1);
-                String signal = sim == null || sim.link() == null ? "<red>No Service"
+                String signal = sim == null || sim.link() == null ? (sim != null && sim.wifi() ? "<aqua>Wi-Fi calling" : "<red>No Service")
                         : Msg.bars(sim.link().bars()) + " <white>" + plugin.settings().spec(sim.link().band()).name();
                 boolean data = sim != null && st.isDataSim(sim);
                 ItemStack it = Items.of(Material.IRON_INGOT, c.styled()

@@ -40,9 +40,9 @@ public final class SignalService {
      * @param deprioritized the host puts this user behind its own customers when a band is busy
      */
     public record SimStatus(int slot, Carrier carrier, Link link, dev.mccomm.cell.model.Plan plan, String issue, boolean throttled,
-                            Carrier roamingOn, boolean deprioritized) {
-        public boolean texts() { return link != null && plan != null && plan.texts(); }
-        public boolean calls() { return link != null && plan != null && plan.calls(); }
+                            Carrier roamingOn, boolean deprioritized, boolean wifi) {
+        public boolean texts() { return (link != null || wifi) && plan != null && plan.texts(); }
+        public boolean calls() { return (link != null || wifi) && plan != null && plan.calls(); }
     }
 
     /**
@@ -82,6 +82,12 @@ public final class SignalService {
 
         public boolean hasService() {
             return primary() != null;
+        }
+
+        /** True if a SIM can call and text over home Wi-Fi although no tower reaches the player. */
+        public boolean wifiCalling() {
+            for (SimStatus s : sims) if (s.wifi()) return true;
+            return false;
         }
 
         public SimStatus slot(int slot) {
@@ -192,6 +198,7 @@ public final class SignalService {
     }
 
     public Status compute(Player p) {
+        final boolean wifiOn = plugin.settings().broadband.wifi().calling() && plugin.broadband().onWifi(p);
         PlayerProfile prof = plugin.store().profile(p.getUniqueId());
         dev.mccomm.cell.economy.PhoneModel phone = plugin.billing().phoneOf(p);
         boolean emergency = phone != null && !bestLinks(p, cid -> phone.maxBand()).isEmpty();
@@ -247,8 +254,10 @@ public final class SignalService {
                     }
                 }
             }
+            // No tower, but home Wi-Fi reaches the player: calls and texts work over Wi-Fi.
+            boolean wifi = issue == null && link == null && plan != null && wifiOn;
             sims.add(new SimStatus(thisSlot, c, link, plan, issue, issue == null && plugin.billing().throttled(prof, id),
-                    roamingOn, link != null && deprioritized));
+                    roamingOn, link != null && deprioritized, wifi));
         }
         return new Status(List.copyOf(sims), emergency, prof.dataSim(), phone);
     }
@@ -456,7 +465,7 @@ public final class SignalService {
 
     public String hudLine(Status st) {
         if (st.phone() == null) return "<red>No phone</red> <gray>· /cell eshop";
-        if (st.sims().isEmpty() || !st.hasService()) {
+        if (st.sims().isEmpty() || (!st.hasService() && !st.wifiCalling())) {
             if (st.emergency()) return "<red>No Service</red> <gray>· Emergency calls only (" + s().emergencyNumber + ")";
             return "<dark_gray>No Signal";
         }
@@ -464,7 +473,7 @@ public final class SignalService {
         for (SimStatus sim : st.sims()) {
             if (!sb.isEmpty()) sb.append(" <dark_gray>|</dark_gray> ");
             if (sim.link() == null) {
-                sb.append(sim.carrier().styled()).append(" <red>No Service");
+                sb.append(sim.carrier().styled()).append(sim.wifi() ? " <aqua>Wi-Fi calling" : " <red>No Service");
             } else {
                 sb.append(sim.carrier().styled()).append(sim.roamingOn() != null ? " <gold>R</gold>" : "").append(" ")
                         .append(Msg.bars(sim.link().bars())).append(" <white>").append(s().spec(sim.link().band()).name());

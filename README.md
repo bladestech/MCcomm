@@ -16,6 +16,7 @@ Requires Java 25 and Paper (or Purpur) 26.1+. Download the jar from [Releases](h
 - **Carriers**: postpaid, financed-phone and prepaid plans, data allowances, upkeep and decay, roaming agreements, MVNOs and branding.
 - **Manufacturers**: research generations and bands, design tower models, set margins and sell to carriers.
 - **Economy**: credits from ores. Company valuations, sales and liquidation.
+- **Home internet**: ISPs build DSL, cable, fiber and satellite nodes, homes put a router on a wall sign, and computers and phones in Wi-Fi range get online. See [design/broadband.md](design/broadband.md).
 - **Extras**: signal sidebar, simulated users for roleplay, and [squaremap](https://modrinth.com/plugin/squaremap) support.
 
 ## Quick start

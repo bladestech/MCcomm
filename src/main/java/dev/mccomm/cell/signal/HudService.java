@@ -112,7 +112,8 @@ public final class HudService {
                 out.add(Msg.mm(" <dark_gray>»</dark_gray> " + c.styled() + (dual && st.isDataSim(sim) ? " <dark_gray>·</dark_gray> <aqua>data" : "")));
                 SignalService.Link l = sim.link();
                 if (l == null) {
-                    out.add(sim.issue() != null ? Msg.mm("   <red><i>", Msg.p("i", sim.issue()))
+                    if (sim.wifi()) out.add(Msg.mm("   <aqua>Wi-Fi calling <dark_gray>· no tower in range"));
+                    else                     out.add(sim.issue() != null ? Msg.mm("   <red><i>", Msg.p("i", sim.issue()))
                             : Msg.mm(st.emergency() ? "   <red>No Service <dark_gray>· SOS" : "   <dark_gray>No Signal"));
                 } else {
                     out.add(Msg.mm("   " + Msg.bars(l.bars()) + " <white><band>"

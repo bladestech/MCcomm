@@ -17,6 +17,7 @@ MCcomm is a plugin for **Paper and Purpur 26.1+** (Java 25). It's open source un
 - **Numbers, texts, calls and `/internet`.** Every subscription gets a phone number. `/internet` is a second chat that uses mobile data.
 - **Carriers.** Plans (postpaid, financed phones, prepaid), data allowances, tower upkeep and decay, roaming agreements, MVNOs and branding.
 - **Manufacturers.** Research generations and bands, design tower models, set your margin and sell to carriers.
+- **Home internet.** Players start ISPs and build DSL, cable, fiber and satellite nodes. Homes put a router on a wall sign, pick a plan, and computers and phones in Wi-Fi range get online.
 - **An economy.** Credits come from deposited ores. Companies can be valued, sold or liquidated.
 - **Extras.** A signal sidebar, simulated users for roleplay servers, and [squaremap](admin/squaremap.md) support.
 
@@ -30,6 +31,8 @@ MCcomm is a plugin for **Paper and Purpur 26.1+** (Java 25). It's open source un
 | A player | [The phone](players/phone.md) and [SIMs, numbers and plans](players/plans.md) |
 | Starting a carrier | [Running a carrier](carriers/index.md) |
 | Starting a manufacturer | [Running a manufacturer](manufacturers.md) |
+| Getting a house online | [Home internet](players/home-internet.md) |
+| Starting an ISP | [Running an ISP](isps.md) |
 | Curious how signal works | [Signal reference](signal.md) |
 
 ## Download

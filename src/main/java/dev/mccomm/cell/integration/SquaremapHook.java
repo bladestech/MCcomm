@@ -41,6 +41,7 @@ import java.util.UUID;
 public final class SquaremapHook {
     private static final Key TOWERS = Key.of("mccomm_towers");
     private static final Key STATIONS = Key.of("mccomm_stations");
+    private static final Key NODES = Key.of("mccomm_nodes");
 
     private final CellPlugin plugin;
     private final Squaremap api;
@@ -135,10 +136,13 @@ public final class SquaremapHook {
                 mine.remove(STATIONS);
             }
 
+            updateNodes(mw, mine, w);
+
             if (s().squaremapCoverage) {
                 Set<Key> keep = new HashSet<>();
                 keep.add(TOWERS);
                 keep.add(STATIONS);
+                keep.add(NODES);
                 for (Carrier c : plugin.store().carriers()) {
                     List<Tower> list = perCarrier.getOrDefault(c.id(), List.of());
                     if (list.isEmpty()) continue;
@@ -191,6 +195,66 @@ public final class SquaremapHook {
                 }
             }
         }
+    }
+
+    /** The "ISP nodes" layer: an icon per home-internet node, with a ring for how far it reaches. */
+    private void updateNodes(MapWorld mw, Map<Key, SimpleLayerProvider> mine, World w) {
+        var bb = plugin.broadband();
+        List<dev.mccomm.cell.broadband.Node> here = new ArrayList<>();
+        for (var n : bb.store().nodes()) if (n.key().world().equals(w.getUID())) here.add(n);
+        if (here.isEmpty() || !bb.cfg().enabled()) {
+            if (mine.containsKey(NODES)) {
+                if (mw.layerRegistry().hasEntry(NODES)) mw.layerRegistry().unregister(NODES);
+                mine.remove(NODES);
+            }
+            return;
+        }
+        SimpleLayerProvider nl = layer(mw, mine, NODES, "ISP nodes", 23, 285, false);
+        nl.clearMarkers();
+        for (var n : here) {
+            var isp = bb.store().isp(n.ispId());
+            if (isp == null) continue;
+            var spec = bb.cfg().spec(n.tech());
+            boolean up = isp.paidUp() && !n.faulted();
+            int rgb = up ? isp.colors().getFirst().value() : 0x8A8F9A;
+            String html = "<div style='font-family:sans-serif;min-width:170px'><b style='color:" + isp.colors().getFirst().asHexString() + "'>"
+                    + esc(isp.name()) + "</b> &middot; <b>" + esc(n.name()) + "</b><br>" + esc(spec.name()) + " node &middot; tier " + n.tier() + "<br>"
+                    + "<span style='color:#f5c542'>" + esc(bb.ratingPlain(isp)) + "</span><br>"
+                    + "Customers: " + bb.users(n) + "/" + Math.round(bb.capacity(n)) + "<br>"
+                    + (n.faulted() ? "<span style='color:#e05555'>Fault: offline</span>" : up ? "<span style='color:#5ee38a'>Online</span>" : "<span style='color:#9aa0aa'>Network down</span>")
+                    + (spec.range() > 0 ? "<br>Reach: " + Math.round(spec.range()) + " blocks" : "<br>Reach: anywhere") + "</div>";
+            nl.addMarker(Key.of("n" + n.id()), Marker.icon(Point.of(n.key().x() + 0.5, n.key().z() + 0.5), nodeIcon(rgb), s().squaremapIconSize)
+                    .markerOptions(MarkerOptions.builder().hoverTooltip(html).clickTooltip(html)));
+            if (spec.range() > 0 && up) {
+                Color col = new Color(rgb);
+                nl.addMarker(Key.of("nr" + n.id()), Marker.circle(Point.of(n.key().x() + 0.5, n.key().z() + 0.5), spec.range())
+                        .markerOptions(MarkerOptions.builder().fillColor(col).fillOpacity(0.05).strokeColor(col).strokeOpacity(0.5).strokeWeight(1)
+                                .hoverTooltip(esc(isp.name() + " · " + n.name() + " · " + spec.name() + " · " + Math.round(spec.range()) + " blocks"))));
+            }
+        }
+    }
+
+    /** A small rounded square with Wi-Fi arcs, for ISP nodes. */
+    private Key nodeIcon(int rgb) {
+        Key key = Key.of("mccomm_node_" + String.format("%06x", rgb & 0xFFFFFF));
+        if (icons.contains(key) && api.iconRegistry().hasEntry(key)) return key;
+        BufferedImage img = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(new Color(20, 22, 28));
+        g.fillRoundRect(3, 3, 26, 26, 9, 9);
+        g.setColor(new Color(rgb));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(4, 4, 24, 24, 8, 8);
+        g.setStroke(new BasicStroke(2.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.fillOval(14, 20, 4, 4);
+        g.drawArc(9, 14, 14, 14, 45, 90);
+        g.drawArc(5, 9, 22, 22, 45, 90);
+        g.dispose();
+        if (api.iconRegistry().hasEntry(key)) api.iconRegistry().unregister(key);
+        api.iconRegistry().register(key, img);
+        icons.add(key);
+        return key;
     }
 
     /** 2G grey, 3G orange, 4G yellow, 4G+ lime, 5G Low cyan, 5G Mid blue, 5G High purple, mmWave magenta. */

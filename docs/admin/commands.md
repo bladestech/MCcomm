@@ -4,8 +4,9 @@
 
 | Permission | Default | Allows |
 |---|---|---|
-| `mccomm.use` | everyone | `/cell`, `/text`, `/call`, `/internet`, `/carrier`, `/tower`, `/manufacturer` |
+| `mccomm.use` | everyone | `/cell`, `/text`, `/call`, `/internet`, `/carrier`, `/tower`, `/manufacturer`, `/isp`, `/broadband` |
 | `mccomm.carrier.create` | everyone | Creating a carrier |
+| `mccomm.isp.create` | everyone | Starting an ISP |
 | `mccomm.simulate` | op | `/cellsim`: simulated users for roleplay |
 | `mccomm.admin` | op | Managing every carrier, tower and manufacturer; no limits; free installs; `/celladmin`; the simulated revenue toggle |
 
@@ -74,6 +75,30 @@
 | `/manufacturer color <name> <colours...>` | Branding |
 | `/manufacturer employee add\|remove <name> <player>` | Staff |
 | `/manufacturer delete <name> confirm` | Delete outright |
+
+## Home internet
+
+| Command | Description |
+|---|---|
+| `/broadband` (`/wifi`, `/bb`) | Open the router you look at |
+| `/broadband router install [name]` | Make the wall sign you look at a router |
+| `/broadband computer install [name]` | Make it a computer |
+| `/broadband providers\|list\|speedtest\|remove` | Provider list, your devices, a Wi-Fi speed test, remove a device |
+| `/isp create <name> [carrier <carrier>]` | Start an ISP (one per player by default), or a carrier's 5G Home business |
+| `/isp node repair <name> [isp]` | Pay a technician to fix a node fault |
+| `/isp transit [isp]` | Buy a tier of backbone |
+| `/isp peer offer\|accept\|end <isp> [your isp]` | Peering between ISPs |
+| `/isp bundle offer\|accept\|end\|list` | Bundles with carriers |
+| `/isp manage [isp]` | The ISP menu (or just `/isp`) |
+| `/isp node install <dsl\|cable\|fiber\|satellite> <name> [isp]` | Build a node on the sign you look at |
+| `/isp plan add <tech> <price> <mbps> <name...>` | Add a plan |
+| `/isp deposit\|withdraw <amount> [isp]` | Move credits in or out |
+| `/isp info [isp]` · `/isp list` | Details · all ISPs |
+| `/isp employee add\|remove <isp> <player>` | Staff |
+| `/isp color <isp> <colors...>` | Name style |
+| `/isp delete <isp> confirm` | Shut an ISP down |
+
+See [Home internet](../players/home-internet.md) and [Running an ISP](../isps.md).
 
 ## Admin
 

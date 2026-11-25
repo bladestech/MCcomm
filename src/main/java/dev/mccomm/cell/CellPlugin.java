@@ -63,6 +63,9 @@ public final class CellPlugin extends JavaPlugin {
     private DepositMenu deposit;
     private CarrierMenu carrierMenu;
     private InternetService internet;
+    private dev.mccomm.cell.broadband.BroadbandService broadband;
+    private dev.mccomm.cell.broadband.BroadbandMenu broadbandMenu;
+    private dev.mccomm.cell.broadband.ComputerBrowser browser;
     private dev.mccomm.cell.workforce.WorkforceService workforce;
     private dev.mccomm.cell.gui.OperationsMenu operationsMenu;
     private dev.mccomm.cell.market.MarketService market;
@@ -100,6 +103,10 @@ public final class CellPlugin extends JavaPlugin {
         deposit = new DepositMenu(this);
         carrierMenu = new CarrierMenu(this);
         internet = new InternetService(this);
+        broadband = new dev.mccomm.cell.broadband.BroadbandService(this);
+        broadband.store().load();
+        broadbandMenu = new dev.mccomm.cell.broadband.BroadbandMenu(this);
+        browser = new dev.mccomm.cell.broadband.ComputerBrowser(this);
         workforce = new dev.mccomm.cell.workforce.WorkforceService(this);
         workforce.load();
         operationsMenu = new dev.mccomm.cell.gui.OperationsMenu(this);
@@ -114,6 +121,7 @@ public final class CellPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(billing, this);
         Bukkit.getPluginManager().registerEvents(deposit, this);
         Bukkit.getPluginManager().registerEvents(internet, this);
+        Bukkit.getPluginManager().registerEvents(new dev.mccomm.cell.broadband.BroadbandListener(this), this);
         Bukkit.getPluginManager().registerEvents(new Menu.Listen(), this);
         Bukkit.getPluginManager().registerEvents(new dev.mccomm.cell.workforce.FacilityListener(this), this);
 
@@ -126,6 +134,8 @@ public final class CellPlugin extends JavaPlugin {
             r.register("text", "Send an SMS to a player", List.of("sms"), new CommCommands.Text(this));
             r.register("internet", "Chat on the internet (uses mobile data)", List.of("net"), new CommCommands.Internet(this));
             r.register("call", "Start, accept or end a call", List.of(), new CommCommands.Call(this));
+            r.register("isp", "Start and run an internet service provider", List.of(), new dev.mccomm.cell.command.IspCommand(this));
+            r.register("broadband", "Set up internet at home", List.of("wifi", "bb"), new dev.mccomm.cell.command.BroadbandCommand(this));
             r.register("cellsim", "Simulated users for roleplay", List.of(), new CommCommands.Sim(this));
             r.register("facility", "Build and manage company facilities", List.of(), new dev.mccomm.cell.command.FacilityCommand(this));
             r.register("celladmin", "MCcomm admin tools", List.of(), new CommCommands.Admin(this));
@@ -135,6 +145,8 @@ public final class CellPlugin extends JavaPlugin {
         // Upkeep: validate signs/screens every 5 s, autosave every minute.
         Bukkit.getScheduler().runTaskTimer(this, towers::validateLoaded, 40L, 100L);
         Bukkit.getScheduler().runTaskTimer(this, store::saveIfDirty, 1200L, 1200L);
+        Bukkit.getScheduler().runTaskTimer(this, broadband::tick, 100L, 100L);
+        Bukkit.getScheduler().runTaskTimer(this, broadband.store()::saveIfDirty, 1200L, 1200L);
         long bill = settings.billingCheckSeconds * 20L;
         Bukkit.getScheduler().runTaskTimer(this, billing::tick, 100L, bill);
         startSquaremap();
@@ -166,6 +178,10 @@ public final class CellPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (speedTest != null) speedTest.shutdown();
+        if (broadband != null) {
+            broadband.shutdown();
+            broadband.store().save();
+        }
         if (hud != null) hud.shutdown();
         if (workforce != null) workforce.shutdown();
         stopSquaremap();
@@ -207,6 +223,9 @@ public final class CellPlugin extends JavaPlugin {
     public DepositMenu deposit() { return deposit; }
     public CarrierMenu carrierMenu() { return carrierMenu; }
     public InternetService internet() { return internet; }
+    public dev.mccomm.cell.broadband.BroadbandService broadband() { return broadband; }
+    public dev.mccomm.cell.broadband.BroadbandMenu broadbandMenu() { return broadbandMenu; }
+    public dev.mccomm.cell.broadband.ComputerBrowser browser() { return browser; }
     public dev.mccomm.cell.workforce.WorkforceService workforce() { return workforce; }
     public dev.mccomm.cell.gui.OperationsMenu operationsMenu() { return operationsMenu; }
     public dev.mccomm.cell.market.MarketService market() { return market; }

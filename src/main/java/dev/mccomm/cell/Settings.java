@@ -39,6 +39,7 @@ public final class Settings {
     public final dev.mccomm.cell.workforce.WorkforceSettings workforce;
     public final dev.mccomm.cell.market.MarketSettings market;
     public final dev.mccomm.cell.tower.SmallCellSettings smallCells;
+    public final dev.mccomm.cell.broadband.BroadbandSettings broadband;
     public final boolean squaremapEnabled, squaremapCoverage, squaremapPerBand, squaremapCoverageHidden,
             squaremapBandLayers, squaremapBandLayersHidden;
     public final int squaremapIntervalSeconds, squaremapIconSize;
@@ -194,6 +195,7 @@ public final class Settings {
         workforce = dev.mccomm.cell.workforce.WorkforceSettings.read(c);
         market = dev.mccomm.cell.market.MarketSettings.read(c);
         smallCells = dev.mccomm.cell.tower.SmallCellSettings.read(c);
+        broadband = dev.mccomm.cell.broadband.BroadbandSettings.read(c, log);
         capacityPerGen = cap.isEmpty() ? List.of(4, 6, 9, 13, 18) : cap;
         speedtestCooldown = c.getInt("speedtest.cooldown-seconds", 10);
         jitterPercent = c.getDouble("speedtest.jitter-percent", 10);

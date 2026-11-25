@@ -342,7 +342,7 @@ public final class BillingService implements Listener {
         Plan plan = livePlan(prof, carrierId); // renewal moves them onto the live terms
         Subscription sub = prof.sub(carrierId);
         if (plan == null || plan.prepaid()) return 0;
-        return plan.price() + (sub.financing() ? Math.min(sub.financeInstallment(), sub.financeRemaining()) : 0);
+        return plan.price() - plugin.broadband().carrierDiscount(prof.player(), carrierId, plan.price()) + (sub.financing() ? Math.min(sub.financeInstallment(), sub.financeRemaining()) : 0);
     }
 
     private boolean blockIfOverdue(Player p) {
@@ -384,6 +384,7 @@ public final class BillingService implements Listener {
 
     /** Data use on a specific SIM: plan allowance, plus roaming charges if it's on a partner's tower. */
     public DataResult useDataOn(UUID player, dev.mccomm.cell.signal.SignalService.SimStatus sim, double mb) {
+        if (plugin.broadband().offload(player, mb)) return DataResult.OK; // on home Wi-Fi: no mobile data used
         DataResult r = useData(player, sim.carrier().id(), mb);
         if (r != DataResult.BLOCKED && sim.link() != null) plugin.workforce().addTraffic(sim.link().tower(), mb);
         Carrier host = sim.roamingOn();
@@ -422,6 +423,8 @@ public final class BillingService implements Listener {
 
     /** True if this data use would be refused on this SIM (plan rules, or a roaming surcharge they can't pay). */
     public boolean dataBlockedOn(PlayerProfile prof, dev.mccomm.cell.signal.SignalService.SimStatus sim, double mb) {
+        Player onWifi = Bukkit.getPlayer(prof.player());
+        if (onWifi != null && plugin.broadband().onWifi(onWifi)) return false;
         if (dataBlocked(prof, sim.carrier().id(), mb)) return true;
         Plan plan = sim.plan();
         if (sim.roamingOn() != null && plan != null && plan.roamingPerGb() > 0) {
@@ -952,7 +955,7 @@ public final class BillingService implements Listener {
                     }
                     charge = nextCharge(p, c.id());
                     if (p.balance() >= charge) {
-                        collect(p.player(), c, plan.price(), plan.name());
+                        collect(p.player(), c, plan.price() - plugin.broadband().carrierDiscount(p.player(), c.id(), plan.price()), plan.name());
                         if (sub.financing()) {
                             long inst = Math.min(sub.financeInstallment(), sub.financeRemaining());
                             transfer(p.player(), c, inst, "Phone instalment");
@@ -1022,7 +1025,9 @@ public final class BillingService implements Listener {
             plugin.simulation().shift(d);
             plugin.workforce().shift(d);
             plugin.market().shift(d);
+            plugin.broadband().shift(d);
             tick();
+            plugin.broadband().tick();
             ticks++;
         }
         plugin.store().markDirty();

@@ -1,0 +1,101 @@
+# Home internet
+
+Put a router in your house, pick an internet provider, and every computer and phone within Wi-Fi range of it is online. It's separate from your phone's mobile data: **`/internet` over home Wi-Fi uses no data**, and it works without a phone.
+
+## Set it up
+
+1. **Place a wall sign** inside your home, then look at it and run:
+
+    ```
+    /broadband router install [name]
+    ```
+
+    The sign becomes a **router**. You can have up to 3.
+
+2. **Right-click the router** and open the **Providers** tab. Every ISP's plans are listed with a quote for *this exact spot*:
+
+    | The list shows | Meaning |
+    |---|---|
+    | Technology | DSL, Cable, Fiber or Satellite (see below) |
+    | `↓ ~speed` and ms | What you'd get here, and the ping |
+    | Node and distance | Which of the ISP's nodes would serve you |
+    | Price and install fee | Per billing period, plus a one-time fee |
+    | A red reason | Why it can't be ordered here |
+
+3. **Order a plan.** Confirm, and the install fee plus the first period are charged from your wallet. A technician takes about 20 seconds, then the router shows the provider and speed.
+
+4. **Add a computer.** Place another wall sign and run:
+
+    ```
+    /broadband computer install [name]
+    ```
+
+    Within **24 blocks** of the router, it's online. Right-click it to open the computer screen.
+
+## The computer
+
+| Button | Does |
+|---|---|
+| Connection | Provider, plan, download, upload and ping |
+| Speed test | Ping, download and upload over your line. Uses no data |
+| Internet chat | Sends your chat to the [`/internet`](messaging.md) channel. Free over Wi-Fi |
+| Wi-Fi | Cycle between *Automatic* and each router in range |
+
+## Technologies
+
+| | Reach | Best for | Catch |
+|---|---|---|---|
+| **DSL** | ~400 blocks from a node | Villages, cheap | Slows quickly the farther you are |
+| **Cable** | ~800 blocks | Towns | The neighbourhood shares each node: busy times are slower |
+| **Fiber** | ~1500 blocks | Everything | Rare and expensive for ISPs; distance barely matters |
+| **Satellite** | Anywhere | The middle of nowhere | High ping, slow, **needs a clear view of the sky**, and storms cut it |
+| **5G Home** | Wherever the carrier has 5G | No cable to dig | Sold by mobile carriers; only as good as the 5G signal at your door |
+
+Server owners can retune all of this in [Configuration](../admin/config.md).
+
+Every provider has a **star rating** (speed, uptime, value and coverage) on the Providers list. Quotes show the speed and ping you would get *at your router*, and a cabling fee for wired lines (per block from the node).
+
+!!! tip "Dish needs the sky"
+    For satellite, nothing solid may be above the router's sign. Put it on an outside wall under open sky, or on a roof.
+
+## Paying
+
+- Plans renew every period (set by the ISP, often 24 hours) from your wallet.
+- Short on credits? You're warned a few hours before. If a renewal fails the line is **suspended**: no internet, and the sign says so. **Pay now** on the router, or deposit, and it comes straight back. After 12 hours unpaid the line is cut and you pick a provider again.
+- If the ISP is down (it couldn't pay its upkeep), the node is gone, or your dish is blocked, you aren't billed while there's no service.
+- Switching to another plan on the same ISP and technology has no install fee.
+- If the provider changes its plan, you **keep your signed-up terms until your next renewal**, when you're told the new ones.
+- Some plans have a **data allowance**. When it runs out the line slows to a crawl (1 Mbps) until the next renewal; it never cuts off. Speed tests and browsing use it.
+- **Bundles:** if your provider has a bundle with a carrier you're on, the home plan is cheaper (and your mobile renewals are cheaper if you have the provider's home internet).
+- **Outages:** a node can develop a fault, especially in storms. You aren't billed while it's down, and the provider fixes it or re-routes you to another node.
+
+## Wi-Fi
+
+- **Range:** a Wi-Fi 4 router reaches 24 blocks, and every solid block between the router and you costs about 1.5 blocks. Upgrade on the router screen: Wi-Fi 5, 6 and 7 reach farther and allow more guests.
+- **Sharing:** a router is **private** by default. Switch it to *shared* and anyone in range can use it (up to its guest limit), and your computers work for visitors.
+- **Phones on Wi-Fi:** in range of a working router, your phone uses it instead of mobile data (`/internet` and the speed test), and **Wi-Fi calling** lets you call and text with no tower in range.
+- **Show the line** on the router screen draws the cable from the serving node to your house in sparks.
+
+## The browser
+
+On a computer, open **Browser**:
+
+| Page | What |
+|---|---|
+| News | Headlines from the server |
+| Marketplace | Post what you sell (3 listings, 7 days), contact sellers by mail |
+| Mail | Read, reply and write to any player (30 messages kept) |
+
+Pages take as long as your ping and speed make them, and use data on a capped plan.
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `/broadband` (`/wifi`, `/bb`) | Open the router you look at (or your only one) |
+| `/broadband router install [name]` | Make the wall sign you look at a router |
+| `/broadband computer install [name]` | Make the wall sign you look at a computer |
+| `/broadband providers` | Open the router's provider list |
+| `/broadband list` · `speedtest` · `remove` | Your devices, a test over the Wi-Fi in range, remove what you look at |
+
+Want to run a provider instead? See [Running an ISP](../isps.md).

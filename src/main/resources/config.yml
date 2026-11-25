@@ -306,6 +306,207 @@ small-cells:
   research-points: 300
   coverage-weight: 0.5        # how much they count for market coverage
 
+# Home internet. Players start ISPs, build nodes on wall signs, and sell plans. Homes put a
+# router on a wall sign, pick a provider, and then computers and phones within Wi-Fi range
+# are online. Five access technologies, each with its own range, speed, ping and cost.
+# See docs/isps.md and design/broadband.md.
+broadband:
+  enabled: true
+  max-isps-per-player: 1        # admins are exempt; -1 = unlimited
+  max-nodes-per-isp: -1
+  max-plans-per-isp: 8
+  max-routers-per-player: 3
+  max-computers-per-player: 6
+  isp-name-pattern: "^[A-Za-z0-9_&.\\-]{2,20}$"
+  node-name-pattern: "^[A-Za-z0-9_\\-]{1,12}$"
+  node-min-spacing: 16          # blocks between one ISP's nodes of the same technology
+  wifi-range: 24                # blocks that a Wi-Fi 4 router reaches (see wifi.tiers for the others)
+  install-delay-seconds: 20     # the technician's visit between ordering and going live
+  suspend-hours: 12             # a missed renewal suspends the line; it is cut after this long
+  warn-hours-before: 6          # warn this long before a renewal if the wallet is short
+  upkeep-period-hours: 24       # ISPs pay node and transit upkeep this often; unpaid = the whole network is down
+  min-period-hours: 1
+  max-period-hours: 720
+  speedtest-cooldown: 30
+  jitter-percent: 5
+  # Phones and /internet use home Wi-Fi first: no mobile data used, and the phone's speed test
+  # measures the Wi-Fi line. /internet over Wi-Fi works without a phone.
+  phones-use-wifi: true
+  guest-wifi-default: false     # new routers start with Wi-Fi shared with everyone
+  # Node upgrades: each tier multiplies the customers a node serves at full speed.
+  tier-upgrade-percent: 60      # upgrade cost = this % of the node cost, times the current tier
+  tier-upkeep-step: 50          # each tier above 1 adds this % of the base upkeep
+  # A plan with a data allowance drops to this speed once it is used up, until the next renewal.
+  throttle-mbps: 1
+  # Bundles: a deal between an ISP and a carrier. Discount percentages are capped here.
+  bundle-max-discount: 30
+
+  wifi:
+    # With no tower in range, a phone on home Wi-Fi can still call and text (Wi-Fi calling).
+    calling: true
+    # Every solid block between the router and the device costs this many blocks of Wi-Fi range.
+    wall-loss-blocks: 1.5
+    # Router generations, bought from the router screen. range-factor multiplies wifi-range;
+    # max-guests is how many non-owners can use a shared router at once; price is spent.
+    tiers:
+      "1": { name: "Wi-Fi 4", range-factor: 1.0,  max-guests: 2,  price: 0 }
+      "2": { name: "Wi-Fi 5", range-factor: 1.25, max-guests: 4,  price: 80 }
+      "3": { name: "Wi-Fi 6", range-factor: 1.5,  max-guests: 8,  price: 200 }
+      "4": { name: "Wi-Fi 7", range-factor: 2.0,  max-guests: 16, price: 500 }
+
+  # Transit: the backbone an ISP buys, shared by all its customers. When their plan speeds
+  # (times utilization) add up to more than the ISP's capacity, every customer slows down.
+  transit:
+    mbps-per-tier: 1500
+    max-tier: 5
+    upkeep-per-tier: 30         # per upkeep period, for each tier above the first
+    upgrade-cost: 400           # times the current tier
+    utilization: 0.2            # share of plan speed customers use at once
+    peer-bonus: 0.25            # +25% backbone for each peering ISP
+
+  # Faults: nodes break at random (more in storms). A faulted node serves nobody.
+  # The ISP can pay a technician (repair-cost per technology), or a crew fixes it after a while.
+  faults:
+    enabled: true
+    auto-repair-hours: 6
+
+  # 5G Home: a carrier-backed ISP (/isp create <name> carrier <carrier>) sells plans over
+  # the carrier's towers. Speed comes from the signal at the home (indoor loss applied).
+  fixed-wireless:
+    indoor-loss-db: 8
+
+  # Simulated households that choose ISPs by rating, load nodes and pay plans. 0 = off.
+  market:
+    households: 0
+    step-minutes: 30
+    pays: true
+
+  # The computer's browser: news, a marketplace and mail.
+  browser:
+    enabled: true
+    page-mb: 4                  # data a page uses (a capped plan's allowance)
+    max-listings: 60
+    listings-per-player: 3
+    listing-days: 7
+    mail-inbox: 30
+    mail-length: 200
+    news:
+      - "Welcome to the web! Home internet is open for business."
+      - "ISPs: keep your upkeep paid and your nodes repaired, or customers will leave."
+      - "Tip: the Providers tab on a router shows every provider's rating and a quote for your exact spot."
+
+  #   range         blocks from a node a home can be (0 = anywhere in the world)
+  #   max-mbps      speed with perfect conditions, before the plan's own cap
+  #   falloff       how distance costs speed: factor = 1 - (distance/range)^falloff * (1 - min-factor)
+  #                 1 = linear (DSL), 4 = nearly flat then a cliff (fiber), 0 = no effect (satellite)
+  #   min-factor    share of the speed kept at the very edge of the range
+  #   needs-sky     the router needs a clear view of the sky (a dish)
+  #   rain-factor / thunder-factor   speed multiplier in rain / thunderstorms
+  #   node-capacity customers one node serves at full speed (times its tier). For fixed-wireless:
+  #                 customers per carrier tower
+  #   node-cost     paid from the ISP's balance (admins build free)
+  #   node-upkeep   per upkeep period
+  #   install-fee   default installation fee of a plan
+  #   starter-price price of the plan a new ISP starts with, per day
+  #   drop-cost-per-block   last mile: the customer pays this per block from the node to the home
+  #   fault-chance-per-hour chance per hour that a node develops a fault
+  #   storm-fault-factor    multiplier on that in a storm (aerial copper and coax suffer most)
+  #   repair-cost   a technician fixes a fault at once, paid by the ISP
+  technologies:
+    dsl:
+      name: "DSL"
+      icon: COPPER_INGOT
+      description: "Phone-line copper. Cheap and everywhere near an exchange, but speed drops fast with distance."
+      range: 400
+      max-mbps: 40
+      upload-ratio: 0.1
+      ping-ms: 30
+      falloff: 1.0
+      min-factor: 0.1
+      node-capacity: 40
+      node-cost: 150
+      node-upkeep: 3
+      install-fee: 10
+      starter-price: 10
+      max-tier: 3
+      drop-cost-per-block: 0.05
+      fault-chance-per-hour: 0.01
+      storm-fault-factor: 4
+      repair-cost: 40
+    cable:
+      name: "Cable"
+      icon: LEAD
+      description: "Coaxial cable. Fast and fairly steady, but the neighbourhood shares each node."
+      range: 800
+      max-mbps: 400
+      upload-ratio: 0.1
+      ping-ms: 15
+      falloff: 2.0
+      min-factor: 0.5
+      node-capacity: 25
+      node-cost: 450
+      node-upkeep: 6
+      install-fee: 25
+      starter-price: 25
+      max-tier: 3
+      drop-cost-per-block: 0.15
+      fault-chance-per-hour: 0.01
+      storm-fault-factor: 3
+      repair-cost: 100
+    fiber:
+      name: "Fiber"
+      icon: END_ROD
+      description: "Light down glass. Huge speeds and tiny ping that barely care about distance, but nodes are costly."
+      range: 1500
+      max-mbps: 2000
+      upload-ratio: 1.0
+      ping-ms: 4
+      falloff: 4.0
+      min-factor: 0.9
+      node-capacity: 80
+      node-cost: 1500
+      node-upkeep: 12
+      install-fee: 80
+      starter-price: 55
+      max-tier: 3
+      drop-cost-per-block: 0.4
+      fault-chance-per-hour: 0.002
+      storm-fault-factor: 1
+      repair-cost: 300
+    satellite:
+      name: "Satellite"
+      icon: SPYGLASS
+      description: "A dish and a view of the sky. Works anywhere in the world, but slow, laggy and weather-sensitive."
+      range: 0
+      max-mbps: 120
+      upload-ratio: 0.2
+      ping-ms: 550
+      falloff: 0
+      min-factor: 1.0
+      needs-sky: true
+      rain-factor: 0.5
+      thunder-factor: 0.2
+      node-capacity: 20
+      node-cost: 900
+      node-upkeep: 10
+      install-fee: 60
+      starter-price: 30
+      max-tier: 3
+      drop-cost-per-block: 0
+      fault-chance-per-hour: 0.004
+      storm-fault-factor: 2
+      repair-cost: 200
+    fixed-wireless:
+      name: "5G Home"
+      icon: BLAZE_ROD
+      description: "Home internet over a mobile carrier's towers. No cable to dig, but it is only as good as the signal at your door."
+      max-mbps: 1000              # the most a home line delivers, whatever the signal
+      upload-ratio: 0.3
+      ping-ms: 25
+      node-capacity: 12           # customers per carrier tower at full speed
+      install-fee: 20
+      starter-price: 35
+
 # Owning companies: moving money, valuations, selling and liquidating.
 companies:
   # Fee on moving money between yourself and your carrier/manufacturer (either way).

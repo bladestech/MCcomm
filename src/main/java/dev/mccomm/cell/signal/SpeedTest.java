@@ -27,6 +27,13 @@ public final class SpeedTest {
 
     public void start(Player p, int simSlot) {
         UUID id = p.getUniqueId();
+        if (simSlot <= 0 && plugin.settings().broadband.phonesUseWifi()) { // on home Wi-Fi the phone tests the Wi-Fi line
+            var wifi = plugin.broadband().wifiLink(p);
+            if (wifi != null) {
+                plugin.broadband().speedtest(p, wifi);
+                return;
+            }
+        }
         if (running.containsKey(id)) {
             Msg.send(p, "<red>A speed test is already running.");
             return;

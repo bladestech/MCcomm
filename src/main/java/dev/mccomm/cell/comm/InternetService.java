@@ -2,6 +2,7 @@ package dev.mccomm.cell.comm;
 
 import dev.mccomm.cell.CellPlugin;
 import dev.mccomm.cell.Settings;
+import dev.mccomm.cell.broadband.BroadbandService;
 import dev.mccomm.cell.economy.BillingService;
 import dev.mccomm.cell.economy.PhoneModel;
 import dev.mccomm.cell.model.Carrier;
@@ -44,13 +45,28 @@ public final class InternetService implements Listener {
             Msg.send(p, "<gray>Internet mode <red>off</red>. Your chat goes to the public server chat again.");
         } else {
             mode.add(p.getUniqueId());
-            Msg.send(p, "<gray>Internet mode <green>on</green>. Your chat now goes to the internet (costs data). <white>/internet</white> to switch back.");
+            Msg.send(p, "<gray>Internet mode <green>on</green>. Your chat now goes to the internet (free over home Wi-Fi, otherwise it costs mobile data). <white>/internet</white> to switch back.");
         }
+    }
+
+    /** The home Wi-Fi connection that reaches this player, or null (also null when Wi-Fi use is switched off in config). */
+    private BroadbandService.Link wifi(Player p) {
+        return plugin.settings().broadband.phonesUseWifi() ? plugin.broadband().wifiLink(p) : null;
     }
 
     /** Sends a message to the internet channel. Must run on the main thread. */
     public void send(Player from, String text) {
         if (text.length() > plugin.settings().internetMaxLength) text = text.substring(0, plugin.settings().internetMaxLength);
+        BroadbandService.Link home = wifi(from);
+        if (home != null) {
+            // Home internet: no mobile data used, and the delay comes from the home line's ping.
+            Component homeLine = formatHome(from, home, text);
+            long homeDelay = Math.max(1, Math.round(home.pingMs() / 50.0));
+            final String homeMsg = text;
+            UUID homeSender = from.getUniqueId();
+            Bukkit.getScheduler().runTaskLater(plugin, () -> deliver(homeSender, homeLine, homeMsg), homeDelay);
+            return;
+        }
         SignalService.Status st = plugin.signal().status(from);
         SignalService.SimStatus sim = st.primary();
         if (sim == null) {
@@ -81,11 +97,25 @@ public final class InternetService implements Listener {
                 to.sendMessage(line);
                 continue;
             }
+            if (wifi(to) != null) { // on home Wi-Fi: free
+                to.sendMessage(line);
+                continue;
+            }
             SignalService.SimStatus sim = plugin.signal().status(to).primary();
             if (sim == null) continue; // offline from the internet: they miss it
             if (plugin.billing().useDataOn(to.getUniqueId(), sim, cost) == BillingService.DataResult.BLOCKED) continue;
             to.sendMessage(line);
         }
+    }
+
+    /** [NET] name Provider Tech: message (hover the name for the plan and speed). */
+    private Component formatHome(Player from, BroadbandService.Link l, String text) {
+        String tech = plugin.settings().broadband.spec(l.tech()).name();
+        Component hover = Msg.mm("<white><n>\n<gray>Provider: " + l.isp().styled() + "\n<gray>Plan: <white><plan>\n<gray>Line: <white><tech> <gray>· <white><speed>",
+                Msg.p("n", from.getName()), Msg.p("plan", l.plan().name()), Msg.p("tech", tech), Msg.p("speed", Msg.speed(l.downMbps())));
+        return Msg.mm("<dark_aqua>[NET]</dark_aqua> <white><hoverable></white> " + l.isp().styled() + " <dark_gray><tech></dark_gray><gray>: <white><m>",
+                Msg.c("hoverable", Component.text(from.getName()).hoverEvent(HoverEvent.showText(hover))),
+                Msg.p("tech", tech), Msg.p("m", text));
     }
 
     /** [NET] name Carrier P+: message (hover the name for the phone and band). */
