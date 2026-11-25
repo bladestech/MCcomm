@@ -107,7 +107,7 @@ public final class CompanyService {
             Msg.send(p, "<red>Not enough: <white><b></white> available.", Msg.p("b", s().money(have)));
             return;
         }
-        long owedWages = plugin.workforce().state(c.id()).wagesOwed();
+        long owedWages = plugin.workforce().owedWages(c.id());
         if (toOwner && owedWages > 0) {
             Msg.send(p, "<red><c> owes <white><o></white> in wages and rent. Pay your staff before taking money out.",
                     Msg.p("c", c.name()), Msg.p("o", s().money(owedWages)));
@@ -217,7 +217,7 @@ public final class CompanyService {
         for (Tower t : plugin.store().towersOf(c.id())) towers += towerCost(t);
         parts.put("Towers (" + plugin.store().towersOf(c.id()).size() + ")", towers);
         parts.put("Tower stock", stockValue(c));
-        long owed = plugin.workforce().state(c.id()).wagesOwed();
+        long owed = plugin.workforce().owedWages(c.id());
         if (owed > 0) parts.put("Wages owed", -owed);
         long net = netPerDay(c);
         parts.put(s().valuationDays + " days of net income", Math.max(0, net) * s().valuationDays);
@@ -316,7 +316,7 @@ public final class CompanyService {
     /** When a carrier went into default (upkeep or wages unpaid), or 0 if it's paid up. */
     public long defaultSince(Carrier c) {
         long since = c.unpaidSince();
-        long owed = plugin.workforce().state(c.id()).owedSince();
+        long owed = plugin.workforce().owedSince(c.id());
         if (owed > 0 && (since == 0 || owed < since)) since = owed;
         return since;
     }

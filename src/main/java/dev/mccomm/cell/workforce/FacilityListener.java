@@ -49,6 +49,10 @@ public final class FacilityListener implements Listener {
         if (f == null) return;
         e.setCancelled(true);
         Player p = e.getPlayer();
+        if (!wf().enabled()) {
+            Msg.send(p, "<gray>Maintenance, technicians and staff are switched off on this server.");
+            return;
+        }
         Carrier c = plugin.store().carrier(f.companyId());
         if (c != null && canManage(p, f)) {
             plugin.operationsMenu().facility(p, c, f);

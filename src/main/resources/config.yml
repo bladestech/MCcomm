@@ -626,6 +626,10 @@ upkeep:
 # traffic they carry; technicians sent from your maintenance stations repair them.
 # Wages, rent and repair parts are spent (they leave the economy).
 workforce:
+  # The master switch. false turns all of it off: no tower wear, no repair jobs, no
+  # technicians, staff, stations, wages, rent or transit costs, and the Operations screens
+  # are hidden. Stations and staff already built stay saved and everything is paused (not
+  # backdated) until you switch it back on. Same as: /celladmin workforce on|off
   enabled: true
   wear:
     # Wear points per day (a tower goes from 0 to 100). Simulated users count fully

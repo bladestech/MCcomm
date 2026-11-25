@@ -68,6 +68,8 @@ public final class WorkforceService {
     private final Map<String, Set<Integer>> hiredCandidates = new HashMap<>();
     private int nextFacilityId = 1, nextEmployeeId = 1;
 
+    private long frozenAt; // last tick while the workforce was switched off, 0 = running
+
     public WorkforceService(CellPlugin plugin) {
         this.plugin = plugin;
         this.techKey = new NamespacedKey(plugin, "technician");
@@ -128,7 +130,17 @@ public final class WorkforceService {
     public Facility facility(int id) { return facilities.get(id); }
     public Facility facilityAt(Block b) { return b == null ? null : facilityByBlock.get(BlockKey.of(b)); }
     public Collection<Employee> employees() { return employees.values(); }
-    public RepairJob job(Tower t) { return jobs.get(t.id()); }
+    public RepairJob job(Tower t) { return enabled() ? jobs.get(t.id()) : null; }
+
+    /** Wages and rent a company owes. Always 0 while the workforce is switched off. */
+    public long owedWages(String companyId) {
+        return enabled() ? state(companyId).wagesOwed() : 0;
+    }
+
+    /** When a company started owing wages (0 = not owing, or the workforce is switched off). */
+    public long owedSince(String companyId) {
+        return enabled() ? state(companyId).owedSince() : 0;
+    }
     public Collection<RepairJob> jobs() { return jobs.values(); }
 
     public List<Facility> facilitiesOf(String companyId) {
@@ -181,11 +193,12 @@ public final class WorkforceService {
     /** Money kept back before paying for repairs: upkeep, wages owed and the next payday. */
     public long repairReserve(Carrier c) {
         StaffState st = states.get(c.id());
-        return upkeepReserve(c) + (st == null ? 0 : st.wagesOwed()) + dailyCost(c.id());
+        return upkeepReserve(c) + (st == null || !enabled() ? 0 : st.wagesOwed()) + dailyCost(c.id());
     }
 
     /** Wages plus rent per day. */
     public long dailyCost(String companyId) {
+        if (!enabled()) return 0;
         long sum = 0;
         for (Employee e : staffOf(companyId)) sum += e.wage();
         for (Facility f : facilitiesOf(companyId)) sum += rent(f);
@@ -293,7 +306,14 @@ public final class WorkforceService {
 
     /** Runs with the billing tick (every minute, and every step of a timewarp). */
     public void tick(long now) {
-        if (!enabled()) return;
+        if (!enabled()) {
+            // Switched off: freeze every schedule (wear, jobs, paydays) so that switching it back on
+            // doesn't backdate the whole off period at once.
+            if (frozenAt > 0 && now > frozenAt) shift(-(now - frozenAt));
+            frozenAt = now;
+            return;
+        }
+        frozenAt = 0;
         countSubscribers();
         accrueWear(now);
         recheckFacilities(now);
@@ -507,6 +527,7 @@ public final class WorkforceService {
 
     /** After money comes in: pays owed wages and rent at once, and staff go back to work. */
     public void retryWages(Carrier c) {
+        if (!enabled()) return;
         StaffState st = states.get(c.id());
         if (st == null || st.wagesOwed() <= 0 || c.balance() - st.wagesOwed() < upkeepReserve(c)) return;
         long owed = st.wagesOwed();
@@ -788,6 +809,7 @@ public final class WorkforceService {
 
     /** What liquidation must settle first: wages and rent owed plus severance for everyone. */
     public long liquidationCost(String companyId) {
+        if (!enabled()) return 0;
         StaffState st = states.get(companyId);
         long sum = st == null ? 0 : st.wagesOwed();
         for (Employee e : staffOf(companyId)) sum += severance(e);

@@ -258,17 +258,38 @@ public final class CommCommands {
                     plugin.billing().tick();
                     Msg.send(s, "<green>Billing check ran.");
                 }
-                default -> Msg.send(s, "<red>Usage: /celladmin reload | save | credits | carriercredits | givephone | billing | timewarp");
+                case "workforce" -> {
+                    boolean now = plugin.settings().workforce.enabled();
+                    if (args.length < 2) {
+                        Msg.send(s, "<gray>Maintenance, technicians, staff and tower wear are <state>. <white>/celladmin workforce on|off</white> to change it.",
+                                Msg.p("state", now ? "ON" : "OFF"));
+                        return;
+                    }
+                    boolean on;
+                    if (args[1].equalsIgnoreCase("on")) on = true;
+                    else if (args[1].equalsIgnoreCase("off")) on = false;
+                    else {
+                        Msg.send(s, "<red>Usage: /celladmin workforce on|off");
+                        return;
+                    }
+                    plugin.getConfig().set("workforce.enabled", on);
+                    plugin.saveConfig();
+                    plugin.reloadSettings();
+                    Msg.send(s, on ? "<green>Maintenance, technicians and tower wear are back on."
+                            : "<yellow>Maintenance, technicians, staff costs and tower wear are off. Existing stations and staff stay saved, and everything is paused until you turn it back on.");
+                }
+                default -> Msg.send(s, "<red>Usage: /celladmin reload | save | credits | carriercredits | givephone | billing | timewarp | workforce");
             }
         }
 
         @Override
         public Collection<String> suggest(CommandSourceStack src, String[] args) {
-            if (args.length <= 1) return filter(List.of("reload", "save", "credits", "carriercredits", "givephone", "billing", "timewarp"), args.length == 0 ? "" : args[0]);
+            if (args.length <= 1) return filter(List.of("reload", "save", "credits", "carriercredits", "givephone", "billing", "timewarp", "workforce"), args.length == 0 ? "" : args[0]);
             String sub = args[0].toLowerCase(Locale.ROOT);
             if (args.length == 2 && (sub.equals("credits") || sub.equals("givephone"))) return filter(onlineNames(), args[1]);
             if (args.length == 2 && sub.equals("carriercredits")) return filter(carrierNames(), args[1]);
             if (args.length == 3 && sub.equals("givephone")) return filter(plugin.settings().phones.keySet(), args[2]);
+            if (args.length == 2 && sub.equals("workforce")) return filter(List.of("on", "off"), args[1]);
             return List.of();
         }
     }
