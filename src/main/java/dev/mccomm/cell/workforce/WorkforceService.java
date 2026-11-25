@@ -800,6 +800,28 @@ public final class WorkforceService {
         plugin.store().markDirty();
     }
 
+    /**
+     * Sets every tower's wear back to 0 and cancels all repair jobs (technicians go free).
+     * Used when switching the workforce off for good. Returns how many towers had wear.
+     */
+    public int resetWear() {
+        int worn = 0;
+        for (Tower t : plugin.store().towers()) {
+            if (t.wear() > 0) worn++;
+            t.wear(0);
+        }
+        for (Integer id : new ArrayList<>(jobs.keySet())) removeFigure(id);
+        jobs.clear();
+        lastStage.clear();
+        for (Employee e : employees.values()) {
+            e.jobTower(0);
+            e.busyUntil(0);
+        }
+        plugin.store().markDirty();
+        plugin.towers().refreshAll();
+        return worn;
+    }
+
     public void towerRemoved(Tower t) {
         jobs.remove(t.id());
         lastStage.remove(t.id());

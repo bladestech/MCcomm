@@ -112,5 +112,6 @@ See [Home internet](../players/home-internet.md) and [Running an ISP](../isps.md
 | `/celladmin givephone <player> <model>` | Give a phone (worth nothing on resale) |
 | `/celladmin billing` | Run the billing check now |
 | `/celladmin timewarp <days>` | Fast-forward the economy (see [Data, backups and testing](data.md)) |
-| `/celladmin workforce [on\|off]` | Show, or switch, tower wear, technicians, staff and stations ([Operations](../carriers/operations.md)) |
+| `/celladmin workforce [on\|off [reset]]` | Show, or switch, tower wear, technicians, staff and stations. `off reset` also clears all tower wear ([Operations](../carriers/operations.md)) |
+| `/celladmin workforce reset` | Set every tower's wear to 0 and cancel all repair jobs |
 | `/cellsim` | [Simulated users](simulation.md) |

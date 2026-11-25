@@ -5,7 +5,7 @@ repair them: **field technicians**, working out of **maintenance stations** you 
 on the map. Tower wear and facilities are on the **Network** tab of `/carrier manage`, hiring on the **Staff** tab.
 
 !!! tip "Turning it off"
-    Server owners can switch all of this off with `workforce.enabled: false` in `config.yml`, or in game with `/celladmin workforce off` (and `on` again). While it is off there is no tower wear, no repair jobs, and no technicians, staff, wages, rent or transit costs, and the Staff and Facilities screens are hidden. Stations and staff already built stay saved, and everything is **paused** (not backdated) until you turn it back on. Towers still pay their normal upkeep.
+    Server owners can switch all of this off with `workforce.enabled: false` in `config.yml`, or in game with `/celladmin workforce off` (and `on` again). Add `reset` (`/celladmin workforce off reset`) to also set every tower's wear back to 0 and cancel all repair jobs; `/celladmin workforce reset` does just that at any time. While it is off there is no tower wear, no repair jobs, and no technicians, staff, wages, rent or transit costs, and the Staff and Facilities screens are hidden. Stations and staff already built stay saved, and everything is **paused** (not backdated) until you turn it back on. Towers still pay their normal upkeep.
 
 ## Wear
 

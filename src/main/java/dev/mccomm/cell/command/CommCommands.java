@@ -261,20 +261,29 @@ public final class CommCommands {
                 case "workforce" -> {
                     boolean now = plugin.settings().workforce.enabled();
                     if (args.length < 2) {
-                        Msg.send(s, "<gray>Maintenance, technicians, staff and tower wear are <state>. <white>/celladmin workforce on|off</white> to change it.",
+                        Msg.send(s, "<gray>Maintenance, technicians, staff and tower wear are <state>. <white>/celladmin workforce on|off [reset]</white> to change it, or <white>/celladmin workforce reset</white> to clear all wear.",
                                 Msg.p("state", now ? "ON" : "OFF"));
                         return;
                     }
                     boolean on;
+                    boolean reset = args[1].equalsIgnoreCase("reset") || (args.length > 2 && args[2].equalsIgnoreCase("reset"));
                     if (args[1].equalsIgnoreCase("on")) on = true;
                     else if (args[1].equalsIgnoreCase("off")) on = false;
-                    else {
-                        Msg.send(s, "<red>Usage: /celladmin workforce on|off");
+                    else if (args[1].equalsIgnoreCase("reset")) {
+                        int n = plugin.workforce().resetWear();
+                        Msg.send(s, "<green>Reset the wear of <n> worn tower(s) and cancelled all repair jobs.", Msg.p("n", "" + n));
+                        return;
+                    } else {
+                        Msg.send(s, "<red>Usage: /celladmin workforce on|off [reset] | reset");
                         return;
                     }
                     plugin.getConfig().set("workforce.enabled", on);
                     plugin.saveConfig();
                     plugin.reloadSettings();
+                    if (!on && reset) {
+                        int n = plugin.workforce().resetWear();
+                        Msg.send(s, "<gray>Tower wear reset on <n> tower(s); repair jobs cancelled.", Msg.p("n", "" + n));
+                    }
                     Msg.send(s, on ? "<green>Maintenance, technicians and tower wear are back on."
                             : "<yellow>Maintenance, technicians, staff costs and tower wear are off. Existing stations and staff stay saved, and everything is paused until you turn it back on.");
                 }
@@ -289,7 +298,8 @@ public final class CommCommands {
             if (args.length == 2 && (sub.equals("credits") || sub.equals("givephone"))) return filter(onlineNames(), args[1]);
             if (args.length == 2 && sub.equals("carriercredits")) return filter(carrierNames(), args[1]);
             if (args.length == 3 && sub.equals("givephone")) return filter(plugin.settings().phones.keySet(), args[2]);
-            if (args.length == 2 && sub.equals("workforce")) return filter(List.of("on", "off"), args[1]);
+            if (args.length == 2 && sub.equals("workforce")) return filter(List.of("on", "off", "reset"), args[1]);
+            if (args.length == 3 && sub.equals("workforce") && args[1].equalsIgnoreCase("off")) return filter(List.of("reset"), args[2]);
             return List.of();
         }
     }
