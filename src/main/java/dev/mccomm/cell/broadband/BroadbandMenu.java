@@ -346,6 +346,20 @@ public final class BroadbandMenu {
                     store().markDirty();
                     again.run();
                 }));
+        int pos = dev.mccomm.cell.util.Reorder.indexOf(isp.plans(), pl.id());
+        int total = isp.plans().size();
+        m.set(40, Items.of(Material.SPECTRAL_ARROW, "<white>Move earlier", "<gray>Position <white>" + (pos + 1) + "<gray> of <white>" + total,
+                "<gray>Plans show in this order to customers.", "<yellow>Click · up one · <yellow>Shift-click · to the top"), e -> {
+            Frame.click(p);
+            if (dev.mccomm.cell.util.Reorder.move(isp.plans(), pl.id(), e.isShiftClick() ? -total : -1)) store().markDirty();
+            again.run();
+        });
+        m.set(42, Items.of(Material.ARROW, "<white>Move later", "<gray>Position <white>" + (pos + 1) + "<gray> of <white>" + total,
+                "<gray>Plans show in this order to customers.", "<yellow>Click · down one · <yellow>Shift-click · to the bottom"), e -> {
+            Frame.click(p);
+            if (dev.mccomm.cell.util.Reorder.move(isp.plans(), pl.id(), e.isShiftClick() ? total : 1)) store().markDirty();
+            again.run();
+        });
         Frame.back(m, p, "Plans", () -> isp(p, isp, PLANS, 0));
         m.open(p);
     }

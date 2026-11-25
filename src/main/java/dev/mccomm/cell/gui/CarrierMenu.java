@@ -749,6 +749,22 @@ public final class CarrierMenu {
             }
         }
 
+        // ---- order in the plan lists (here and on the phone)
+        int pos = dev.mccomm.cell.util.Reorder.indexOf(c.plans(), plan.id());
+        int total = c.plans().size();
+        m.set(38, Items.of(Material.SPECTRAL_ARROW, "<white>Move earlier", "<gray>Position <white>" + (pos + 1) + "<gray> of <white>" + total,
+                "<gray>Plans show in this order to subscribers.", "<yellow>Click · up one · <yellow>Shift-click · to the top"), e -> {
+            click(p);
+            if (dev.mccomm.cell.util.Reorder.move(c.plans(), plan.id(), e.isShiftClick() ? -total : -1)) plugin.store().markDirty();
+            editor(p, c, plan);
+        });
+        m.set(42, Items.of(Material.ARROW, "<white>Move later", "<gray>Position <white>" + (pos + 1) + "<gray> of <white>" + total,
+                "<gray>Plans show in this order to subscribers.", "<yellow>Click · down one · <yellow>Shift-click · to the bottom"), e -> {
+            click(p);
+            if (dev.mccomm.cell.util.Reorder.move(c.plans(), plan.id(), e.isShiftClick() ? total : 1)) plugin.store().markDirty();
+            editor(p, c, plan);
+        });
+
         Frame.help(m, "Editing a plan", "Changes in subscribers' favour apply", "now; anything worse applies at their",
                 "next renewal (they're told).", "", "Simulated customers pick plans evenly,", "so every plan counts towards your price.");
         m.open(p);

@@ -62,6 +62,10 @@ In the management screen, turn on the **Trade-in program** and set a **rate** (d
 - Subscribers get one summary message about a minute after you stop editing.
 - **A plan's type can't be changed** while it has subscribers. Create a new plan instead.
 
+## Ordering plans
+
+Plans show to subscribers in the order they appear in your list. Open a plan and use **Move earlier** and **Move later** (shift-click to jump to the top or bottom) to put your best offers first. The order is saved.
+
 ## Deleting a plan
 
 Shift-right-click it twice. Its subscribers drop to "no plan" (no service, **no debt**) and are told to choose another.
