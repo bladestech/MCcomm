@@ -30,6 +30,8 @@ public final class BroadbandStore {
     private final Map<UUID, List<Mail>> mail = new HashMap<>();
     private final List<Listing> listings = new ArrayList<>();
     private int nextNode = 1, nextRouter = 1, nextComputer = 1, nextListing = 1;
+    /** Each player's chosen Wi-Fi: a router id, or 0 = deliberately disconnected. No entry = automatic. */
+    private final Map<UUID, Integer> wifiChoice = new HashMap<>();
     private long marketAt; // last market step (epoch ms)
     private boolean dirty;
 
@@ -180,6 +182,8 @@ public final class BroadbandStore {
     // ---------------------------------------------------------------- devices
 
     public Device deviceAt(BlockKey key) { return byBlock.get(key); }
+
+    public Map<UUID, Integer> wifiChoice() { return wifiChoice; }
 
     // ------------------------------------------------------------ mail, listings
 
@@ -334,6 +338,17 @@ public final class BroadbandStore {
             }
         }
 
+        ConfigurationSection ws = y.getConfigurationSection("wifi-choice");
+        if (ws != null) {
+            for (String key : ws.getKeys(false)) {
+                try {
+                    wifiChoice.put(UUID.fromString(key), Math.max(0, ws.getInt(key)));
+                } catch (IllegalArgumentException ignored) {
+                    // a bad UUID: skip it
+                }
+            }
+        }
+
         ConfigurationSection ms = y.getConfigurationSection("mail");
         if (ms != null) {
             for (String key : ms.getKeys(false)) {
@@ -479,6 +494,7 @@ public final class BroadbandStore {
             y.set(p + "router", c.routerId());
             y.set(p + "created-at", c.createdAt());
         }
+        for (Map.Entry<UUID, Integer> e : wifiChoice.entrySet()) y.set("wifi-choice." + e.getKey(), e.getValue());
         for (Map.Entry<UUID, List<Mail>> e : mail.entrySet()) {
             if (e.getValue().isEmpty()) continue;
             List<Map<String, Object>> out = new ArrayList<>();

@@ -83,7 +83,8 @@
 | `/broadband` (`/wifi`, `/bb`) | Open the router you look at |
 | `/broadband router install [name]` | Make the wall sign you look at a router |
 | `/broadband computer install [name]` | Make it a computer |
-| `/broadband providers\|list\|speedtest\|remove` | Provider list, your devices, a Wi-Fi speed test, remove a device |
+| `/broadband connect [name\|auto]` · `disconnect` | List the Wi-Fi in range and join one (shown on the HUD), or leave Wi-Fi |
+| `/broadband providers\|list\|speedtest\|remove` | Provider list, your devices, a Wi-Fi speed test (like `/cell speedtest`), remove a device |
 | `/isp create <name> [carrier <carrier>]` | Start an ISP (one per player by default), or a carrier's 5G Home business |
 | `/isp node repair <name> [isp]` | Pay a technician to fix a node fault |
 | `/isp transit [isp]` | Buy a tier of backbone |

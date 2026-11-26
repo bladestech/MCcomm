@@ -75,7 +75,7 @@ public record BroadbandSettings(
     public record WifiTier(String name, double rangeFactor, int maxGuests, long price) {
     }
 
-    public record Wifi(boolean calling, double wallLoss, List<WifiTier> tiers) {
+    public record Wifi(boolean calling, boolean autoConnect, double wallLoss, List<WifiTier> tiers) {
     }
 
     public record Transit(double mbpsPerTier, int maxTier, long upkeepPerTier, long upgradeCost,
@@ -183,7 +183,7 @@ public record BroadbandSettings(
             tiers.add(new WifiTier("Wi-Fi 6", 1.5, 8, 200));
             tiers.add(new WifiTier("Wi-Fi 7", 2.0, 16, 500));
         }
-        Wifi wifi = new Wifi(wf == null || wf.getBoolean("calling", true), wf == null ? 1.5 : Math.max(0, wf.getDouble("wall-loss-blocks", 1.5)), List.copyOf(tiers));
+        Wifi wifi = new Wifi(wf == null || wf.getBoolean("calling", true), wf == null || wf.getBoolean("auto-connect", true), wf == null ? 1.5 : Math.max(0, wf.getDouble("wall-loss-blocks", 1.5)), List.copyOf(tiers));
 
         ConfigurationSection tr = s.getConfigurationSection("transit");
         Transit transit = new Transit(

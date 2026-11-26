@@ -86,8 +86,9 @@ public final class HudService {
      *    -78 dBm · 312 m · LF1
      *    Plan · 3.2 GB             (plan in its style, data left)
      *
-     *  Wi-Fi |||| Home Cord        (when on home Wi-Fi: bars and the router's name)
-     *    Home Cord ISP · 940 Mbps
+     *  » Home Cord · Wi-Fi         (when connected to home Wi-Fi: its own block)
+     *    |||| Wi-Fi 6              (bars, router generation)
+     *    Cordline Fiber · 940 Mbps (provider, line speed)
      *
      *  ☎ Bob                       (in a call)
      *  Pilot+ · 14:05              (phone, in-game time)
@@ -137,10 +138,12 @@ public final class HudService {
         }
         var wifi = wifiOf(p);
         if (wifi != null) {
+            // Its own block, laid out like a SIM: name, signal, then the line behind it.
             out.add(Component.empty());
-            out.add(Msg.mm(" <aqua>Wi-Fi</aqua> " + Msg.bars(plugin.broadband().wifiBars(wifi.router(), p.getLocation())) + " <white><n>",
-                    Msg.p("n", wifi.router().name())));
-            out.add(Msg.mm("   <gray><isp> <dark_gray>·</dark_gray> <s>", Msg.p("isp", wifi.isp().name()), Msg.p("s", Msg.speed(wifi.downMbps()))));
+            out.add(Msg.mm(" <dark_gray>»</dark_gray> <white><n></white> <dark_gray>·</dark_gray> <aqua>Wi-Fi", Msg.p("n", wifi.router().name())));
+            out.add(Msg.mm("   " + Msg.bars(plugin.broadband().wifiBars(wifi.router(), p.getLocation())) + " <white><gen>",
+                    Msg.p("gen", plugin.settings().broadband.tier(wifi.router().tier()).name())));
+            out.add(Msg.mm("   <gray><isp> <dark_gray>·</dark_gray> <spd>", Msg.p("isp", wifi.isp().name()), Msg.p("spd", Msg.speed(wifi.downMbps()))));
         }
         out.add(Component.empty());
         String partner = plugin.calls().partnerName(p);

@@ -77,6 +77,8 @@ Every provider has a **star rating** (speed, uptime, value and coverage) on the 
 - **Range:** a Wi-Fi 4 router reaches 24 blocks, and every solid block between the router and you costs about 1.5 blocks. Upgrade on the router screen: Wi-Fi 5, 6 and 7 reach farther and allow more guests.
 - **Sharing:** a router is **private** by default. Switch it to *shared* and anyone in range can use it (up to its guest limit), and your computers work for visitors.
 - **Phones on Wi-Fi:** in range of a working router, your phone uses it instead of mobile data (`/internet` and the speed test), and **Wi-Fi calling** lets you call and text with no tower in range.
+- **Choosing a network:** `/broadband connect` lists the Wi-Fi in range (bars, provider, speed; click one to join). `/broadband connect <name>` joins it, `/broadband connect auto` lets your phone pick the best again, and `/broadband disconnect` puts you back on mobile data. The network you're connected to is what the sidebar shows. Your choice is remembered, and you rejoin when you walk back into range.
+- **Speed test:** `/broadband speedtest` runs the same animated ping, download and upload test as `/cell speedtest`, over the Wi-Fi you're connected to. It uses the router's data allowance on a capped plan.
 - **Show the line** on the router screen draws the cable from the serving node to your house in sparks.
 
 ## The browser
@@ -99,6 +101,7 @@ Pages take as long as your ping and speed make them, and use data on a capped pl
 | `/broadband router install [name]` | Make the wall sign you look at a router |
 | `/broadband computer install [name]` | Make the wall sign you look at a computer |
 | `/broadband providers` | Open the router's provider list |
-| `/broadband list` · `speedtest` · `remove` | Your devices, a test over the Wi-Fi in range, remove what you look at |
+| `/broadband connect [name\|auto]` · `disconnect` | List the Wi-Fi in range and join one, or leave Wi-Fi |
+| `/broadband list` · `speedtest` · `remove` | Your devices, a test over the Wi-Fi you're on, remove what you look at |
 
 Want to run a provider instead? See [Running an ISP](../isps.md).

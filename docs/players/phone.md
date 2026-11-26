@@ -44,10 +44,11 @@ A scoreboard on the right of the screen shows, for each SIM:
    Standard · Unlimited       ← plan · data left
 ```
 
-When you're on [home Wi-Fi](home-internet.md) the sidebar also shows it, with bars like the cell signal:
+When you're connected to [home Wi-Fi](home-internet.md) (see `/broadband connect`) it gets its own block under the SIMs, laid out the same way, with bars like the cell signal:
 
 ```
- Wi-Fi |||| Home Cord           ← bars, and the router's name
+ » Home Cord · Wi-Fi           ← the network you're connected to
+   |||| Wi-Fi 6                ← bars, router generation
    Cordline Fiber · 940 Mbps   ← provider · line speed
 ```
 

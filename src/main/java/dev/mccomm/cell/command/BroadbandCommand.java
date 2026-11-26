@@ -18,7 +18,7 @@ import java.util.Locale;
 
 /** /broadband — set up internet at home: a router and a computer on wall signs. */
 public final class BroadbandCommand extends Cmd {
-    private static final List<String> SUBS = List.of("router", "computer", "list", "providers", "speedtest", "remove");
+    private static final List<String> SUBS = List.of("router", "computer", "connect", "disconnect", "list", "providers", "speedtest", "remove");
 
     public BroadbandCommand(CellPlugin plugin) {
         super(plugin);
@@ -86,10 +86,17 @@ public final class BroadbandCommand extends Cmd {
                 Router r = routerOf(p);
                 if (r != null) plugin.broadbandMenu().router(p, r, "providers", 0);
             }
+            case "connect" -> connect(p, args);
+            case "disconnect" -> {
+                bb().disconnect(p);
+                plugin.signal().tick(); // refresh the HUD now
+                Msg.send(p, "<yellow>Disconnected from Wi-Fi. Your phone uses mobile data. <gray>/broadband connect to rejoin.");
+            }
             case "speedtest" -> {
                 BroadbandService.Link l = bb().wifiLink(p);
                 if (l == null) {
-                    Msg.send(p, "<red>No Wi-Fi with a working connection reaches you.");
+                    Msg.send(p, bb().wifiOff(p) ? "<red>You're not on Wi-Fi. Join one with <white>/broadband connect</white>."
+                            : "<red>You're not connected to a working Wi-Fi. See what's in range with <white>/broadband connect</white>.");
                     return;
                 }
                 bb().speedtest(p, l);
@@ -108,6 +115,43 @@ public final class BroadbandCommand extends Cmd {
             }
             default -> help(p);
         }
+    }
+
+    private static final java.util.regex.Pattern SAFE = java.util.regex.Pattern.compile("[A-Za-z0-9 _.-]+");
+
+    /** /broadband connect: lists the Wi-Fi in range, or joins one by name ("auto" = let the phone choose). */
+    private void connect(Player p, String[] args) {
+        if (args.length >= 2) {
+            String name = join(args, 1);
+            String err = bb().connect(p, name.equalsIgnoreCase("auto") ? null : name);
+            if (err != null) {
+                Msg.send(p, "<red><err>", Msg.p("err", err));
+                return;
+            }
+            plugin.signal().tick(); // refresh the HUD now
+            var now = bb().wifiLink(p);
+            if (name.equalsIgnoreCase("auto")) Msg.send(p, "<green>Wi-Fi is automatic again: your phone joins the best network in range.");
+            else if (now == null) Msg.send(p, "<green>Saved. You'll join <white><n></white> when you're in range.", Msg.p("n", name));
+            else Msg.send(p, "<green>Connected to <white><n></white> <gray>· <isp> · <spd>", Msg.p("n", now.router().name()),
+                    Msg.p("isp", now.isp().name()), Msg.p("spd", Msg.speed(now.downMbps())));
+            return;
+        }
+        List<BroadbandService.Link> nets = bb().networksInRange(p);
+        var current = bb().wifiLink(p);
+        Msg.raw(p, "<dark_gray>━━━ <aqua>Wi-Fi networks</aqua> ━━━");
+        if (nets.isEmpty()) {
+            Msg.raw(p, "<gray>No Wi-Fi reaches you. Get closer to a router, or put one up with <white>/broadband router install</white>.");
+        }
+        for (BroadbandService.Link l : nets) {
+            boolean on = current != null && current.router().id() == l.router().id();
+            String name = l.router().name();
+            String line = " " + Msg.bars(bb().wifiBars(l.router(), p.getLocation())) + " <white><n></white> <dark_gray>·</dark_gray> <gray><isp> · <spd></gray>"
+                    + (on ? " <green>✔ connected" : " <yellow>click to join");
+            if (SAFE.matcher(name).matches()) line = "<click:run_command:'/broadband connect " + name + "'><hover:show_text:'Join this Wi-Fi'>" + line + "</hover></click>";
+            Msg.raw(p, line, Msg.p("n", name), Msg.p("isp", l.isp().name()), Msg.p("spd", Msg.speed(l.downMbps())));
+        }
+        Msg.raw(p, bb().wifiOff(p) ? "<gray>You're off Wi-Fi. <white>/broadband connect [name]</white> to join."
+                : "<gray><white>/broadband connect [name]</white> joins one · <white>/broadband disconnect</white> leaves · <white>connect auto</white> lets your phone pick.");
     }
 
     private void list(Player p) {
@@ -132,7 +176,9 @@ public final class BroadbandCommand extends Cmd {
         Msg.raw(s, "<gray>Right-click it to pick an internet provider and plan.");
         Msg.raw(s, "<white>/broadband computer install [name] <gray>— put a computer on another wall sign");
         Msg.raw(s, "<gray>Within " + Math.round(bb().cfg().wifiRange()) + " blocks of the router it goes online.");
-        Msg.raw(s, "<white>/broadband <gray>· <white>providers <gray>· <white>list <gray>· <white>speedtest <gray>· <white>remove");
+        Msg.raw(s, "<white>/broadband connect [name] <gray>— see the Wi-Fi in range and join one (it shows on your HUD)");
+        Msg.raw(s, "<white>/broadband disconnect <gray>· <white>speedtest <gray>— test the Wi-Fi you are on");
+        Msg.raw(s, "<white>/broadband <gray>· <white>providers <gray>· <white>list <gray>· <white>remove");
     }
 
     @Override
@@ -140,6 +186,11 @@ public final class BroadbandCommand extends Cmd {
         if (args.length <= 1) return filter(SUBS, args.length == 0 ? "" : args[0]);
         String sub = args[0].toLowerCase(Locale.ROOT);
         if (args.length == 2 && (sub.equals("router") || sub.equals("computer"))) return filter(List.of("install"), args[1]);
+        if (args.length == 2 && sub.equals("connect") && src.getSender() instanceof Player p) {
+            List<String> names = new java.util.ArrayList<>(List.of("auto"));
+            for (BroadbandService.Link l : bb().networksInRange(p)) names.add(l.router().name());
+            return filter(names, args[1]);
+        }
         return List.of();
     }
 }

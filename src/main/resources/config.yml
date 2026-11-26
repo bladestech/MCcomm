@@ -347,6 +347,10 @@ broadband:
   wifi:
     # With no tower in range, a phone on home Wi-Fi can still call and text (Wi-Fi calling).
     calling: true
+    # true = a player's phone joins the best Wi-Fi in range by itself (their own router first).
+    # false = they must join one with /broadband connect. Either way /broadband connect and
+    # /broadband disconnect override it, and the connected network is what the HUD shows.
+    auto-connect: true
     # Every solid block between the router and the device costs this many blocks of Wi-Fi range.
     wall-loss-blocks: 1.5
     # Router generations, bought from the router screen. range-factor multiplies wifi-range;

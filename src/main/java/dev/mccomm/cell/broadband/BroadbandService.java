@@ -642,15 +642,82 @@ public final class BroadbandService {
         long now = System.currentTimeMillis();
         Cached c = wifiCache.get(p.getUniqueId());
         if (c != null && c.until() > now) return c.link();
+        UUID me = p.getUniqueId();
         Link best = null;
+        Integer choice = store.wifiChoice().get(me);
+        if (choice != null && choice > 0 && store.router(choice) == null) {
+            store.wifiChoice().remove(me); // the router is gone: back to automatic
+            store.markDirty();
+            choice = null;
+        }
+        if (choice != null) { // the player chose: that network, or none at all (0)
+            Router r = choice > 0 ? store.router(choice) : null;
+            if (r != null && r.state() == Router.State.ACTIVE && usableBy(r, me) && inReach(r, p.getLocation())) best = link(r);
+        } else if (cfg().wifi().autoConnect()) {
+            for (Router r : store.routers()) {
+                if (r.state() != Router.State.ACTIVE || !usableBy(r, me) || !inReach(r, p.getLocation())) continue;
+                Link l = link(r);
+                if (l == null) continue;
+                if (best == null || better(l, best, me)) best = l;
+            }
+        }
+        wifiCache.put(me, new Cached(best, now + 1000));
+        return best;
+    }
+
+    /** Working Wi-Fi networks the player can join from where they stand, own router first, then the fastest. */
+    public List<Link> networksInRange(Player p) {
+        List<Link> out = new ArrayList<>();
         for (Router r : store.routers()) {
             if (r.state() != Router.State.ACTIVE || !usableBy(r, p.getUniqueId()) || !inReach(r, p.getLocation())) continue;
             Link l = link(r);
-            if (l == null) continue;
-            if (best == null || better(l, best, p.getUniqueId())) best = l;
+            if (l != null) out.add(l);
         }
-        wifiCache.put(p.getUniqueId(), new Cached(best, now + 1000));
-        return best;
+        out.sort((a, b) -> better(a, b, p.getUniqueId()) ? -1 : better(b, a, p.getUniqueId()) ? 1 : 0);
+        return out;
+    }
+
+    /**
+     * Joins the Wi-Fi called { name} (a router's name), or { null} to go back to automatic.
+     * Returns an error for the player, or null on success.
+     */
+    public String connect(Player p, String name) {
+        UUID me = p.getUniqueId();
+        if (!cfg().enabled() || !cfg().phonesUseWifi()) return "Wi-Fi is turned off on this server.";
+        if (name == null) {
+            store.wifiChoice().remove(me);
+        } else {
+            Link pick = null;
+            boolean seen = false;
+            for (Router r : store.routers()) {
+                if (!r.name().equalsIgnoreCase(name) || !inReach(r, p.getLocation())) continue;
+                seen = true;
+                if (r.state() != Router.State.ACTIVE || !usableBy(r, me)) continue;
+                Link l = link(r);
+                if (l != null && (pick == null || better(l, pick, me))) pick = l;
+            }
+            if (pick == null) {
+                return seen ? "That Wi-Fi is private, full, or its internet is down."
+                        : "No Wi-Fi called " + name + " reaches you. Try /broadband connect to see what's in range.";
+            }
+            store.wifiChoice().put(me, pick.router().id());
+        }
+        store.markDirty();
+        wifiCache.remove(me);
+        return null;
+    }
+
+    /** Leaves Wi-Fi on purpose: the phone uses mobile data until the player connects again. */
+    public void disconnect(Player p) {
+        store.wifiChoice().put(p.getUniqueId(), 0);
+        store.markDirty();
+        wifiCache.remove(p.getUniqueId());
+    }
+
+    /** True if the player has chosen to stay off Wi-Fi. */
+    public boolean wifiOff(Player p) {
+        Integer c = store.wifiChoice().get(p.getUniqueId());
+        return c != null && c == 0;
     }
 
     private boolean better(Link a, Link b, UUID user) {
