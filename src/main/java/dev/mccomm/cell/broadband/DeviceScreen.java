@@ -137,6 +137,7 @@ public final class DeviceScreen {
         Map<String, UUID> m = parts.remove(k);
         if (m != null) {
             for (UUID id : m.values()) {
+                shown.remove(id);
                 Entity e = Bukkit.getEntity(id);
                 if (e != null) e.remove();
             }
@@ -277,8 +278,16 @@ public final class DeviceScreen {
     }
 
     private void accent(BlockKey k, int rgb) {
-        if (part(k, "accent") instanceof BlockDisplay acc) acc.setBlock(TowerScreen.nearestConcrete(rgb).createBlockData());
+        if (!(part(k, "accent") instanceof BlockDisplay acc)) return;
+        Material m = TowerScreen.nearestConcrete(rgb);
+        if (acc.getBlock().getMaterial() != m) acc.setBlock(m.createBlockData());
     }
+
+    /** What a text part shows now, so unchanged parts aren't updated again. */
+    private record Shown(Component text, double scale, double maxWidth, Align align, Color bg) {
+    }
+
+    private final Map<UUID, Shown> shown = new HashMap<>();
 
     private void chip(BlockKey k, int i, String label, boolean on, boolean available) {
         String fg = on ? "<#E6FFEE>" : available ? "<#8A8F9A>" : "<#3A3D45>";
@@ -387,8 +396,8 @@ public final class DeviceScreen {
 
     private void updateExtender(BlockKey k, Extender x) {
         double W = geo(k).W();
-        Router src = bb().sourceOf(x);
         Link l = bb().extenderLink(x);
+        Router src = l == null ? null : l.router();
         accent(k, l == null ? 0x55FFFF : l.isp().colors().getFirst().value());
         State st = l == null ? State.OFF : State.OK;
         setText(k, "head", Msg.mm("<white><b>Extender"), 0.19, W * 0.62, Align.LEFT, null);
@@ -414,6 +423,10 @@ public final class DeviceScreen {
     /** Sets a text part: scale (shrunk if wider than maxWidth blocks), anchored left, centre or right, vertically centred. */
     private void setText(BlockKey k, String role, Component text, double scale, double maxWidth, Align align, Color bg) {
         if (!(part(k, role) instanceof TextDisplay td)) return;
+        // Most refreshes change nothing: skip the entity updates (and the packets they send) when the part is unchanged.
+        Shown want = new Shown(text, scale, maxWidth, align, bg);
+        if (want.equals(shown.get(td.getUniqueId()))) return;
+        shown.put(td.getUniqueId(), want);
         String plain = PlainTextComponentSerializer.plainText().serialize(text);
         double px = TowerScreen.widthPx(plain, true);
         double sc = px <= 0 ? scale : Math.min(scale, maxWidth * 40 / px);

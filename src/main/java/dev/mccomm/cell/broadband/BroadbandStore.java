@@ -582,12 +582,8 @@ public final class BroadbandStore {
             }
             y.set("listings", out);
         }
-        try {
-            dev.mccomm.cell.util.YamlFiles.saveAtomic(y, new File(dir, "broadband.yml"));
-            dirty = false;
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Couldn't save broadband.yml", e);
-        }
+        dev.mccomm.cell.util.YamlFiles.save(y, new File(dir, "broadband.yml"), plugin.getLogger());
+        dirty = false;
     }
 
     /** Lowercase helper kept here so the service and commands share one slug rule for plan ids. */

@@ -679,16 +679,14 @@ public final class DataStore {
         sy.set("market.size", marketSize);
         sy.set("market.at", marketAt);
 
-        try {
-            dev.mccomm.cell.util.YamlFiles.saveAtomic(sy, new File(dir, "server.yml"));
-            dev.mccomm.cell.util.YamlFiles.saveAtomic(my, new File(dir, "manufacturers.yml"));
-            dev.mccomm.cell.util.YamlFiles.saveAtomic(cy, new File(dir, "carriers.yml"));
-            dev.mccomm.cell.util.YamlFiles.saveAtomic(ty, new File(dir, "towers.yml"));
-            dev.mccomm.cell.util.YamlFiles.saveAtomic(py, new File(dir, "players.yml"));
-            if (plugin instanceof dev.mccomm.cell.CellPlugin cp && cp.workforce() != null) cp.workforce().save();
-            dirty = false;
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to save MCcomm data", e);
-        }
+        // Written in the background (see YamlFiles); errors are logged there.
+        var log = plugin.getLogger();
+        dev.mccomm.cell.util.YamlFiles.save(sy, new File(dir, "server.yml"), log);
+        dev.mccomm.cell.util.YamlFiles.save(my, new File(dir, "manufacturers.yml"), log);
+        dev.mccomm.cell.util.YamlFiles.save(cy, new File(dir, "carriers.yml"), log);
+        dev.mccomm.cell.util.YamlFiles.save(ty, new File(dir, "towers.yml"), log);
+        dev.mccomm.cell.util.YamlFiles.save(py, new File(dir, "players.yml"), log);
+        if (plugin instanceof dev.mccomm.cell.CellPlugin cp && cp.workforce() != null) cp.workforce().save();
+        dirty = false;
     }
 }

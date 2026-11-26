@@ -1078,11 +1078,7 @@ public final class WorkforceService {
             y.set(p + "bankruptcy-clock", e.getValue().bankruptcyClock());
             y.set(p + "contractors", e.getValue().contractors());
         }
-        try {
-            dev.mccomm.cell.util.YamlFiles.saveAtomic(y, new File(plugin.getDataFolder(), "workforce.yml"));
-        } catch (IOException ex) {
-            plugin.getLogger().log(Level.SEVERE, "Couldn't save workforce.yml", ex);
-        }
+        dev.mccomm.cell.util.YamlFiles.save(y, new File(plugin.getDataFolder(), "workforce.yml"), plugin.getLogger());
     }
 
     private static final String[] NAMES_FIRST = {"Alex", "Sam", "Jordan", "Robin", "Casey", "Morgan", "Riley", "Jamie",

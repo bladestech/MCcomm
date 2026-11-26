@@ -66,8 +66,8 @@ public final class TowerManager {
 
     /** Only regular wall signs can be towers (no standing or hanging signs). */
     public static boolean isWallSign(Block b) {
-        return b != null && b.getBlockData() instanceof WallSign
-                && b.getState() instanceof org.bukkit.block.Sign;
+        // Block data alone: getState() copies the whole sign and is far slower, and a WallSign block is always a sign.
+        return b != null && b.getBlockData() instanceof WallSign;
     }
 
     public Tower towerAt(Block b) {

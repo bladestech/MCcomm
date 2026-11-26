@@ -1851,20 +1851,25 @@ public final class BroadbandService {
     }
 
     public void refresh(Device d) {
+        // Nobody can see a sign in an unloaded chunk: skip the work (it refreshes again once loaded).
+        World w = Bukkit.getWorld(d.key().world());
+        if (w == null || !w.isChunkLoaded(d.key().x() >> 4, d.key().z() >> 4)) return;
+        if (cfg().screens()) {
+            // The screen entities show everything; the sign itself stays blank (and waxed).
+            write(d.key(), BLANK);
+            screens.ensure(d);
+            return;
+        }
         Component[] lines = switch (d) {
             case Node n -> nodeLines(n);
             case Router r -> routerLines(r);
             case Computer c -> computerLines(c);
             case Extender x -> extenderLines(x);
         };
-        if (cfg().screens()) {
-            // The screen entities show everything; the sign itself stays blank (and waxed).
-            write(d.key(), new Component[]{Component.empty(), Component.empty(), Component.empty(), Component.empty()});
-            screens.ensure(d);
-        } else {
-            write(d.key(), lines);
-        }
+        write(d.key(), lines);
     }
+
+    private static final Component[] BLANK = {Component.empty(), Component.empty(), Component.empty(), Component.empty()};
 
     private static String trunc(String s, int n) {
         return s.length() <= n ? s : s.substring(0, n);

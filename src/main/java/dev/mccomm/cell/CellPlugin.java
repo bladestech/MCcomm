@@ -74,6 +74,7 @@ public final class CellPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        dev.mccomm.cell.util.YamlFiles.start(); // autosaves write in the background
         saveDefaultConfig();
         settings = new Settings(getConfig(), getLogger());
         Msg.prefix(settings.prefix);
@@ -177,6 +178,7 @@ public final class CellPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        dev.mccomm.cell.util.YamlFiles.stop(); // finish pending autosaves; the saves below run right away
         if (speedTest != null) speedTest.shutdown();
         if (broadband != null) {
             broadband.shutdown();
