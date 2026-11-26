@@ -135,7 +135,8 @@ public final class BroadbandMenu {
         info.add("<gray>Rating: " + bb().ratingLore(isp));
         info.add("<gray>Balance: <white>" + money(isp.balance()));
         info.add("<gray>Nodes: <white>" + nodes.size() + " <gray>· Customers: <white>" + bb().customers(isp)
-                + (isp.simCustomers() > 0 ? " <gray>+ <white>" + isp.simCustomers() + " <gray>households" : ""));
+                + (isp.simCustomers() > 0 ? " <gray>+ <white>" + isp.simCustomers() + " <gray>households" : "")
+                + (isp.simBusinesses() > 0 ? " <gray>+ <white>" + isp.simBusinesses() + " <gray>businesses" : ""));
         if (!isp.carrierBacked()) {
             info.add("<gray>Upkeep: <white>" + money(due) + " <gray>every " + BillingService.period(bb().cfg().upkeepPeriodHours()));
             if (isp.nextUpkeep() > 0) info.add("<gray>Next upkeep: <white>in " + BillingService.until(isp.nextUpkeep() - System.currentTimeMillis()));
@@ -261,6 +262,7 @@ public final class BroadbandMenu {
         TechSpec s = spec(pl.tech());
         long subs = store().routersOfIsp(isp.id()).stream().filter(r -> pl.id().equals(r.planId())).count();
         List<String> lore = new ArrayList<>(List.of(
+                "<gray>For: " + (pl.business() ? "<gold>Business" : "<white>Residential"),
                 "<gray>Technology: <white>" + s.name(),
                 "<gray>Price: <white>" + money(pl.price()) + " <gray>per " + BillingService.period(pl.periodHours()),
                 "<gray>Speed cap: <white>" + Msg.speed(pl.speedCapMbps()),
@@ -282,16 +284,23 @@ public final class BroadbandMenu {
         for (Technology t : techs) {
             TechSpec s = spec(t);
             int slot = techs.length == 1 ? 22 : slots[i++];
-            m.set(slot, Items.of(s.icon(), "<white>" + s.name(), Items.wrap(s.blurb(), 34, "<gray>")), e -> {
+            List<String> blurb = new ArrayList<>(Items.wrap(s.blurb(), 34, "<gray>"));
+            blurb.add("");
+            blurb.add("<yellow>Click · residential plan");
+            blurb.add("<yellow>Right-click · business plan");
+            m.set(slot, Items.of(s.icon(), "<white>" + s.name(), blurb), e -> {
                 Frame.click(p);
-                plugin.prompt().ask(p, "<aqua>Name for the new " + s.name() + " plan?", name -> {
+                final Segment seg = e.isRightClick() ? Segment.BUSINESS : Segment.RESIDENTIAL;
+                plugin.prompt().ask(p, "<aqua>Name for the new " + s.name() + (seg == Segment.BUSINESS ? " business" : "") + " plan?", name -> {
                     if (name.length() > 24) {
                         Msg.send(p, "<red>Plan names are at most 24 characters.");
                         return;
                     }
                     if (isp.plans().size() >= bb().cfg().maxPlansPerIsp()) return;
-                    InternetPlan pl = new InternetPlan(bb().newPlanId(isp, name), name, t, s.starterPrice(), 24,
-                            Math.max(1, Math.round(s.maxMbps() * 0.5)), s.installFee());
+                    boolean biz = seg == Segment.BUSINESS;
+                    InternetPlan pl = new InternetPlan(bb().newPlanId(isp, name), name, t, s.starterPrice() * (biz ? 3 : 1), 24,
+                            Math.max(1, Math.round(s.maxMbps() * (biz ? 0.8 : 0.5))), s.installFee() * (biz ? 2 : 1));
+                    pl.segment(seg);
                     isp.plans().put(pl.id(), pl);
                     store().markDirty();
                     plan(p, isp, pl);
@@ -311,6 +320,17 @@ public final class BroadbandMenu {
         Menu m = Frame.create(p, "Plan · " + Items.esc(pl.name()), "bb-plan");
         m.set(13, planItem(isp, pl, false));
         Runnable again = () -> plan(p, isp, pl);
+        long planSubs = store().routersOfIsp(isp.id()).stream().filter(r -> pl.id().equals(r.planId())).count();
+        m.set(11, Items.of(pl.business() ? Material.GOLD_BLOCK : Material.OAK_DOOR, "<white>For: " + (pl.business() ? "<gold>Business" : "<green>Residential"),
+                "<gray>Home routers see residential plans;", "<gray>business sites see business plans.",
+                pl.business() ? "<gray>Business plans keep their speed on a busy node (×" + bb().cfg().business().priority() + " priority)." : "<gray>Business plans cost more but get priority.",
+                planSubs > 0 ? "<dark_gray>Can't change while it has subscribers." : "<yellow>Click to switch"), e -> {
+            Frame.click(p);
+            if (planSubs > 0) return;
+            pl.segment(pl.segment().other());
+            store().markDirty();
+            again.run();
+        });
         m.set(20, Items.of(Material.GOLD_INGOT, "<gold>Price", "<gray>Now: <white>" + money(pl.price()),
                 "<gray>Existing customers keep their old price", "<gray>until their next renewal.", "<yellow>Click to change"),
                 e -> askNumber(p, "<aqua>Price per period, in credits?", 0, v -> {
@@ -588,6 +608,14 @@ public final class BroadbandMenu {
             store().markDirty();
             router(p, r, STATUS, 0);
         });
+        m.set(24, Items.of(r.business() ? Material.GOLD_BLOCK : Material.OAK_DOOR, "<white>Site: " + (r.business() ? "<gold>Business" : "<green>Home"),
+                "<gray>Decides which plans you can order:", "<gray>home sites see residential plans,", "<gray>business sites see business plans.",
+                r.subscribed() ? "<dark_gray>Cancel your plan to change this." : "<yellow>Click to switch"), e -> {
+            Frame.click(p);
+            if (!r.subscribed()) bb().setSite(p, r, !r.business());
+            else Msg.send(p, "<red>Cancel this router's plan first.");
+            router(p, r, STATUS, 0);
+        });
         m.set(33, Items.of(Material.NAME_TAG, "<white>Rename", "<yellow>Click to change"), e -> plugin.prompt().ask(p, "<aqua>New name for this router?", name -> {
             if (!BroadbandService.validName(name)) {
                 Msg.send(p, "<red>Names are 1-16 letters, numbers, spaces, _ or -.");
@@ -659,7 +687,7 @@ public final class BroadbandMenu {
         for (Isp isp : store().isps()) {
             boolean mine = r.subscribed() && isp.id().equals(r.ispId());
             boolean any = false;
-            for (InternetPlan pl : isp.plans().values()) if (bb().quote(isp, pl, r.key(), r).ok()) any = true;
+            for (InternetPlan pl : isp.plans().values()) if (pl.business() == r.business() && bb().quote(isp, pl, r.key(), r).ok()) any = true;
             if (mine || any) isps.add(isp);
         }
         isps.sort(Comparator.comparing((Isp i) -> !(r.subscribed() && i.id().equals(r.ispId())))
@@ -677,7 +705,10 @@ public final class BroadbandMenu {
         long cheapest = Long.MAX_VALUE;
         double fastest = 0;
         int ok = 0;
+        int shown = 0;
         for (InternetPlan pl : isp.plans().values()) {
+            if (pl.business() != r.business()) continue; // the other kind of customer's plans
+            shown++;
             techs.add(spec(pl.tech()).name());
             Quote q = bb().quote(isp, pl, r.key(), r);
             if (!q.ok()) continue;
@@ -689,7 +720,7 @@ public final class BroadbandMenu {
         lore.add("<gray>Rating: " + bb().ratingLore(isp));
         lore.add("<gray>Technologies: <white>" + String.join(", ", techs));
         lore.add("<gray>Plans here: <white>" + ok);
-        int hidden = isp.plans().size() - ok;
+        int hidden = shown - ok;
         if (hidden > 0) lore.add("<dark_gray>" + hidden + " more not available at this spot (open to see why)");
         if (ok > 0) {
             lore.add("<gray>From: <white>" + money(cheapest));
@@ -716,6 +747,7 @@ public final class BroadbandMenu {
         List<Offer> offers = new ArrayList<>();
         List<String> hiddenInfo = new ArrayList<>();
         for (InternetPlan pl : isp.plans().values()) {
+            if (pl.business() != r.business()) continue; // home sites see home plans, business sites business plans
             Quote q = bb().quote(isp, pl, r.key(), r);
             boolean current = r.subscribed() && isp.id().equals(r.ispId()) && pl.id().equals(r.planId());
             if (q.ok() || current) offers.add(new Offer(isp, pl, q)); // plans that can't be ordered here stay hidden

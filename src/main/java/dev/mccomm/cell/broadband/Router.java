@@ -37,6 +37,7 @@ public final class Router implements Device {
     private long suspendedSince;
     private boolean warned;
     private boolean open;         // share the Wi-Fi with everyone
+    private boolean business;     // the site is a business: it sees business plans instead of home ones
     private int tier = 1;         // Wi-Fi generation: range and how many guests it takes
     private InternetPlan terms;   // the plan as it was at the start of this period (changes apply at renewal)
     private double dataLeftMB;    // data allowance left this period (ignored on unlimited plans)
@@ -52,6 +53,8 @@ public final class Router implements Device {
     }
 
     public int id() { return id; }
+    public boolean business() { return business; }
+    public void business(boolean b) { this.business = b; }
     public UUID owner() { return owner; }
     public String name() { return name; }
     public void name(String n) { this.name = n; }

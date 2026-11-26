@@ -93,7 +93,7 @@
 | `/isp bundle offer\|accept\|end\|list` | Bundles with carriers |
 | `/isp manage [isp]` | The ISP menu (or just `/isp`) |
 | `/isp node install <dsl\|cable\|fiber\|satellite> <name> [isp]` | Build a node on the sign you look at |
-| `/isp plan add <tech> <price> <mbps> <name...>` | Add a plan |
+| `/isp plan add [business] <tech> <price> <mbps> <name...>` | Add a plan (home by default, or a business plan) |
 | `/isp plan delete <name...>` · `delete tech <tech>` · `list` | Delete plans (cancelling their subscribers), or list them |
 | `/isp deposit\|withdraw <amount> [isp]` | Move credits in or out |
 | `/isp info [isp]` · `/isp list` | Details · all ISPs |

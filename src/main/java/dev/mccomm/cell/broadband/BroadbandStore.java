@@ -336,6 +336,7 @@ public final class BroadbandStore {
                     r.suspendedSince(s.getLong("suspended-since", 0));
                     r.warned(s.getBoolean("warned", false));
                     r.open(s.getBoolean("open", false));
+                    r.business(s.getBoolean("business", false));
                     r.tier(s.getInt("wifi-tier", 1));
                     r.dataLeftMB(s.getDouble("data-left", 0));
                     r.terms(readPlan(s.getConfigurationSection("terms"), s.getString("plan", "plan")));
@@ -432,6 +433,8 @@ public final class BroadbandStore {
         InternetPlan plan = new InternetPlan(pid, p.getString("name", pid), t, p.getLong("price", 0),
                 Math.max(1, p.getInt("period-hours", 24)), p.getDouble("speed-cap", 10), p.getLong("install-fee", 0));
         plan.dataMB(p.getLong("data-mb", -1));
+        Segment seg = Segment.fromKey(p.getString("segment"));
+        if (seg != null) plan.segment(seg);
         return plan;
     }
 
@@ -443,6 +446,7 @@ public final class BroadbandStore {
         y.set(q + "speed-cap", pl.speedCapMbps());
         y.set(q + "install-fee", pl.installFee());
         y.set(q + "data-mb", pl.dataMB());
+        if (pl.business()) y.set(q + "segment", pl.segment().key());
     }
 
     private static BlockKey blockKey(ConfigurationSection s) {
@@ -529,6 +533,7 @@ public final class BroadbandStore {
             y.set(p + "suspended-since", r.suspendedSince());
             y.set(p + "warned", r.warned());
             y.set(p + "open", r.open());
+            if (r.business()) y.set(p + "business", true);
             y.set(p + "wifi-tier", r.tier());
             y.set(p + "data-left", Math.round(r.dataLeftMB() * 100) / 100.0);
             if (r.terms() != null) writePlan(y, p + "terms.", r.terms());

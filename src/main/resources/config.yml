@@ -395,6 +395,13 @@ broadband:
     step-minutes: 30
     pays: true
 
+  # Business plans (an ISP adds them with /isp plan add business ... or right-clicks a technology
+  # when creating a plan). A router is set to a home or a business site, and only sees plans
+  # of that kind. Business customers get priority on a busy node.
+  business:
+    priority: 2               # on a congested node a business line keeps this many times the share a home line does
+    simulated-businesses: 0   # simulated businesses that choose ISPs with business plans, load nodes and pay (0 = off)
+
   # The computer's browser: news, a marketplace and mail.
   browser:
     enabled: true

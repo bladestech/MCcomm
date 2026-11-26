@@ -32,6 +32,7 @@ public final class Isp {
     private final Map<String, Bundle> bundles = new LinkedHashMap<>(); // carrier id -> deal
     private double reliability = 1;           // 0..1, a running average of how much of the network was up
     private transient int simCustomers;       // simulated households (market), recomputed
+    private transient int simBusinesses;      // simulated businesses (market), recomputed
 
     public Isp(String name, UUID owner, long createdAt) {
         this.id = idOf(name);
@@ -73,6 +74,8 @@ public final class Isp {
     public void reliability(double r) { this.reliability = Math.clamp(r, 0, 1); }
     public int simCustomers() { return simCustomers; }
     public void simCustomers(int n) { this.simCustomers = Math.max(0, n); }
+    public int simBusinesses() { return simBusinesses; }
+    public void simBusinesses(int n) { this.simBusinesses = Math.max(0, n); }
 
     /** The ISP's name as MiniMessage, in its solid colour or gradient. */
     public String styled() {

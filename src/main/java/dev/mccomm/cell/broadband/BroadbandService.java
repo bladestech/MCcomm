@@ -354,6 +354,12 @@ public final class BroadbandService {
         return users <= cap ? 1 : cap / users;
     }
 
+    /** Business plans get priority on a busy node: they keep their speed longer than home customers. */
+    private double share(Node n, int users, InternetPlan plan) {
+        double base = share(n, users);
+        return plan != null && plan.business() ? Math.min(1, base * cfg().business().priority()) : base;
+    }
+
     public long nodeUpkeep(Node n) {
         TechSpec s = spec(n.tech());
         return Math.round(s.nodeUpkeep() * (1 + cfg().tierUpkeepStep() * (n.tier() - 1)));
@@ -393,7 +399,8 @@ public final class BroadbandService {
             caps += Math.min(p.speedCapMbps(), spec(p.tech()).maxMbps());
             plans++;
         }
-        if (isp.simCustomers() > 0 && plans > 0) sum += isp.simCustomers() * (caps / plans);
+        int sims = isp.simCustomers() + isp.simBusinesses();
+        if (sims > 0 && plans > 0) sum += sims * (caps / plans);
         return sum * cfg().transit().utilization();
     }
 
@@ -584,6 +591,9 @@ public final class BroadbandService {
     public Quote quote(Isp isp, InternetPlan plan, BlockKey where, Router asking) {
         TechSpec s = spec(plan.tech());
         long price = priceFor(isp, plan, asking.owner());
+        if (plan.business() != asking.business()) {
+            return new Quote(isp, plan, null, null, 0, 0, 0, 0, price, plan.business() ? "A business plan: this router is a home" : "A home plan: this router is a business site");
+        }
         if (plan.tech() == Technology.FIXED_WIRELESS) {
             if (!isp.carrierBacked()) return new Quote(isp, plan, null, null, 0, 0, 0, 0, price, "Only carrier ISPs sell 5G Home");
             FwLine f = computeFw(isp, where, asking);
@@ -602,7 +612,7 @@ public final class BroadbandService {
         if (s.needsSky() && !skyClear(where)) return new Quote(isp, plan, node, null, d, 0, 0, drop, price, "Needs a clear view of the sky");
         boolean already = asking.state() == Router.State.ACTIVE && asking.nodeId() == node.id();
         int sharing = users(node) + (already ? 0 : 1);
-        double raw = s.maxMbps() * distanceFactor(s, d) * share(node, sharing) * weatherFactor(s, where) * transitShare(isp);
+        double raw = s.maxMbps() * distanceFactor(s, d) * share(node, sharing, plan) * weatherFactor(s, where) * transitShare(isp);
         return new Quote(isp, plan, node, null, d, Math.min(raw, plan.speedCapMbps()), ping(s, d), drop, price, null);
     }
 
@@ -699,7 +709,7 @@ public final class BroadbandService {
         Node node = store.node(r.nodeId());
         TechSpec s = spec(node.tech());
         double d = dist(node.key(), r.key());
-        double raw = s.maxMbps() * distanceFactor(s, d) * share(node, Math.max(1, users(node))) * weatherFactor(s, r.key()) * transitShare(isp);
+        double raw = s.maxMbps() * distanceFactor(s, d) * share(node, Math.max(1, users(node)), t) * weatherFactor(s, r.key()) * transitShare(isp);
         double down = Math.min(raw, t.speedCapMbps());
         if (slow) down = Math.min(down, cfg().throttleMbps());
         return new Link(r, isp, t, node, null, d, down, down * s.uploadRatio(), ping(s, d), null);
@@ -1254,6 +1264,21 @@ public final class BroadbandService {
         return true;
     }
 
+    /** Sets a router up as a home or a business site. Only possible while it has no plan, because plans are for one or the other. */
+    public boolean setSite(Player p, Router r, boolean business) {
+        if (!r.owner().equals(p.getUniqueId()) && !p.hasPermission("mccomm.admin")) return false;
+        if (r.business() == business) return true;
+        if (r.subscribed()) {
+            Msg.send(p, "<red>Cancel this router's plan first: home and business plans can't be swapped on a live line.");
+            return false;
+        }
+        r.business(business);
+        store.markDirty();
+        refresh(r);
+        Msg.send(p, "<green>This router is now a <site>.", Msg.p("site",business ? "business site" : "home"));
+        return true;
+    }
+
     public Computer installComputer(Player p, Block sign, String name) {
         if (!cfg().enabled()) {
             Msg.send(p, "<red>Home internet is turned off on this server.");
@@ -1684,10 +1709,13 @@ public final class BroadbandService {
 
     private void marketTick(long now) {
         int households = cfg().market().households();
-        if (households <= 0) {
+        if (households <= 0 && cfg().business().simBusinesses() <= 0) {
             if (!simUsers.isEmpty() || simReady) {
                 simUsers.clear();
-                for (Isp i : store.isps()) i.simCustomers(0);
+                for (Isp i : store.isps()) {
+                    i.simCustomers(0);
+                    i.simBusinesses(0);
+                }
                 simReady = false;
             }
             return;
@@ -1711,15 +1739,27 @@ public final class BroadbandService {
         return out;
     }
 
-    /** Simulated households pick providers by rating (squared), limited by the room on healthy nodes. */
+    /** True if the ISP sells at least one plan to this kind of customer. */
+    private static boolean sells(Isp isp, Segment seg) {
+        for (InternetPlan p : isp.plans().values()) if (p.segment() == seg) return true;
+        return false;
+    }
+
+    /** Simulated households and businesses pick providers by rating (squared), limited by the room on healthy nodes. */
     private void allocateHouseholds(int households) {
         simUsers.clear();
+        for (Isp isp : store.isps()) isp.simBusinesses(0);
+        allocate(households, Segment.RESIDENTIAL);
+        allocate(cfg().business().simBusinesses(), Segment.BUSINESS);
+    }
+
+    private void allocate(int count, Segment seg) {
         List<Isp> eligible = new ArrayList<>();
         Map<String, Double> score = new HashMap<>();
         double total = 0;
         for (Isp isp : store.isps()) {
-            isp.simCustomers(0);
-            if (isp.carrierBacked() || !isp.paidUp() || isp.plans().isEmpty() || healthy(isp).isEmpty()) continue;
+            if (seg == Segment.RESIDENTIAL) isp.simCustomers(0);
+            if (count <= 0 || isp.carrierBacked() || !isp.paidUp() || !sells(isp, seg) || healthy(isp).isEmpty()) continue;
             double s = Math.pow(rating(isp), 2);
             eligible.add(isp);
             score.put(isp.id(), s);
@@ -1729,28 +1769,36 @@ public final class BroadbandService {
         for (Isp isp : eligible) {
             List<Node> nodes = healthy(isp);
             double room = 0;
-            for (Node n : nodes) room += capacity(n) - users.getOrDefault(n.id(), 0);
-            int alloc = (int) Math.min(Math.floor(households * score.get(isp.id()) / total), Math.max(0, Math.floor(room)));
-            isp.simCustomers(alloc);
+            for (Node n : nodes) room += capacity(n) - users.getOrDefault(n.id(), 0) - simUsers.getOrDefault(n.id(), 0);
+            int alloc = (int) Math.min(Math.floor(count * score.get(isp.id()) / total), Math.max(0, Math.floor(room)));
+            if (seg == Segment.BUSINESS) isp.simBusinesses(alloc);
+            else isp.simCustomers(alloc);
             for (int i = 0; i < alloc; i++) simUsers.merge(nodes.get(i % nodes.size()).id(), 1, Integer::sum);
         }
     }
 
     private void payHouseholds(long elapsedMs) {
         for (Isp isp : store.isps()) {
-            if (isp.simCustomers() <= 0) continue;
-            double perHour = 0;
-            int n = 0;
-            for (InternetPlan p : isp.plans().values()) {
-                perHour += p.price() / (double) p.periodHours();
-                n++;
-            }
-            long rev = n == 0 ? 0 : Math.round(isp.simCustomers() * (perHour / n) * (elapsedMs / (double) HOUR));
-            if (rev > 0) {
-                isp.balance(isp.balance() + rev);
-                isp.log(rev, "Simulated households");
-                store.markDirty();
-            }
+            payFrom(isp, Segment.RESIDENTIAL, isp.simCustomers(), elapsedMs, "Simulated households");
+            payFrom(isp, Segment.BUSINESS, isp.simBusinesses(), elapsedMs, "Simulated businesses");
+        }
+    }
+
+    /** Pays an ISP what its simulated customers of one kind owe: the average price of its plans for them. */
+    private void payFrom(Isp isp, Segment seg, int customers, long elapsedMs, String note) {
+        if (customers <= 0) return;
+        double perHour = 0;
+        int n = 0;
+        for (InternetPlan p : isp.plans().values()) {
+            if (p.segment() != seg) continue;
+            perHour += p.price() / (double) p.periodHours();
+            n++;
+        }
+        long rev = n == 0 ? 0 : Math.round(customers * (perHour / n) * (elapsedMs / (double) HOUR));
+        if (rev > 0) {
+            isp.balance(isp.balance() + rev);
+            isp.log(rev, note);
+            store.markDirty();
         }
     }
 

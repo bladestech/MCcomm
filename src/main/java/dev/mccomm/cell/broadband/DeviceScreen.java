@@ -348,6 +348,7 @@ public final class DeviceScreen {
         InternetPlan plan = isp == null ? null : isp.plans().get(r.planId());
         String sub = r.state() == Router.State.NONE || plan == null ? "Right-click to pick a provider"
                 : (r.terms() != null ? r.terms().name() : plan.name()) + " · " + bb().cfg().spec(r.tech() == null ? plan.tech() : r.tech()).name();
+        if (r.business()) sub = "Business · " + sub;
         setText(k, "sub", Msg.mm("<#9AA0AA>" + Msg.escape(sub)), 0.15, W * 0.46, Align.LEFT, null);
         int max = bb().cfg().maxWifiTier();
         for (int i = 0; i < 4; i++) chip(k, i, "WF" + (i + 4), i + 1 <= r.tier() && st == State.OK, i < max);

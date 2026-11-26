@@ -41,7 +41,7 @@ A satellite node is a *ground station*: homes anywhere in the world can use it, 
 `/isp` → **Plans**, or:
 
 ```
-/isp plan add <tech> <price> <mbps> <name...>
+/isp plan add [business] <tech> <price> <mbps> <name...>
 ```
 
 | Setting | Does |
@@ -52,6 +52,8 @@ A satellite node is a *ground station*: homes anywhere in the world can use it, 
 | Data allowance | Optional. When it is used up the customer's line slows to a fair-use speed until renewal |
 
 Price your plans against what the line can really deliver: customers see a **quote** for their address before they order. Edits to a plan reach existing customers **at their next renewal**, not before. Deleting a plan cancels its subscribers (no refunds).
+
+**Residential and business plans.** Every plan is for either a **home** or a **business**. Customers only see plans that match their router's site type (see below), so you can sell both side by side: for example a cheap fiber home plan and a pricey business one with a high speed cap and no data limit. Business customers get **priority on a busy node**: where home lines slow down because the node is crowded, a business line keeps its speed longer (×2 priority by default). Make a business plan by right-clicking a technology when you create a plan in `/isp` → Plans (left-click makes a home plan), with `/isp plan add business <tech> <price> <mbps> <name...>`, or with the **For** button in the plan editor (not possible while the plan has subscribers). New business plans start at 3× the starter price.
 
 **Ordering plans.** Plans show in your list's order. In `/isp` → **Plans**, **right-click** a plan to move it later or **shift-left-click** to move it earlier. Or open a plan and use **Move earlier** / **Move later** (shift-click for the top or bottom). The order is saved.
 
@@ -131,7 +133,7 @@ Staff can build and take down nodes and edit plans. Only the owner withdraws or 
 | `/isp transit [isp]` | Buy a tier of backbone |
 | `/isp peer offer\|accept\|end <isp> [your isp]` | Peering |
 | `/isp bundle offer\|accept\|end\|list` | Bundles with carriers |
-| `/isp plan add <tech> <price> <mbps> <name...>` | Add a plan |
+| `/isp plan add [business] <tech> <price> <mbps> <name...>` | Add a plan (home by default) |
 | `/isp plan delete <name...>` · `delete tech <tech>` · `list` | Delete plans, or list them |
 | `/isp deposit\|withdraw <amount> [isp]` | Move credits |
 | `/isp info [isp]` · `/isp list` | Details · all ISPs |

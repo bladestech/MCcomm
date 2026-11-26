@@ -1,7 +1,7 @@
 package dev.mccomm.cell.broadband;
 
 /**
- * A home internet plan an ISP sells: one technology, a speed cap, an optional data allowance and a price per period.
+ * A home or business internet plan an ISP sells: one technology, a speed cap, an optional data allowance and a price per period.
  * Mutable so the owner can edit it. Subscribers keep the terms they signed up under until their next renewal
  * (the router holds a {@link #copy()} of the plan).
  */
@@ -14,6 +14,7 @@ public final class InternetPlan {
     private double speedCapMbps;
     private long installFee;
     private long dataMB = -1; // -1 = unlimited; past the allowance the line is throttled (fair use)
+    private Segment segment = Segment.RESIDENTIAL; // who it is sold to
 
     public InternetPlan(String id, String name, Technology tech, long price, int periodHours, double speedCapMbps, long installFee) {
         this.id = id;
@@ -41,6 +42,9 @@ public final class InternetPlan {
     public long dataMB() { return dataMB; }
     public void dataMB(long mb) { this.dataMB = mb < 0 ? -1 : mb; }
     public boolean unlimited() { return dataMB < 0; }
+    public Segment segment() { return segment; }
+    public void segment(Segment s) { this.segment = s == null ? Segment.RESIDENTIAL : s; }
+    public boolean business() { return segment == Segment.BUSINESS; }
 
     public long periodMillis() {
         return periodHours * 3_600_000L;
@@ -50,6 +54,7 @@ public final class InternetPlan {
     public InternetPlan copy() {
         InternetPlan p = new InternetPlan(id, name, tech, price, periodHours, speedCapMbps, installFee);
         p.dataMB = dataMB;
+        p.segment = segment;
         return p;
     }
 

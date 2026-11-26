@@ -41,6 +41,7 @@ public record BroadbandSettings(
         Faults faults,
         FixedWireless fixedWireless,
         Market market,
+        Business business,
         Browser browser,
         boolean screens) {       // layered display screens on node, router and computer signs (like cell towers)
 
@@ -90,6 +91,10 @@ public record BroadbandSettings(
     }
 
     public record FixedWireless(double indoorDb) {
+    }
+
+    /** Business plans: how much faster they get through a congested node, and how many simulated businesses there are. */
+    public record Business(double priority, int simBusinesses) {
     }
 
     public record Market(int households, int stepMinutes, boolean pays) {
@@ -214,6 +219,9 @@ public record BroadbandSettings(
         ConfigurationSection mk = s.getConfigurationSection("market");
         Market market = new Market(mk == null ? 0 : Math.max(0, mk.getInt("households", 0)),
                 mk == null ? 30 : Math.max(1, mk.getInt("step-minutes", 30)), mk == null || mk.getBoolean("pays", true));
+        ConfigurationSection bz = s.getConfigurationSection("business");
+        Business business = new Business(bz == null ? 2 : Math.max(1, bz.getDouble("priority", 2)),
+                bz == null ? 0 : Math.max(0, bz.getInt("simulated-businesses", 0)));
 
         ConfigurationSection br = s.getConfigurationSection("browser");
         List<String> news = br == null ? List.of() : br.getStringList("news");
@@ -253,7 +261,7 @@ public record BroadbandSettings(
                 Math.max(0, s.getDouble("tier-upkeep-step", 50)) / 100.0,
                 Math.max(0, s.getDouble("throttle-mbps", 1)),
                 Math.clamp(s.getDouble("bundle-max-discount", 30), 0, 90),
-                wifi, transit, faults, fixed, market, browser, s.getBoolean("fancy-screens", true));
+                wifi, transit, faults, fixed, market, business, browser, s.getBoolean("fancy-screens", true));
     }
 
     /** Built-in values, used when a technology is missing from config.yml. */

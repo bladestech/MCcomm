@@ -5,6 +5,7 @@ import dev.mccomm.cell.broadband.BroadbandService;
 import dev.mccomm.cell.broadband.InternetPlan;
 import dev.mccomm.cell.broadband.Isp;
 import dev.mccomm.cell.broadband.Node;
+import dev.mccomm.cell.broadband.Segment;
 import dev.mccomm.cell.broadband.Technology;
 import dev.mccomm.cell.util.Msg;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -209,7 +210,7 @@ public final class IspCommand extends Cmd {
         Msg.raw(s, "<white>/isp manage [isp] <gray>— open the ISP menu (or just <white>/isp</white>)");
         Msg.raw(s, "<white>/isp node install <tech> <name> [isp] <gray>— build a node on the wall sign you look at");
         Msg.raw(s, "<gray>Technologies: <white>dsl, cable, fiber, satellite");
-        Msg.raw(s, "<white>/isp plan add <tech> <price> <mbps> <name...> <gray>— sell a new plan");
+        Msg.raw(s, "<white>/isp plan add [business] <tech> <price> <mbps> <name...> <gray>— sell a new plan (home by default)");
         Msg.raw(s, "<white>/isp deposit <amount> [isp] <gray>· <white>/isp withdraw <amount> [isp]");
         Msg.raw(s, "<white>/isp info [isp] <gray>· <white>/isp list <gray>· <white>/isp employee add|remove <isp> <player>");
         Msg.raw(s, "<white>/isp color <isp> <colors...> <gray>· <white>/isp delete <isp> confirm");
@@ -362,8 +363,8 @@ public final class IspCommand extends Cmd {
             Msg.raw(p, "<dark_gray>━━━ <aqua>Plans</aqua> · " + isp.styled() + " <dark_gray>━━━");
             for (InternetPlan pl : isp.plans().values()) {
                 long subs = bb().store().routersOfIsp(isp.id()).stream().filter(r -> pl.id().equals(r.planId())).count();
-                Msg.raw(p, "<dark_gray> · <white><n> <gray>(<t>) · <white><price> · cap <white><cap> <gray>· <subs> subscriber(s)",
-                        Msg.p("n", pl.name()), Msg.p("t", bb().cfg().spec(pl.tech()).name()), Msg.p("price", plugin.settings().money(pl.price())),
+                Msg.raw(p, "<dark_gray> · <white><n> <gray>(<seg> <t>) · <white><price> · cap <white><cap> <gray>· <subs> subscriber(s)",
+                        Msg.p("n", pl.name()), Msg.p("seg", pl.business() ? "business" : "home"), Msg.p("t", bb().cfg().spec(pl.tech()).name()), Msg.p("price", plugin.settings().money(pl.price())),
                         Msg.p("cap", Msg.speed(pl.speedCapMbps())), Msg.p("subs", "" + subs));
             }
             return;
@@ -372,8 +373,16 @@ public final class IspCommand extends Cmd {
             deletePlans(p, args);
             return;
         }
+        Segment seg = Segment.RESIDENTIAL;
+        if (sub.equals("add") && args.length > 2 && Segment.fromKey(args[2]) != null) { // /isp plan add business <tech> ...
+            seg = Segment.fromKey(args[2]);
+            String[] shifted = new String[args.length - 1];
+            System.arraycopy(args, 0, shifted, 0, 2);
+            System.arraycopy(args, 3, shifted, 2, args.length - 3);
+            args = shifted;
+        }
         if (args.length < 6 || !sub.equals("add")) {
-            Msg.send(p, "<red>Usage: /isp plan add <tech> <price> <mbps> <name...> · /isp plan delete <name...> · /isp plan delete tech <tech> · /isp plan list");
+            Msg.send(p, "<red>Usage: /isp plan add [business] <tech> <price> <mbps> <name...> · /isp plan delete <name...> · /isp plan delete tech <tech> · /isp plan list");
             return;
         }
         Isp isp = myIsp(p, null);
@@ -404,9 +413,10 @@ public final class IspCommand extends Cmd {
             return;
         }
         InternetPlan pl = new InternetPlan(bb().newPlanId(isp, name), name, tech, price, 24, cap, bb().cfg().spec(tech).installFee());
+        pl.segment(seg);
         isp.plans().put(pl.id(), pl);
         bb().store().markDirty();
-        Msg.send(p, "<green>Plan <white><n></white> added. Edit its period and install fee in <white>/isp manage</white> → Plans.", Msg.p("n", name));
+        Msg.send(p, "<green><seg> plan <white><n></white> added. Edit its period and install fee in <white>/isp manage</white> → Plans.", Msg.p("seg", seg.label()), Msg.p("n", name));
     }
 
     /** /isp plan delete <name...> or /isp plan delete tech <tech>: removes plans; their subscribers are cancelled (no refunds). */
@@ -539,7 +549,8 @@ public final class IspCommand extends Cmd {
                 if (args.length == 2) return filter(List.of("add", "delete", "list"), args[1]);
                 if (args.length == 3 && args[1].equalsIgnoreCase("delete")) return filter(List.of("tech"), args[2]);
                 if (args.length == 4 && args[1].equalsIgnoreCase("delete")) return filter(techs, args[3]);
-                if (args.length == 3 && args[1].equalsIgnoreCase("add")) return filter(techs, args[2]);
+                if (args.length == 3 && args[1].equalsIgnoreCase("add")) return filter(java.util.stream.Stream.concat(techs.stream(), java.util.stream.Stream.of("business", "residential")).toList(), args[2]);
+                if (args.length == 4 && args[1].equalsIgnoreCase("add") && Segment.fromKey(args[2]) != null) return filter(techs, args[3]);
             }
             case "employee" -> {
                 if (args.length == 2) return filter(List.of("add", "remove"), args[1]);
