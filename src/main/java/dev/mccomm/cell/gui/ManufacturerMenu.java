@@ -521,7 +521,12 @@ public final class ManufacturerMenu {
 
     /** Lets the player pick a stocked model to install; {@code onPick} gets the stock ref. */
     public void pickStock(Player p, Carrier c, String towerName, Consumer<String> onPick) {
-        Menu menu = Frame.create(p, "Install " + Items.esc(towerName) + " · pick a model", "manufacturer");
+        pickStock(p, c, towerName, "Install", onPick);
+    }
+
+    /** Same, with the menu title's verb ("Install", "Replace"). */
+    public void pickStock(Player p, Carrier c, String towerName, String verb, Consumer<String> onPick) {
+        Menu menu = Frame.create(p, verb + " " + Items.esc(towerName) + " · pick a model", "manufacturer");
         List<String> refs = stockRefs(c);
         if (refs.isEmpty()) {
             menu.set(22, Items.of(Material.LIGHT_GRAY_DYE, "<gray>No towers in stock", "<yellow>Click · open the Tower shop"), ev -> {
@@ -539,7 +544,7 @@ public final class ManufacturerMenu {
             click(p);
             p.closeInventory();
             onPick.accept(ref);
-        }, n -> pickStock(p, c, towerName, onPick));
+        }, n -> pickStock(p, c, towerName, verb, onPick));
         menu.open(p);
     }
 

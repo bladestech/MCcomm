@@ -103,11 +103,9 @@ wall sign with `/tower install <name>`.
 The tower screen shows `Small cell · via NV1` for a wirelessly linked one; the Network
 tab shows small cells with an end rod icon.
 
-## Moving a tower
+## Replacing a tower
 
-`/tower replace <name>` moves an existing tower onto the wall sign you look at, without rebuilding it. It keeps its name, model, bands, backhaul block, wear, owner and subscribers; the old sign is cleared and the new one gets the screen. A repair crew on its way to the old spot turns back and is sent again if the tower is still worn.
-
-A macro cell's height bonus is measured again at the new sign, so its range follows where it ends up. A small cell still has to keep the usual spacing from the carrier's other small cells.
+Look at a tower's sign and run `/tower replace` to swap it for a different model from your carrier's stock. It works like breaking the tower and installing a new one, without typing the name again: the tower keeps the same name on its sign, the old tower is gone (its backhaul block is destroyed and it isn't returned to stock), and the new model starts offline until you install a backhaul block. It uses up one of the new model in stock, and the same limits as an install apply (including small cell spacing and the number per macro).
 
 ## Removing and protecting towers
 
@@ -122,7 +120,7 @@ A macro cell's height bonus is measured again at the new sign, so its range foll
 |---|---|
 | `/tower install <name> [carrier]` | Install a tower from stock on the sign you look at (`create` is an alias) |
 | `/tower manage` · `/tower info` | Open the GUI, or show info, for the sign you look at |
-| `/tower replace <name>` | Move that tower onto the wall sign you look at, keeping its settings and range |
+| `/tower replace` | Swap the tower you look at for another model from stock, keeping its name |
 | `/tower rename <name>` | Rename it |
 | `/tower remove` | Remove it |
 | `/tower list [carrier]` | List towers |

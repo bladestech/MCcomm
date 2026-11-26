@@ -17,8 +17,8 @@ public final class Tower {
     private String manufacturerId;  // who built it (for the upkeep share)
     private String modelName;       // model name at install time
     private final EnumSet<Band> modelBands = EnumSet.noneOf(Band.class); // bands the model includes
-    private UUID worldId;     // mutable: /tower replace moves a tower to another sign
-    private int x, y, z;
+    private final UUID worldId;
+    private final int x, y, z;
     private int generation;
     private final EnumSet<Band> enabledBands = EnumSet.noneOf(Band.class);
     private Material backhaul; // null = offline
@@ -80,14 +80,6 @@ public final class Tower {
     public void small(boolean s) { this.small = s; }
     public int wirelessLink() { return wirelessLink; }
     public void wirelessLink(int id) { this.wirelessLink = id; }
-
-    /** Puts the tower on another sign. Use TowerStore/DataStore.relocateTower so the lookup by block stays right. */
-    public void moveTo(UUID world, int x, int y, int z) {
-        this.worldId = world;
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
 
     public World world() {
         return Bukkit.getWorld(worldId);

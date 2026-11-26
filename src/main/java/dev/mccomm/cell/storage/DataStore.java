@@ -139,14 +139,6 @@ public final class DataStore {
         markDirty();
     }
 
-    /** Moves a tower to another sign, keeping the by-block lookup in step. */
-    public void relocateTower(Tower t, UUID world, int x, int y, int z) {
-        towersByBlock.remove(t.key());
-        t.moveTo(world, x, y, z);
-        towersByBlock.put(t.key(), t);
-        markDirty();
-    }
-
     /** Tower by its name (case-insensitive), or null. */
     public Tower towerByName(String name) {
         if (name == null) return null;
