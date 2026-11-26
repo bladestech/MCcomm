@@ -583,7 +583,7 @@ public final class BroadbandStore {
             y.set("listings", out);
         }
         try {
-            y.save(new File(dir, "broadband.yml"));
+            dev.mccomm.cell.util.YamlFiles.saveAtomic(y, new File(dir, "broadband.yml"));
             dirty = false;
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Couldn't save broadband.yml", e);

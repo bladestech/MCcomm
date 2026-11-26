@@ -907,7 +907,7 @@ public final class BroadbandMenu {
         Msg.raw(p, "<dark_gray>━━━ <aqua>Wi-Fi extender</aqua> ━━━");
         Msg.raw(p, "<gray>Owner: <white><o>", Msg.p("o", nameOf(x.owner())));
         Msg.raw(p, src == null ? "<gray>It isn't repeating a router right now."
-                : "<gray>Repeating <white><r></white>. Guests can use it if that Wi-Fi is shared.", Msg.p("r", src == null ? "" : src.name()));
+                : "<gray>Repeating <white><rt></white>. Guests can use it if that Wi-Fi is shared.", Msg.p("rt", src == null ? "" : src.name()));
     }
 
     public void extender(Player p, Extender x) {

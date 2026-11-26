@@ -680,11 +680,11 @@ public final class DataStore {
         sy.set("market.at", marketAt);
 
         try {
-            sy.save(new File(dir, "server.yml"));
-            my.save(new File(dir, "manufacturers.yml"));
-            cy.save(new File(dir, "carriers.yml"));
-            ty.save(new File(dir, "towers.yml"));
-            py.save(new File(dir, "players.yml"));
+            dev.mccomm.cell.util.YamlFiles.saveAtomic(sy, new File(dir, "server.yml"));
+            dev.mccomm.cell.util.YamlFiles.saveAtomic(my, new File(dir, "manufacturers.yml"));
+            dev.mccomm.cell.util.YamlFiles.saveAtomic(cy, new File(dir, "carriers.yml"));
+            dev.mccomm.cell.util.YamlFiles.saveAtomic(ty, new File(dir, "towers.yml"));
+            dev.mccomm.cell.util.YamlFiles.saveAtomic(py, new File(dir, "players.yml"));
             if (plugin instanceof dev.mccomm.cell.CellPlugin cp && cp.workforce() != null) cp.workforce().save();
             dirty = false;
         } catch (IOException e) {

@@ -932,15 +932,15 @@ public final class BroadbandService {
     public Isp createCarrierIsp(Player p, String name, Carrier carrier) {
         if (!checkNewIsp(p, name)) return null;
         if (!carrier.isStaff(p.getUniqueId()) && !p.hasPermission("mccomm.admin")) {
-            Msg.send(p, "<red>You don't work for <white><c></white>.", Msg.p("c", carrier.name()));
+            Msg.send(p, "<red>You don't work for <white><carrier></white>.", Msg.p("carrier", carrier.name()));
             return null;
         }
         if (carrier.mvno()) {
-            Msg.send(p, "<red><c> is an MVNO and has no towers of its own.", Msg.p("c", carrier.name()));
+            Msg.send(p, "<red><carrier> is an MVNO and has no towers of its own.", Msg.p("carrier", carrier.name()));
             return null;
         }
         if (store.ispOfCarrier(carrier.id()) != null) {
-            Msg.send(p, "<red><c> already has a home internet business.", Msg.p("c", carrier.name()));
+            Msg.send(p, "<red><carrier> already has a home internet business.", Msg.p("carrier", carrier.name()));
             return null;
         }
         Isp isp = new Isp(name, p.getUniqueId(), System.currentTimeMillis());
@@ -997,8 +997,8 @@ public final class BroadbandService {
     public boolean deposit(Player p, Isp isp, long amount) {
         PlayerProfile prof = plugin.store().profile(p.getUniqueId());
         if (amount <= 0 || prof.balance() < amount) {
-            Msg.send(p, "<red>You need <white><a></white> in your wallet; you have <white><b></white>.",
-                    Msg.p("a", money(Math.max(0, amount))), Msg.p("b", money(prof.balance())));
+            Msg.send(p, "<red>You need <white><a></white> in your wallet; you have <white><bal></white>.",
+                    Msg.p("a", money(Math.max(0, amount))), Msg.p("bal", money(prof.balance())));
             return false;
         }
         prof.balance(prof.balance() - amount);
@@ -1007,8 +1007,8 @@ public final class BroadbandService {
         isp.log(amount, "Deposit by " + p.getName());
         store.markDirty();
         plugin.store().markDirty();
-        Msg.send(p, "<green>Deposited <white><a></white> into <white><isp></white>. Balance: <white><b></white>.",
-                Msg.p("a", money(amount)), Msg.p("isp", isp.name()), Msg.p("b", money(isp.balance())));
+        Msg.send(p, "<green>Deposited <white><a></white> into <white><isp></white>. Balance: <white><bal></white>.",
+                Msg.p("a", money(amount)), Msg.p("isp", isp.name()), Msg.p("bal", money(isp.balance())));
         return true;
     }
 
@@ -1259,8 +1259,8 @@ public final class BroadbandService {
         wifiCache.clear();
         store.markDirty();
         plugin.store().markDirty();
-        Msg.send(p, "<green>Router upgraded to <white><n></white>: reach <white><r> blocks</white>, <white><g></white> guests.", Msg.p("n", next.name()),
-                Msg.p("r", "" + Math.round(reach(r))), Msg.p("g", "" + next.maxGuests()));
+        Msg.send(p, "<green>Router upgraded to <white><n></white>: reach <white><reach> blocks</white>, <white><g></white> guests.", Msg.p("n", next.name()),
+                Msg.p("reach", "" + Math.round(reach(r))), Msg.p("g", "" + next.maxGuests()));
         return true;
     }
 

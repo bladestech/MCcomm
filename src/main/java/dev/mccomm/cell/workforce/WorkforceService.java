@@ -1079,7 +1079,7 @@ public final class WorkforceService {
             y.set(p + "contractors", e.getValue().contractors());
         }
         try {
-            y.save(new File(plugin.getDataFolder(), "workforce.yml"));
+            dev.mccomm.cell.util.YamlFiles.saveAtomic(y, new File(plugin.getDataFolder(), "workforce.yml"));
         } catch (IOException ex) {
             plugin.getLogger().log(Level.SEVERE, "Couldn't save workforce.yml", ex);
         }
