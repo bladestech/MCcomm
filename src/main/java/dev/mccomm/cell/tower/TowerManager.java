@@ -116,8 +116,7 @@ public final class TowerManager {
 
     /**
      * Moves an existing tower onto another wall sign without rebuilding it: name, model, bands, backhaul, wear and
-     * ownership stay. With {@code towers.replace-keeps-range} the range stays too (a macro cell keeps its measured
-     * height, a small cell its fixed share). Returns an error for the player, or null on success.
+     * ownership stay. Returns an error for the player, or null on success.
      */
     public String replace(Tower t, Block sign) {
         if (sign == null || !isWallSign(sign)) return "Look at a wall sign (standing and hanging signs can't be towers).";
@@ -149,15 +148,8 @@ public final class TowerManager {
         }
         plugin.workforce().towerRemoved(t); // a repair crew heading to the old spot turns back; it's queued again if still worn
         plugin.signal().forget(t);
-        double height = t.heightAboveGround();
         plugin.store().relocateTower(t, sign.getWorld().getUID(), sign.getX(), sign.getY(), sign.getZ());
         t.wirelessLink(0);
-        if (s().replaceKeepsRange) {
-            t.heightAboveGround(height);
-            t.heightLocked(true);
-        } else {
-            t.heightLocked(false);
-        }
         refresh(t);
         updateWireless();
         return null;
@@ -209,10 +201,10 @@ public final class TowerManager {
         plugin.screen().ensure(t);
     }
 
-    /** Reach of one band from this tower: macro cells get the height bonus, small cells a fixed share. */
+    /** Reach of one band from this tower: macro cells get the height bonus, small cells a fixed share (all of it on 5G High and mmWave). */
     public double range(Tower t, Band b) {
         double base = s().spec(b).range();
-        return t.small() ? base * s().smallCells.rangePercent() : base * s().rangeMultiplier(t.heightAboveGround());
+        return t.small() ? base * s().smallCells.rangeShare(b) : base * s().rangeMultiplier(t.heightAboveGround());
     }
 
     /** Small cells linked wirelessly to this macro cell. */
@@ -300,7 +292,6 @@ public final class TowerManager {
      * @return true if the stored height changed noticeably
      */
     public boolean measureHeight(Tower t) {
-        if (t.heightLocked()) return false; // /tower replace kept this tower's range
         World w = t.world();
         if (w == null) return false;
         int r = s().heightSampleRadius;

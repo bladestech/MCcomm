@@ -23,7 +23,6 @@ public final class Tower {
     private final EnumSet<Band> enabledBands = EnumSet.noneOf(Band.class);
     private Material backhaul; // null = offline
     private double heightAboveGround; // antenna height over the surrounding terrain, measured when loaded
-    private boolean heightLocked;     // true = keep heightAboveGround (and so the range) instead of measuring it at the sign
     private UUID displayId, panelId; // old single-text screen, removed on next load
     private final java.util.Map<String, UUID> screen = new java.util.LinkedHashMap<>(); // role -> entity
     private final UUID createdBy;
@@ -64,8 +63,6 @@ public final class Tower {
     public EnumSet<Band> enabledBands() { return enabledBands; }
     public double heightAboveGround() { return heightAboveGround; }
     public void heightAboveGround(double h) { this.heightAboveGround = h; }
-    public boolean heightLocked() { return heightLocked; }
-    public void heightLocked(boolean l) { this.heightLocked = l; }
     public Material backhaul() { return backhaul; }
     public void backhaul(Material m) { this.backhaul = m; }
     public java.util.Map<String, UUID> screen() { return screen; }

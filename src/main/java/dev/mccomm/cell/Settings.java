@@ -49,7 +49,6 @@ public final class Settings {
     public final int maxCarriersPerPlayer, maxTowersPerCarrier;
     public final Pattern carrierNamePattern, towerNamePattern;
     public final long towerCost;
-    public final boolean replaceKeepsRange; // /tower replace keeps the tower's range (its measured height) instead of re-measuring at the new sign
     public final boolean heightBonus;
     public final double heightFree, heightPerBlock, heightMax;
     public final int heightSampleRadius;
@@ -209,7 +208,6 @@ public final class Settings {
         carrierNamePattern = Pattern.compile(c.getString("carriers.name-pattern", "^[A-Za-z0-9_&.\\-]{2,20}$"));
         towerNamePattern = Pattern.compile(c.getString("towers.name-pattern", "^[A-Za-z0-9_\\-]{1,12}$"));
         towerCost = Math.max(0, c.getLong("towers.creation-cost", 0));
-        replaceKeepsRange = c.getBoolean("towers.replace-keeps-range", true);
         heightBonus = c.getBoolean("towers.height-bonus.enabled", true);
         heightFree = Math.max(0, c.getDouble("towers.height-bonus.free-blocks", 4));
         heightPerBlock = Math.max(0, c.getDouble("towers.height-bonus.percent-per-block", 1.0)) / 100.0;

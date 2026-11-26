@@ -83,7 +83,7 @@ wall sign with `/tower install <name>`.
 
 | | Macro cell | Small cell |
 |---|---|---|
-| Range | Band range + height bonus | 15% of the band's range, no height bonus |
+| Range | Band range + height bonus | 15% of the band's range, no height bonus; **5G High and 5G mmWave keep 100%** of the band's range (`small-cells.full-range-bands`) |
 | Walls near the cell | Normal loss | Half the loss |
 | Capacity per band | By generation | ×2 |
 | Bands | Any | 4G and 5G only (Gen 3+ models) |
@@ -107,7 +107,7 @@ tab shows small cells with an end rod icon.
 
 `/tower replace <name>` moves an existing tower onto the wall sign you look at, without rebuilding it. It keeps its name, model, bands, backhaul block, wear, owner and subscribers; the old sign is cleared and the new one gets the screen. A repair crew on its way to the old spot turns back and is sent again if the tower is still worn.
 
-It also keeps its **range**: a macro cell keeps the height it was measured at (so it doesn't gain or lose its height bonus by moving), and a small cell keeps its fixed share of the band's range. A small cell still has to keep the usual spacing from the carrier's other small cells. Servers that want moving to re-measure the height can set `towers.replace-keeps-range: false`.
+A macro cell's height bonus is measured again at the new sign, so its range follows where it ends up. A small cell still has to keep the usual spacing from the carrier's other small cells.
 
 ## Removing and protecting towers
 

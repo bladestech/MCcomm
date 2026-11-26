@@ -333,7 +333,6 @@ public final class DataStore {
                         }
                     }
                     t.heightAboveGround(s.getDouble("height", 0));
-                    t.heightLocked(s.getBoolean("height-locked", false));
                     t.wear(s.getDouble("wear", 0));
                     t.wearAt(s.getLong("wear-at", 0));
                     t.small(s.getBoolean("small", false));
@@ -595,7 +594,6 @@ public final class DataStore {
             ty.set(p + "model-bands", t.modelBands().stream().map(Band::key).toList());
             for (var e : t.screen().entrySet()) ty.set(p + "screen." + e.getKey(), e.getValue().toString());
             ty.set(p + "height", Math.round(t.heightAboveGround() * 10) / 10.0);
-            if (t.heightLocked()) ty.set(p + "height-locked", true);
             ty.set(p + "wear", Math.round(t.wear() * 100) / 100.0);
             ty.set(p + "wear-at", t.wearAt());
             if (t.small()) ty.set(p + "small", true);

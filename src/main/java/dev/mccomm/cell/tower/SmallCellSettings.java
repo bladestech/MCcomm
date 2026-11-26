@@ -1,7 +1,11 @@
 package dev.mccomm.cell.tower;
 
+import dev.mccomm.cell.band.Band;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+
+import java.util.EnumSet;
+import java.util.Set;
 
 /** The {@code small-cells} section of config.yml. */
 public record SmallCellSettings(
@@ -19,7 +23,27 @@ public record SmallCellSettings(
         int minSpacing,           // blocks between a carrier's small cells
         double costPercent,       // manufacturing cost compared with a macro with the same bands
         long researchPoints,
-        double coverageWeight) {
+        double coverageWeight,
+        Set<Band> fullRangeBands) { // bands where a small cell reaches as far as a macro cell's base range (100%, not rangePercent)
+
+    /** Share of the band's range a small cell reaches: all of it on the full-range bands, else {@code rangePercent}. */
+    public double rangeShare(Band b) {
+        return fullRangeBands.contains(b) ? 1.0 : rangePercent;
+    }
+
+    private static Set<Band> fullBands(ConfigurationSection s) {
+        Set<Band> out = EnumSet.noneOf(Band.class);
+        if (!s.contains("full-range-bands")) {
+            out.add(Band.G5_HIGH);
+            out.add(Band.G5_MMWAVE);
+            return out;
+        }
+        for (String key : s.getStringList("full-range-bands")) {
+            Band b = Band.fromKey(key);
+            if (b != null) out.add(b);
+        }
+        return out;
+    }
 
     public static SmallCellSettings read(FileConfiguration c) {
         ConfigurationSection s = c.getConfigurationSection("small-cells");
@@ -40,6 +64,7 @@ public record SmallCellSettings(
                 Math.max(0, s.getInt("min-spacing", 8)),
                 Math.clamp(s.getDouble("cost-percent", 40) / 100.0, 0.01, 2),
                 Math.max(0, s.getLong("research-points", 300)),
-                Math.clamp(s.getDouble("coverage-weight", 0.5), 0, 1));
+                Math.clamp(s.getDouble("coverage-weight", 0.5), 0, 1),
+                fullBands(s));
     }
 }

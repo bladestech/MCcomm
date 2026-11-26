@@ -16,7 +16,7 @@ The config file itself is commented. This page is an overview by section.
 | `backhaul` | Which blocks can be backhaul, and their capacity multipliers |
 | `signal` | Best and cutoff dBm, falloff, bar thresholds, wall scanning, weather and underground loss, antenna height, update rate |
 | `congestion` | `capacity-per-generation`: users per band at full speed, by generation |
-| `towers` | Install fee, name pattern, height bonus (free blocks, % per block, cap, sample radius), `replace-keeps-range` for /tower replace |
+| `towers` | Install fee, name pattern, height bonus (free blocks, % per block, cap, sample radius) |
 | `display` | The sign screen's panel block, full-bright, `yaw-offset` (set 180 if text is mirrored), wall-sign geometry |
 
 See [Signal reference](../signal.md) for how these numbers are used.
@@ -57,7 +57,7 @@ See [Signal reference](../signal.md) for how these numbers are used.
 |---|---|
 | `simulation` | `users-per-real-user` (500) and `mode` (market or fixed). See [Simulated users](simulation.md) |
 | `business-plans` | Business plans for carriers: `priority` on a congested band and the `customer-share` of simulated users that are businesses. See [Plans](../carriers/plans.md) |
-| `small-cells` | Small cell range, wall loss, capacity, upkeep, wear and repair factors, wireless backhaul, limits per macro and spacing, cost and research. See [Towers](../carriers/towers.md#small-cells) |
+| `small-cells` | Small cell range (and `full-range-bands`, the bands where they keep 100% of the range), wall loss, capacity, upkeep, wear and repair factors, wireless backhaul, limits per macro and spacing, cost and research. See [Towers](../carriers/towers.md#small-cells) |
 | `broadband` | ISPs, nodes, routers and Wi-Fi: limits, billing and grace times, Wi-Fi generations and wall loss, Wi-Fi calling, `wifi.auto-connect` (phones join Wi-Fi by themselves, or only with `/broadband connect`), `wifi.extender` (range and speed kept by Wi-Fi extenders, their price and the limit per player), transit and peering, faults, fixed wireless, the household market, the browser, bundle limits, and each technology (DSL, cable, fiber, satellite, fixed-wireless: range, speed, ping, falloff, capacity, costs, cabling and fault rates), business plans (`business.priority` and simulated businesses). See [Running an ISP](../isps.md) |
 | `market` | Fair price, churn rates, shopping rate, satisfaction weights, coverage grid and band weights. See [The customer market](../carriers/market.md) |
 | `squaremap` | Map integration. See [squaremap](squaremap.md) |

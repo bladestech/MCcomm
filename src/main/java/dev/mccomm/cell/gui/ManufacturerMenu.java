@@ -383,7 +383,7 @@ public final class ManufacturerMenu {
         if (sc.enabled()) {
             menu.set(40, Items.of(tm.small() ? Material.END_ROD : Material.LIGHTNING_ROD,
                     "<white>Form factor: <aqua>" + (tm.small() ? "Small cell" : "Macro cell"),
-                    tm.small() ? "<gray>" + Math.round(sc.rangePercent() * 100) + "% range, ×" + sc.capacityMultiplier() + " capacity, "
+                    tm.small() ? "<gray>" + Math.round(sc.rangePercent() * 100) + "% range (full range on " + (sc.fullRangeBands().isEmpty() ? "no bands" : sc.fullRangeBands().stream().map(b -> s().spec(b).name()).collect(java.util.stream.Collectors.joining(", "))) + "), ×" + sc.capacityMultiplier() + " capacity, "
                             + Math.round(sc.costPercent() * 100) + "% of the cost." : "<gray>A full tower with the height bonus.",
                     !m.smallCells() ? "<red>Research small cells first" : "<yellow>Click · switch"), e -> {
                 if (!m.smallCells()) return;

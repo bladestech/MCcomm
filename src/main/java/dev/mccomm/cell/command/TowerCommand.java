@@ -77,7 +77,7 @@ public final class TowerCommand extends Cmd {
                 }
                 double reach = 0;
                 for (Band band : t.enabledBands()) reach = Math.max(reach, plugin.towers().range(t, band));
-                Msg.send(p, "<green>Tower <white><n></white> moved to this sign with its name, model, bands and backhaul. <gray>Reach: <white><reach> blocks</white>" + (plugin.settings().replaceKeepsRange ? " (kept)." : "."),
+                Msg.send(p, "<green>Tower <white><n></white> moved to this sign with its name, model, bands and backhaul. <gray>Reach: <white><reach> blocks</white>" + ".",
                         Msg.p("n", t.name()), Msg.p("reach", "" + Math.round(reach)));
             }
             case "remove" -> {
