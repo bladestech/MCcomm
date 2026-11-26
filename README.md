@@ -2,7 +2,7 @@
 
 A Paper/Purpur 26.x plugin that adds a mobile network to Minecraft. Carriers build cell towers, manufacturers design them, and players buy phones, subscribe to plans, text, call, and chat over the "internet". Signal, bands, data and money all matter.
 
-> **Status: 1.5.0 Alpha.** Feature-complete for testing, but expect bugs and balance changes.
+> **Status: 1.5.1 Alpha.** Feature-complete for testing, but expect bugs and balance changes.
 
 **📖 Documentation: <https://bladestech.github.io/MCcomm/>**
 
