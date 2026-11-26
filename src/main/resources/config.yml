@@ -353,6 +353,13 @@ broadband:
     auto-connect: true
     # Every solid block between the router and the device costs this many blocks of Wi-Fi range.
     wall-loss-blocks: 1.5
+    # Wi-Fi extenders (/broadband extender install): a wall sign that repeats one of your routers.
+    extender:
+      range-factor: 0.7     # its own reach, as a share of the router's reach
+      speed-factor: 0.6     # speed kept for devices connected through it
+      extra-ping-ms: 6      # added ping
+      price: 60             # spent from the player's wallet to install one
+      max-per-player: 4     # -1 = unlimited
     # Router generations, bought from the router screen. range-factor multiplies wifi-range;
     # max-guests is how many non-owners can use a shared router at once; price is spent.
     tiers:

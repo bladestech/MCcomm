@@ -75,7 +75,11 @@ public record BroadbandSettings(
     public record WifiTier(String name, double rangeFactor, int maxGuests, long price) {
     }
 
-    public record Wifi(boolean calling, boolean autoConnect, double wallLoss, List<WifiTier> tiers) {
+    /** Wi-Fi extenders: they repeat a router, reaching {@code rangeFactor} of its range at {@code speedFactor} of its speed. */
+    public record ExtenderSpec(double rangeFactor, double speedFactor, double extraPingMs, long price, int maxPerPlayer) {
+    }
+
+    public record Wifi(boolean calling, boolean autoConnect, double wallLoss, List<WifiTier> tiers, ExtenderSpec extender) {
     }
 
     public record Transit(double mbpsPerTier, int maxTier, long upkeepPerTier, long upgradeCost,
@@ -183,7 +187,14 @@ public record BroadbandSettings(
             tiers.add(new WifiTier("Wi-Fi 6", 1.5, 8, 200));
             tiers.add(new WifiTier("Wi-Fi 7", 2.0, 16, 500));
         }
-        Wifi wifi = new Wifi(wf == null || wf.getBoolean("calling", true), wf == null || wf.getBoolean("auto-connect", true), wf == null ? 1.5 : Math.max(0, wf.getDouble("wall-loss-blocks", 1.5)), List.copyOf(tiers));
+        ConfigurationSection ex = wf == null ? null : wf.getConfigurationSection("extender");
+        ExtenderSpec extender = new ExtenderSpec(
+                ex == null ? 0.7 : Math.clamp(ex.getDouble("range-factor", 0.7), 0.1, 2),
+                ex == null ? 0.6 : Math.clamp(ex.getDouble("speed-factor", 0.6), 0.05, 1),
+                ex == null ? 6 : Math.max(0, ex.getDouble("extra-ping-ms", 6)),
+                ex == null ? 60 : Math.max(0, ex.getLong("price", 60)),
+                ex == null ? 4 : ex.getInt("max-per-player", 4));
+        Wifi wifi = new Wifi(wf == null || wf.getBoolean("calling", true), wf == null || wf.getBoolean("auto-connect", true), wf == null ? 1.5 : Math.max(0, wf.getDouble("wall-loss-blocks", 1.5)), List.copyOf(tiers), extender);
 
         ConfigurationSection tr = s.getConfigurationSection("transit");
         Transit transit = new Transit(

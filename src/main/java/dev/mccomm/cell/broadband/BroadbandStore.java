@@ -26,10 +26,11 @@ public final class BroadbandStore {
     private final Map<Integer, Node> nodes = new LinkedHashMap<>();
     private final Map<Integer, Router> routers = new LinkedHashMap<>();
     private final Map<Integer, Computer> computers = new LinkedHashMap<>();
+    private final Map<Integer, Extender> extenders = new LinkedHashMap<>();
     private final Map<BlockKey, Device> byBlock = new HashMap<>();
     private final Map<UUID, List<Mail>> mail = new HashMap<>();
     private final List<Listing> listings = new ArrayList<>();
-    private int nextNode = 1, nextRouter = 1, nextComputer = 1, nextListing = 1;
+    private int nextNode = 1, nextRouter = 1, nextComputer = 1, nextExtender = 1, nextListing = 1;
     /** Each player's chosen Wi-Fi: a router id, or 0 = deliberately disconnected. No entry = automatic. */
     private final Map<UUID, Integer> wifiChoice = new HashMap<>();
     private long marketAt; // last market step (epoch ms)
@@ -138,6 +139,7 @@ public final class BroadbandStore {
         routers.remove(r.id());
         byBlock.remove(r.key());
         for (Computer c : computers.values()) if (c.routerId() == r.id()) c.routerId(0);
+        for (Extender x : extenders.values()) if (x.routerId() == r.id()) x.routerId(0);
         markDirty();
     }
 
@@ -179,6 +181,32 @@ public final class BroadbandStore {
         return out;
     }
 
+    // ------------------------------------------------------------- extenders
+
+    public Collection<Extender> extenders() { return extenders.values(); }
+
+    public Extender extender(int id) { return extenders.get(id); }
+
+    public int allocateExtenderId() { return nextExtender++; }
+
+    public void addExtender(Extender x) {
+        extenders.put(x.id(), x);
+        byBlock.put(x.key(), x);
+        markDirty();
+    }
+
+    public void removeExtender(Extender x) {
+        extenders.remove(x.id());
+        byBlock.remove(x.key());
+        markDirty();
+    }
+
+    public List<Extender> extendersOf(UUID player) {
+        List<Extender> out = new ArrayList<>();
+        for (Extender x : extenders.values()) if (x.owner().equals(player)) out.add(x);
+        return out;
+    }
+
     // ---------------------------------------------------------------- devices
 
     public Device deviceAt(BlockKey key) { return byBlock.get(key); }
@@ -211,6 +239,7 @@ public final class BroadbandStore {
         nextNode = Math.max(1, y.getInt("next-node-id", 1));
         nextRouter = Math.max(1, y.getInt("next-router-id", 1));
         nextComputer = Math.max(1, y.getInt("next-computer-id", 1));
+        nextExtender = Math.max(1, y.getInt("next-extender-id", 1));
         nextListing = Math.max(1, y.getInt("next-listing-id", 1));
         marketAt = y.getLong("market-at", 0);
 
@@ -338,6 +367,24 @@ public final class BroadbandStore {
             }
         }
 
+        ConfigurationSection xs = y.getConfigurationSection("extenders");
+        if (xs != null) {
+            for (String key : xs.getKeys(false)) {
+                ConfigurationSection s = xs.getConfigurationSection(key);
+                if (s == null) continue;
+                try {
+                    int id = Integer.parseInt(key);
+                    Extender x = new Extender(id, UUID.fromString(s.getString("owner")), s.getString("name", "Extender"), blockKey(s), s.getLong("created-at"));
+                    x.routerId(s.getInt("router", 0));
+                    extenders.put(id, x);
+                    byBlock.put(x.key(), x);
+                    nextExtender = Math.max(nextExtender, id + 1);
+                } catch (Exception ex) {
+                    plugin.getLogger().log(Level.WARNING, "Skipping broken extender entry " + key, ex);
+                }
+            }
+        }
+
         ConfigurationSection ws = y.getConfigurationSection("wifi-choice");
         if (ws != null) {
             for (String key : ws.getKeys(false)) {
@@ -417,6 +464,7 @@ public final class BroadbandStore {
         y.set("next-node-id", nextNode);
         y.set("next-router-id", nextRouter);
         y.set("next-computer-id", nextComputer);
+        y.set("next-extender-id", nextExtender);
         y.set("next-listing-id", nextListing);
         y.set("market-at", marketAt);
 
@@ -493,6 +541,14 @@ public final class BroadbandStore {
             putKey(y, p, c.key());
             y.set(p + "router", c.routerId());
             y.set(p + "created-at", c.createdAt());
+        }
+        for (Extender x : extenders.values()) {
+            String p = "extenders." + x.id() + ".";
+            y.set(p + "owner", x.owner().toString());
+            y.set(p + "name", x.name());
+            putKey(y, p, x.key());
+            y.set(p + "router", x.routerId());
+            y.set(p + "created-at", x.createdAt());
         }
         for (Map.Entry<UUID, Integer> e : wifiChoice.entrySet()) y.set("wifi-choice." + e.getKey(), e.getValue());
         for (Map.Entry<UUID, List<Mail>> e : mail.entrySet()) {

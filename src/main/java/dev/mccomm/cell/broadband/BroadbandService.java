@@ -55,7 +55,7 @@ public final class BroadbandService {
      * (an ISP's node) and {@code tower} (a carrier tower, for fixed wireless) is set.
      */
     public record Link(Router router, Isp isp, InternetPlan plan, Node node, Tower tower, double distance,
-                       double downMbps, double upMbps, double pingMs) {
+                       double downMbps, double upMbps, double pingMs, Extender via) {
         public Technology tech() {
             return plan.tech();
         }
@@ -203,8 +203,8 @@ public final class BroadbandService {
         return cfg().wifiRange() * cfg().tier(r.tier()).rangeFactor();
     }
 
-    /** True if the router's Wi-Fi reaches {@code to}: distance plus a penalty for every wall in the way. */
-    public boolean inReach(Router r, Location to) {
+    /** True if the router's own Wi-Fi reaches {@code to}: distance plus a penalty for every wall in the way. */
+    private boolean directReach(Router r, Location to) {
         if (to == null || to.getWorld() == null || !to.getWorld().getUID().equals(r.key().world())) return false;
         double reach = reach(r);
         double d = dist(r.key(), to);
@@ -212,14 +212,106 @@ public final class BroadbandService {
         return d + walls(r.key(), to) * cfg().wifi().wallLoss() <= reach;
     }
 
+    /** True if the router's Wi-Fi reaches {@code to}, directly or through one of its owner's extenders. */
+    public boolean inReach(Router r, Location to) {
+        return directReach(r, to) || repeater(r, to) != null;
+    }
+
+    // ---- extenders
+
+    /** How far an extender repeating this router reaches, before walls. */
+    public double extenderReach(Router r) {
+        return reach(r) * cfg().wifi().extender().rangeFactor();
+    }
+
+    /** True if this extender picks up router {@code r}: same owner, the router works, and its Wi-Fi reaches the sign. */
+    private boolean feeds(Router r, Extender x) {
+        if (!r.owner().equals(x.owner()) || r.state() != Router.State.ACTIVE) return false;
+        if (x.routerId() != 0 && x.routerId() != r.id()) return false;
+        return directReach(r, center(x.key()));
+    }
+
+    /** The closest extender that carries router {@code r}'s Wi-Fi to this spot, or null. */
+    private Extender repeater(Router r, Location to) {
+        if (store.extenders().isEmpty() || to == null || to.getWorld() == null) return null;
+        UUID world = to.getWorld().getUID();
+        double reach = extenderReach(r);
+        Extender best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (Extender x : store.extenders()) {
+            if (!x.key().world().equals(world)) continue;
+            double d = dist(x.key(), to);
+            if (d > reach || d >= bestDist) continue;
+            if (d + walls(x.key(), to) * cfg().wifi().wallLoss() > reach) continue;
+            if (!feeds(r, x)) continue;
+            best = x;
+            bestDist = d;
+        }
+        return best;
+    }
+
+    /** The router an extender repeats right now: the pinned one, else the owner's fastest working router that reaches it. */
+    public Router sourceOf(Extender x) {
+        Router best = null;
+        double bestDown = -1;
+        for (Router r : store.routers()) {
+            if (!feeds(r, x)) continue;
+            Link l = link(r);
+            if (l == null) continue;
+            if (l.downMbps() > bestDown) {
+                best = r;
+                bestDown = l.downMbps();
+            }
+        }
+        return best;
+    }
+
+    /** The owner's routers whose Wi-Fi reaches this extender's sign (for choosing what to repeat). */
+    public List<Router> sourcesInRange(Extender x) {
+        List<Router> out = new ArrayList<>();
+        Location at = center(x.key());
+        for (Router r : store.routersOf(x.owner())) if (directReach(r, at)) out.add(r);
+        return out;
+    }
+
+    /** What the extender's own Wi-Fi delivers at its sign: the source router's line with the repeater's penalty. */
+    public Link extenderLink(Extender x) {
+        Router r = sourceOf(x);
+        Link l = r == null ? null : link(r);
+        return l == null ? null : viaExtender(l, x);
+    }
+
+    private Link viaExtender(Link l, Extender x) {
+        var e = cfg().wifi().extender();
+        return new Link(l.router(), l.isp(), l.plan(), l.node(), l.tower(), l.distance(), l.downMbps() * e.speedFactor(),
+                l.upMbps() * e.speedFactor(), l.pingMs() + e.extraPingMs(), x);
+    }
+
+    /** The router's connection as seen from {@code to}: reduced if the Wi-Fi gets there through an extender. */
+    public Link linkFor(Router r, Location to) {
+        Link l = link(r);
+        if (l == null || directReach(r, to)) return l;
+        Extender x = repeater(r, to);
+        return x == null ? l : viaExtender(l, x);
+    }
+
     /**
      * Wi-Fi signal bars (1-4) at {@code to}: the closer to the router, and the fewer walls in between, the more bars.
      * Works out as the share of the router's reach already used up by distance and wall loss.
      */
     public int wifiBars(Router r, Location to) {
-        double reach = reach(r);
-        if (reach <= 0 || to == null || to.getWorld() == null || !to.getWorld().getUID().equals(r.key().world())) return 1;
-        double used = (dist(r.key(), to) + walls(r.key(), to) * cfg().wifi().wallLoss()) / reach;
+        return bars(r.key(), reach(r), to);
+    }
+
+    /** Bars for a connection as it reaches {@code to}: measured from the extender when it comes through one. */
+    public int wifiBars(Link l, Location to) {
+        if (l.via() != null) return bars(l.via().key(), extenderReach(l.router()), to);
+        return wifiBars(l.router(), to);
+    }
+
+    private int bars(BlockKey from, double reach, Location to) {
+        if (reach <= 0 || to == null || to.getWorld() == null || !to.getWorld().getUID().equals(from.world())) return 1;
+        double used = (dist(from, to) + walls(from, to) * cfg().wifi().wallLoss()) / reach;
         if (used <= 0.3) return 4;
         if (used <= 0.55) return 3;
         if (used <= 0.8) return 2;
@@ -602,7 +694,7 @@ public final class BroadbandService {
             FwLine f = fw.get(r.id());
             double down = Math.min(f.down(), t.speedCapMbps());
             if (slow) down = Math.min(down, cfg().throttleMbps());
-            return new Link(r, isp, t, null, f.tower(), f.distance(), down, down * spec(t.tech()).uploadRatio(), f.ping());
+            return new Link(r, isp, t, null, f.tower(), f.distance(), down, down * spec(t.tech()).uploadRatio(), f.ping(), null);
         }
         Node node = store.node(r.nodeId());
         TechSpec s = spec(node.tech());
@@ -610,7 +702,7 @@ public final class BroadbandService {
         double raw = s.maxMbps() * distanceFactor(s, d) * share(node, Math.max(1, users(node))) * weatherFactor(s, r.key()) * transitShare(isp);
         double down = Math.min(raw, t.speedCapMbps());
         if (slow) down = Math.min(down, cfg().throttleMbps());
-        return new Link(r, isp, t, node, null, d, down, down * s.uploadRatio(), ping(s, d));
+        return new Link(r, isp, t, node, null, d, down, down * s.uploadRatio(), ping(s, d), null);
     }
 
     // ===================================================================== Wi-Fi
@@ -652,11 +744,11 @@ public final class BroadbandService {
         }
         if (choice != null) { // the player chose: that network, or none at all (0)
             Router r = choice > 0 ? store.router(choice) : null;
-            if (r != null && r.state() == Router.State.ACTIVE && usableBy(r, me) && inReach(r, p.getLocation())) best = link(r);
+            if (r != null && r.state() == Router.State.ACTIVE && usableBy(r, me) && inReach(r, p.getLocation())) best = linkFor(r, p.getLocation());
         } else if (cfg().wifi().autoConnect()) {
             for (Router r : store.routers()) {
                 if (r.state() != Router.State.ACTIVE || !usableBy(r, me) || !inReach(r, p.getLocation())) continue;
-                Link l = link(r);
+                Link l = linkFor(r, p.getLocation());
                 if (l == null) continue;
                 if (best == null || better(l, best, me)) best = l;
             }
@@ -670,7 +762,7 @@ public final class BroadbandService {
         List<Link> out = new ArrayList<>();
         for (Router r : store.routers()) {
             if (r.state() != Router.State.ACTIVE || !usableBy(r, p.getUniqueId()) || !inReach(r, p.getLocation())) continue;
-            Link l = link(r);
+            Link l = linkFor(r, p.getLocation());
             if (l != null) out.add(l);
         }
         out.sort((a, b) -> better(a, b, p.getUniqueId()) ? -1 : better(b, a, p.getUniqueId()) ? 1 : 0);
@@ -693,7 +785,7 @@ public final class BroadbandService {
                 if (!r.name().equalsIgnoreCase(name) || !inReach(r, p.getLocation())) continue;
                 seen = true;
                 if (r.state() != Router.State.ACTIVE || !usableBy(r, me)) continue;
-                Link l = link(r);
+                Link l = linkFor(r, p.getLocation());
                 if (l != null && (pick == null || better(l, pick, me))) pick = l;
             }
             if (pick == null) {
@@ -736,14 +828,14 @@ public final class BroadbandService {
         if (c.routerId() != 0) {
             Router r = store.router(c.routerId());
             if (r != null && inReach(r, at) && computerMay(r, c, user)) {
-                Link l = link(r);
+                Link l = linkFor(r, at);
                 if (l != null) return l;
             }
         }
         Link best = null;
         for (Router r : store.routers()) {
             if (r.state() != Router.State.ACTIVE || !computerMay(r, c, user) || !inReach(r, at)) continue;
-            Link l = link(r);
+            Link l = linkFor(r, at);
             if (l == null) continue;
             if (best == null || better(l, best, c.owner())) best = l;
         }
@@ -1190,6 +1282,57 @@ public final class BroadbandService {
         return c;
     }
 
+    /** Puts a Wi-Fi extender on a wall sign. The price is spent from the player's wallet. */
+    public Extender installExtender(Player p, Block sign, String name) {
+        if (!cfg().enabled()) {
+            Msg.send(p, "<red>Home internet is turned off on this server.");
+            return null;
+        }
+        if (!DEVICE_NAME.matcher(name).matches()) {
+            Msg.send(p, "<red>Names are 1-16 letters, numbers, spaces, _ or -.");
+            return null;
+        }
+        if (sign == null || !TowerManager.isWallSign(sign)) {
+            Msg.send(p, "<red>Look at a wall sign within reach of your router's Wi-Fi (standing and hanging signs can't be devices).");
+            return null;
+        }
+        if (!freeSign(plugin, store, sign)) {
+            Msg.send(p, "<red>That sign is already in use.");
+            return null;
+        }
+        var cf = cfg().wifi().extender();
+        boolean admin = p.hasPermission("mccomm.admin");
+        if (cf.maxPerPlayer() >= 0 && !admin && store.extendersOf(p.getUniqueId()).size() >= cf.maxPerPlayer()) {
+            Msg.send(p, "<red>You already have the maximum number of extenders (<n>).", Msg.p("n", "" + cf.maxPerPlayer()));
+            return null;
+        }
+        PlayerProfile prof = plugin.store().profile(p.getUniqueId());
+        long cost = admin ? 0 : cf.price();
+        if (prof.balance() < cost) {
+            Msg.send(p, "<red>An extender costs <white><amt></white>; you have <white><bal></white>.", Msg.p("amt", money(cost)), Msg.p("bal", money(prof.balance())));
+            return null;
+        }
+        Extender x = new Extender(store.allocateExtenderId(), p.getUniqueId(), name, BlockKey.of(sign), System.currentTimeMillis());
+        if (cost > 0) {
+            prof.balance(prof.balance() - cost);
+            prof.log(-cost, "Wi-Fi extender: " + name);
+            plugin.store().markDirty();
+        }
+        store.addExtender(x);
+        wifiCache.clear();
+        refresh(x);
+        return x;
+    }
+
+    public void removeExtender(Extender x, boolean clearSign) {
+        BlockKey key = x.key();
+        screens.remove(key);
+        store.removeExtender(x);
+        wifiCache.clear();
+        if (clearSign) clearSign(key);
+        signText.remove(key);
+    }
+
     public void removeRouter(Router r, boolean clearSign) {
         BlockKey key = r.key();
         screens.remove(key);
@@ -1212,6 +1355,7 @@ public final class BroadbandService {
             case Node n -> removeNode(n, clearSign);
             case Router r -> removeRouter(r, clearSign);
             case Computer c -> removeComputer(c, clearSign);
+            case Extender x -> removeExtender(x, clearSign);
         }
     }
 
@@ -1648,6 +1792,7 @@ public final class BroadbandService {
         List<Device> out = new ArrayList<>(store.nodes());
         out.addAll(store.routers());
         out.addAll(store.computers());
+        out.addAll(store.extenders());
         return out;
     }
 
@@ -1662,6 +1807,7 @@ public final class BroadbandService {
             case Node n -> nodeLines(n);
             case Router r -> routerLines(r);
             case Computer c -> computerLines(c);
+            case Extender x -> extenderLines(x);
         };
         if (cfg().screens()) {
             // The screen entities show everything; the sign itself stays blank (and waxed).
@@ -1703,6 +1849,15 @@ public final class BroadbandService {
                         l == null ? Component.text("No signal", NamedTextColor.DARK_RED) : Component.text(Msg.speed(l.downMbps()))};
             }
         };
+    }
+
+    private Component[] extenderLines(Extender x) {
+        Router src = sourceOf(x);
+        return new Component[]{
+                Component.text("[Extender]", NamedTextColor.DARK_AQUA),
+                Component.text(trunc(x.name(), 15)),
+                src == null ? Component.text("No router", NamedTextColor.DARK_RED) : Component.text("Repeats " + trunc(src.name(), 8), NamedTextColor.DARK_GREEN),
+                Component.text("Right-click", NamedTextColor.DARK_GRAY)};
     }
 
     private Component[] computerLines(Computer c) {

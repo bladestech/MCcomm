@@ -141,8 +141,8 @@ public final class HudService {
             // Its own block, laid out like a SIM: name, signal, then the line behind it.
             out.add(Component.empty());
             out.add(Msg.mm(" <dark_gray>»</dark_gray> <white><n></white> <dark_gray>·</dark_gray> <aqua>Wi-Fi", Msg.p("n", wifi.router().name())));
-            out.add(Msg.mm("   " + Msg.bars(plugin.broadband().wifiBars(wifi.router(), p.getLocation())) + " <white><gen>",
-                    Msg.p("gen", plugin.settings().broadband.tier(wifi.router().tier()).name())));
+            out.add(Msg.mm("   " + Msg.bars(plugin.broadband().wifiBars(wifi, p.getLocation())) + " <white><gen>" + (wifi.via() != null ? " <dark_gray>·</dark_gray> <aqua><via>" : ""),
+                    Msg.p("gen", plugin.settings().broadband.tier(wifi.router().tier()).name()), Msg.p("via", wifi.via() == null ? "" : wifi.via().name())));
             out.add(Msg.mm("   <gray><isp> <dark_gray>·</dark_gray> <spd>", Msg.p("isp", wifi.isp().name()), Msg.p("spd", Msg.speed(wifi.downMbps()))));
         }
         out.add(Component.empty());
@@ -193,7 +193,7 @@ public final class HudService {
     private Component wifiInline(Player p) {
         var wifi = wifiOf(p);
         if (wifi == null) return Component.empty();
-        return Msg.mm(" <dark_gray>|</dark_gray> <aqua>Wi-Fi</aqua> " + Msg.bars(plugin.broadband().wifiBars(wifi.router(), p.getLocation())) + " <white><n>",
+        return Msg.mm(" <dark_gray>|</dark_gray> <aqua>Wi-Fi</aqua> " + Msg.bars(plugin.broadband().wifiBars(wifi, p.getLocation())) + " <white><n>",
                 Msg.p("n", wifi.router().name()));
     }
 

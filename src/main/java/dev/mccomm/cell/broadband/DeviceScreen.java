@@ -272,6 +272,7 @@ public final class DeviceScreen {
             case Node n -> updateNode(k, n);
             case Router r -> updateRouter(k, r);
             case Computer c -> updateComputer(k, c);
+            case Extender x -> updateExtender(k, x);
         }
     }
 
@@ -381,6 +382,26 @@ public final class DeviceScreen {
                 : "<#5EE38A>↓ <#E6FFEE>" + Msg.escape(Msg.speed(l.downMbps())) + " <#7A7F8A>· " + Math.round(l.pingMs()) + " ms";
         setText(k, "footl", Msg.mm(left), 0.14, W * 0.62, Align.LEFT, null);
         setText(k, "footr", Msg.mm("<#9AA0AA>Right-click"), 0.13, W * 0.34, Align.RIGHT, null);
+    }
+
+    private void updateExtender(BlockKey k, Extender x) {
+        double W = geo(k).W();
+        Router src = bb().sourceOf(x);
+        Link l = bb().extenderLink(x);
+        accent(k, l == null ? 0x55FFFF : l.isp().colors().getFirst().value());
+        State st = l == null ? State.OFF : State.OK;
+        setText(k, "head", Msg.mm("<white><b>Extender"), 0.19, W * 0.62, Align.LEFT, null);
+        setText(k, "badge", Msg.mm(badgeText(st, l == null ? "NO ROUTER" : "ONLINE")), 0.14, W * 0.32, Align.RIGHT, badgeBg(st));
+        setText(k, "name", Msg.mm((st == State.OK ? "<white>" : "<#7A7F8A>") + "<b>" + Msg.escape(x.name())), 0.6, W * 0.44, Align.LEFT, null);
+        setText(k, "sub", Msg.mm("<#9AA0AA>" + (src == null ? "Put it within reach of your router" : "Repeats " + Msg.escape(src.name()))), 0.15, W * 0.46, Align.LEFT, null);
+        int max = bb().cfg().maxWifiTier();
+        for (int i = 0; i < 4; i++) chip(k, i, "WF" + (i + 4), src != null && i + 1 <= src.tier() && st == State.OK, i < max);
+        setText(k, "mid", Msg.mm("<#9AA0AA>" + (src == null ? "No signal to repeat" : "Reach " + Math.round(bb().extenderReach(src)) + " blocks")), 0.13, W * 0.46, Align.RIGHT, null);
+        String left = l == null ? "<#9AA0AA>Not repeating anything"
+                : "<#5EE38A>↓ <#E6FFEE>" + Msg.escape(Msg.speed(l.downMbps())) + " <#7A7F8A>· " + Math.round(l.pingMs()) + " ms";
+        setText(k, "footl", Msg.mm(left), 0.14, W * 0.62, Align.LEFT, null);
+        long keep = Math.round(bb().cfg().wifi().extender().speedFactor() * 100);
+        setText(k, "footr", Msg.mm("<#9AA0AA>Keeps " + keep + "% speed"), 0.13, W * 0.34, Align.RIGHT, null);
     }
 
     private Entity part(BlockKey k, String role) {

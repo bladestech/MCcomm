@@ -26,7 +26,7 @@ import org.bukkit.inventory.EquipmentSlot;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Clicking, protecting and cleaning up the signs that nodes, routers and computers sit on. */
+/** Clicking, protecting and cleaning up the signs that nodes, routers, computers and extenders sit on. */
 public final class BroadbandListener implements Listener {
     private final CellPlugin plugin;
 
@@ -67,6 +67,7 @@ public final class BroadbandListener implements Listener {
             }
             case Router r -> r.owner().equals(p.getUniqueId());
             case Computer c -> c.owner().equals(p.getUniqueId());
+            case Extender x -> x.owner().equals(p.getUniqueId());
         };
     }
 
@@ -81,6 +82,7 @@ public final class BroadbandListener implements Listener {
             case Node n -> plugin.broadbandMenu().node(p, n);
             case Router r -> plugin.broadbandMenu().routerOrInfo(p, r);
             case Computer c -> plugin.broadbandMenu().computer(p, c);
+            case Extender x -> plugin.broadbandMenu().extenderOrInfo(p, x);
         }
     }
 

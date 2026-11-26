@@ -18,7 +18,7 @@ import java.util.Locale;
 
 /** /broadband — set up internet at home: a router and a computer on wall signs. */
 public final class BroadbandCommand extends Cmd {
-    private static final List<String> SUBS = List.of("router", "computer", "connect", "disconnect", "list", "providers", "speedtest", "remove");
+    private static final List<String> SUBS = List.of("router", "computer", "extender", "connect", "disconnect", "list", "providers", "speedtest", "remove");
 
     public BroadbandCommand(CellPlugin plugin) {
         super(plugin);
@@ -86,6 +86,18 @@ public final class BroadbandCommand extends Cmd {
                 Router r = routerOf(p);
                 if (r != null) plugin.broadbandMenu().router(p, r, "providers", 0);
             }
+            case "extender" -> {
+                if (args.length < 2 || !args[1].equalsIgnoreCase("install")) {
+                    Msg.send(p, "<red>Usage: /broadband extender install [name] <gray>(look at a wall sign within reach of your router's Wi-Fi)");
+                    return;
+                }
+                String name = args.length > 2 ? join(args, 2) : "Extender";
+                var x = bb().installExtender(p, target(p), name);
+                if (x == null) return;
+                var cost = bb().cfg().wifi().extender().price();
+                Msg.send(p, "<green>Extender <white><n></white> set up. It repeats your router's Wi-Fi from here; right-click it to choose which router.", Msg.p("n", x.name()));
+                if (bb().sourceOf(x) == null) Msg.send(p, "<yellow>No router of yours reaches this sign yet, so it isn't repeating anything. Move it closer to the router.");
+            }
             case "connect" -> connect(p, args);
             case "disconnect" -> {
                 bb().disconnect(p);
@@ -105,7 +117,8 @@ public final class BroadbandCommand extends Cmd {
                 Block b = target(p);
                 Device d = b == null ? null : bb().store().deviceAt(BlockKey.of(b));
                 boolean mine = (d instanceof Router r && r.owner().equals(p.getUniqueId()))
-                        || (d instanceof Computer c && c.owner().equals(p.getUniqueId()));
+                        || (d instanceof Computer c && c.owner().equals(p.getUniqueId()))
+                        || (d instanceof dev.mccomm.cell.broadband.Extender x && x.owner().equals(p.getUniqueId()));
                 if (d == null || d instanceof dev.mccomm.cell.broadband.Node || !(mine || p.hasPermission("mccomm.admin"))) {
                     Msg.send(p, "<red>Look at your router or computer sign.");
                     return;
@@ -145,7 +158,7 @@ public final class BroadbandCommand extends Cmd {
         for (BroadbandService.Link l : nets) {
             boolean on = current != null && current.router().id() == l.router().id();
             String name = l.router().name();
-            String line = " " + Msg.bars(bb().wifiBars(l.router(), p.getLocation())) + " <white><n></white> <dark_gray>·</dark_gray> <gray><isp> · <spd></gray>"
+            String line = " " + Msg.bars(bb().wifiBars(l, p.getLocation())) + " <white><n></white> <dark_gray>·</dark_gray> <gray><isp> · <spd></gray>"
                     + (on ? " <green>✔ connected" : " <yellow>click to join");
             if (SAFE.matcher(name).matches()) line = "<click:run_command:'/broadband connect " + name + "'><hover:show_text:'Join this Wi-Fi'>" + line + "</hover></click>";
             Msg.raw(p, line, Msg.p("n", name), Msg.p("isp", l.isp().name()), Msg.p("spd", Msg.speed(l.downMbps())));
@@ -157,7 +170,7 @@ public final class BroadbandCommand extends Cmd {
     private void list(Player p) {
         List<Router> routers = bb().store().routersOf(p.getUniqueId());
         List<Computer> computers = bb().store().computersOf(p.getUniqueId());
-        if (routers.isEmpty() && computers.isEmpty()) {
+        if (routers.isEmpty() && computers.isEmpty() && bb().store().extendersOf(p.getUniqueId()).isEmpty()) {
             help(p);
             return;
         }
@@ -168,6 +181,10 @@ public final class BroadbandCommand extends Cmd {
                     Msg.p("n", r.name()), Msg.p("state", l == null ? r.state().name().toLowerCase(Locale.ROOT) : Msg.speed(l.downMbps())));
         }
         for (Computer c : computers) Msg.raw(p, "<dark_gray> · <white>Computer <n>", Msg.p("n", c.name()));
+        for (var x : bb().store().extendersOf(p.getUniqueId())) {
+            var src = bb().sourceOf(x);
+            Msg.raw(p, "<dark_gray> · <white>Extender <n> <gray>· <state>", Msg.p("n", x.name()), Msg.p("state", src == null ? "not repeating" : "repeats " + src.name()));
+        }
     }
 
     private void help(CommandSender s) {
@@ -176,6 +193,7 @@ public final class BroadbandCommand extends Cmd {
         Msg.raw(s, "<gray>Right-click it to pick an internet provider and plan.");
         Msg.raw(s, "<white>/broadband computer install [name] <gray>— put a computer on another wall sign");
         Msg.raw(s, "<gray>Within " + Math.round(bb().cfg().wifiRange()) + " blocks of the router it goes online.");
+        Msg.raw(s, "<white>/broadband extender install [name] <gray>— repeat your router's Wi-Fi from another wall sign");
         Msg.raw(s, "<white>/broadband connect [name] <gray>— see the Wi-Fi in range and join one (it shows on your HUD)");
         Msg.raw(s, "<white>/broadband disconnect <gray>· <white>speedtest <gray>— test the Wi-Fi you are on");
         Msg.raw(s, "<white>/broadband <gray>· <white>providers <gray>· <white>list <gray>· <white>remove");
@@ -185,7 +203,7 @@ public final class BroadbandCommand extends Cmd {
     public Collection<String> suggest(CommandSourceStack src, String[] args) {
         if (args.length <= 1) return filter(SUBS, args.length == 0 ? "" : args[0]);
         String sub = args[0].toLowerCase(Locale.ROOT);
-        if (args.length == 2 && (sub.equals("router") || sub.equals("computer"))) return filter(List.of("install"), args[1]);
+        if (args.length == 2 && (sub.equals("router") || sub.equals("computer") || sub.equals("extender"))) return filter(List.of("install"), args[1]);
         if (args.length == 2 && sub.equals("connect") && src.getSender() instanceof Player p) {
             List<String> names = new java.util.ArrayList<>(List.of("auto"));
             for (BroadbandService.Link l : bb().networksInRange(p)) names.add(l.router().name());

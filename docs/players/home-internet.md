@@ -79,6 +79,7 @@ Every provider has a **star rating** (speed, uptime, value and coverage) on the 
 - **Phones on Wi-Fi:** in range of a working router, your phone uses it instead of mobile data (`/internet` and the speed test), and **Wi-Fi calling** lets you call and text with no tower in range.
 - **Choosing a network:** `/broadband connect` lists the Wi-Fi in range (bars, provider, speed; click one to join). `/broadband connect <name>` joins it, `/broadband connect auto` lets your phone pick the best again, and `/broadband disconnect` puts you back on mobile data. The network you're connected to is what the sidebar shows. Your choice is remembered, and you rejoin when you walk back into range.
 - **Speed test:** `/broadband speedtest` runs the same animated ping, download and upload test as `/cell speedtest`, over the Wi-Fi you're connected to. It uses the router's data allowance on a capped plan.
+- **Wi-Fi extenders:** a router's Wi-Fi only reaches so far. Look at a wall sign inside the reach of your router and run `/broadband extender install [name]` (60 credits by default, up to 4). The extender repeats one of your routers, so its Wi-Fi reaches a further **70%** of the router's range from the extender's sign, at **60%** of the speed and a few ms more ping. Right-click it to see what it repeats, pick a router, rename it or remove it. It needs a router of yours with a working connection to reach it, and phones, computers and guests use it like any other Wi-Fi. The HUD shows the extender's name when you're connected through one.
 - **Show the line** on the router screen draws the cable from the serving node to your house in sparks.
 
 ## The browser
@@ -100,6 +101,7 @@ Pages take as long as your ping and speed make them, and use data on a capped pl
 | `/broadband` (`/wifi`, `/bb`) | Open the router you look at (or your only one) |
 | `/broadband router install [name]` | Make the wall sign you look at a router |
 | `/broadband computer install [name]` | Make the wall sign you look at a computer |
+| `/broadband extender install [name]` | Make the wall sign you look at a Wi-Fi extender |
 | `/broadband providers` | Open the router's provider list |
 | `/broadband connect [name\|auto]` · `disconnect` | List the Wi-Fi in range and join one, or leave Wi-Fi |
 | `/broadband list` · `speedtest` · `remove` | Your devices, a test over the Wi-Fi you're on, remove what you look at |

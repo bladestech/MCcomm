@@ -862,4 +862,89 @@ public final class BroadbandMenu {
                 "The router's owner picks the provider.", "Internet chat over Wi-Fi uses no mobile data.");
         m.open(p);
     }
+
+    // ============================================================ extender menu
+
+    /** Owners get the extender menu; others get a short note. */
+    public void extenderOrInfo(Player p, Extender x) {
+        if (x.owner().equals(p.getUniqueId()) || admin(p)) {
+            extender(p, x);
+            return;
+        }
+        Router src = bb().sourceOf(x);
+        Msg.raw(p, "<dark_gray>━━━ <aqua>Wi-Fi extender</aqua> ━━━");
+        Msg.raw(p, "<gray>Owner: <white><o>", Msg.p("o", nameOf(x.owner())));
+        Msg.raw(p, src == null ? "<gray>It isn't repeating a router right now."
+                : "<gray>Repeating <white><r></white>. Guests can use it if that Wi-Fi is shared.", Msg.p("r", src == null ? "" : src.name()));
+    }
+
+    public void extender(Player p, Extender x) {
+        if (store().extender(x.id()) != x) {
+            Msg.send(p, "<red>That extender is gone.");
+            return;
+        }
+        Menu m = Frame.create(p, "Extender · " + x.name(), "bb-extender");
+        Router src = bb().sourceOf(x);
+        Link l = bb().extenderLink(x);
+        var cf = bb().cfg().wifi().extender();
+        if (l == null) {
+            m.set(13, Items.of(Material.BARRIER, "<red>Not repeating anything", List.of(
+                    "<gray>None of your routers with a working",
+                    "<gray>connection reaches this sign.",
+                    "<gray>Move it closer to the router, or put",
+                    "<gray>fewer walls in between.")));
+        } else {
+            m.set(13, Items.of(Material.REPEATER, "<green>Repeating " + Items.esc(src.name()), List.of(
+                    "<gray>Provider: " + l.isp().styled(),
+                    "<gray>Its Wi-Fi reaches <white>" + Math.round(bb().extenderReach(src)) + " blocks <gray>from here",
+                    "<green>↓ <white>" + Msg.speed(l.downMbps()) + " <light_purple>↑ <white>" + Msg.speed(l.upMbps()),
+                    "<gray>Ping: <white>" + Math.round(l.pingMs()) + " ms",
+                    "<dark_gray>Keeps " + Math.round(cf.speedFactor() * 100) + "% of the router's speed")));
+        }
+        m.set(29, Items.of(Material.CLOCK, l == null ? "<dark_gray>Speed test" : "<aqua>Speed test",
+                l == null ? List.of("<gray>Needs a router to repeat.") : List.of("<gray>Ping, download and upload as you'd", "<gray>get them through this extender.")),
+                l == null ? null : e -> {
+                    Frame.click(p);
+                    p.closeInventory();
+                    bb().speedtest(p, l);
+                });
+        List<Router> near = bb().sourcesInRange(x);
+        List<String> wl = new ArrayList<>();
+        wl.add("<gray>Routers in reach of this sign:");
+        wl.add((x.routerId() == 0 ? "<green>▶ " : "<gray>  ") + "Automatic (fastest)");
+        for (Router r : near) wl.add((x.routerId() == r.id() ? "<green>▶ " : "<gray>  ") + Items.esc(r.name()));
+        wl.add("<yellow>Click to switch");
+        m.set(31, Items.of(Material.COMPASS, "<aqua>Router to repeat", wl), e -> {
+            Frame.click(p);
+            List<Integer> order = new ArrayList<>();
+            order.add(0);
+            for (Router r : near) order.add(r.id());
+            int idx = order.indexOf(x.routerId());
+            x.routerId(order.get((idx + 1) % order.size()));
+            store().markDirty();
+            bb().refresh(x);
+            extender(p, x);
+        });
+        m.set(38, Items.of(Material.NAME_TAG, "<white>Rename", "<yellow>Click to change"), e -> plugin.prompt().ask(p, "<aqua>New name for this extender?", name -> {
+            if (!BroadbandService.validName(name)) {
+                Msg.send(p, "<red>Names are 1-16 letters, numbers, spaces, _ or -.");
+                return;
+            }
+            x.name(name);
+            store().markDirty();
+            bb().refresh(x);
+            extender(p, x);
+        }));
+        m.set(42, Items.of(Material.TNT, "<red>Remove extender", "<gray>Takes it off the wall sign.", "<gray>The price isn't refunded."), e -> {
+            Frame.click(p);
+            confirm(p, "<red>Remove this extender?", List.of("<gray>Wi-Fi it repeated stops reaching that far."), () -> {
+                bb().removeExtender(x, true);
+                Msg.send(p, "<yellow>Extender removed.");
+                p.closeInventory();
+            }, () -> extender(p, x));
+        });
+        Frame.help(m, "Your extender", "An extender repeats one of your routers", "so its Wi-Fi reaches further.",
+                "Put it where the router's Wi-Fi still reaches.", "Devices behind it get " + Math.round(cf.speedFactor() * 100) + "% of the speed.");
+        m.open(p);
+    }
 }
