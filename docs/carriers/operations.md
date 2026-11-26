@@ -40,7 +40,9 @@ The tab shows each part's full cost, what you actually paid in the last hour, an
 The bill is charged **every hour**, at the levels you chose.
 
 - **The next upkeep is always kept back first.** The operations bill only uses what's
-  above it, so operations can never make your towers go dark.
+  above it, so operations can never make your towers go dark. In a
+  [parent company](../groups.md), the treasury stands behind your upkeep, so you can
+  spend your whole wallet first.
 - **If that isn't enough, you pay what you can.** Nothing is owed: that hour simply
   counts as less funded. Paying 60% of a 100% budget counts as 60%.
 - **Transit** for data your network carried (1 credit per GB, and 1 GB a day per

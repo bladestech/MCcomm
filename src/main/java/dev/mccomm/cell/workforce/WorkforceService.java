@@ -307,9 +307,12 @@ public final class WorkforceService {
                 double realTransit = st.transitDue();
                 double transit = realTransit + (c instanceof Carrier car ? simTransitPerDay(car) / 24.0 : 0);
                 double total = partsBill + transit;
-                plugin.groups().backBill(c, (long) Math.ceil(total + upkeepReserve(c) - c.balance()), "Operations");
+                // The next upkeep is kept back, except what a parent company stands behind. A member spends its
+                // own wallet first and only borrows what it really can't pay.
+                long keep = plugin.groups().ownReserve(c, upkeepReserve(c));
+                plugin.groups().backBill(c, (long) Math.ceil(total + keep - c.balance()), "Operations");
                 boolean paidUp = c instanceof Carrier car ? car.unpaidSince() == 0 : !(c instanceof Isp isp) || isp.paidUp();
-                double available = paidUp ? Math.max(0, c.balance() - upkeepReserve(c)) : 0;
+                double available = paidUp ? Math.max(0, c.balance() - keep) : 0;
                 double paid = Math.min(total, available);
                 // Transit is paid first (traffic must be paid for); real transit not covered waits for the next bill.
                 double transitPaid = Math.min(transit, paid);
@@ -454,7 +457,7 @@ public final class WorkforceService {
     }
 
     private boolean charge(Carrier c, RepairJob j, long cost, String note) {
-        long reserve = repairReserve(c);
+        long reserve = plugin.groups().ownReserve(c, repairReserve(c));
         plugin.groups().backBill(c, cost + reserve - c.balance(), "Repairs");
         if (c.balance() - cost < reserve) {
             if (!j.notifiedBroke()) {
