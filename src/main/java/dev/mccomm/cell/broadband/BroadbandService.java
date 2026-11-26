@@ -212,6 +212,20 @@ public final class BroadbandService {
         return d + walls(r.key(), to) * cfg().wifi().wallLoss() <= reach;
     }
 
+    /**
+     * Wi-Fi signal bars (1-4) at {@code to}: the closer to the router, and the fewer walls in between, the more bars.
+     * Works out as the share of the router's reach already used up by distance and wall loss.
+     */
+    public int wifiBars(Router r, Location to) {
+        double reach = reach(r);
+        if (reach <= 0 || to == null || to.getWorld() == null || !to.getWorld().getUID().equals(r.key().world())) return 1;
+        double used = (dist(r.key(), to) + walls(r.key(), to) * cfg().wifi().wallLoss()) / reach;
+        if (used <= 0.3) return 4;
+        if (used <= 0.55) return 3;
+        if (used <= 0.8) return 2;
+        return 1;
+    }
+
     // ============================================================ speed and load
 
     /** Speed share kept at this distance from a node: 1 at the node, {@code minFactor} at the edge of the range. */

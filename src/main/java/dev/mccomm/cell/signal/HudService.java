@@ -46,7 +46,7 @@ public final class HudService {
         }
         if (!plugin.settings().hudSidebar) {
             clear(p);
-            p.sendActionBar(Msg.mm(plugin.signal().hudLine(st)));
+            p.sendActionBar(Msg.mm(plugin.signal().hudLine(st)).append(wifiInline(p)));
             return;
         }
         List<Component> lines = build(p, st);
@@ -85,6 +85,9 @@ public final class HudService {
      *    |||| 5G Mid
      *    -78 dBm · 312 m · LF1
      *    Plan · 3.2 GB             (plan in its style, data left)
+     *
+     *  Wi-Fi |||| Home Cord        (when on home Wi-Fi: bars and the router's name)
+     *    Home Cord ISP · 940 Mbps
      *
      *  ☎ Bob                       (in a call)
      *  Pilot+ · 14:05              (phone, in-game time)
@@ -132,6 +135,13 @@ public final class HudService {
             }
             out.removeLast();
         }
+        var wifi = wifiOf(p);
+        if (wifi != null) {
+            out.add(Component.empty());
+            out.add(Msg.mm(" <aqua>Wi-Fi</aqua> " + Msg.bars(plugin.broadband().wifiBars(wifi.router(), p.getLocation())) + " <white><n>",
+                    Msg.p("n", wifi.router().name())));
+            out.add(Msg.mm("   <gray><isp> <dark_gray>·</dark_gray> <s>", Msg.p("isp", wifi.isp().name()), Msg.p("s", Msg.speed(wifi.downMbps()))));
+        }
         out.add(Component.empty());
         String partner = plugin.calls().partnerName(p);
         String incoming = plugin.calls().incoming(p);
@@ -168,6 +178,20 @@ public final class HudService {
             else out.remove(out.size() - 2);
         }
         return out;
+    }
+
+    /** The home Wi-Fi the player is connected to, or null. */
+    private dev.mccomm.cell.broadband.BroadbandService.Link wifiOf(Player p) {
+        var bb = plugin.broadband();
+        return plugin.settings().broadband.phonesUseWifi() ? bb.wifiLink(p) : null;
+    }
+
+    /** One-line Wi-Fi segment for the action bar ("" when not on Wi-Fi). */
+    private Component wifiInline(Player p) {
+        var wifi = wifiOf(p);
+        if (wifi == null) return Component.empty();
+        return Msg.mm(" <dark_gray>|</dark_gray> <aqua>Wi-Fi</aqua> " + Msg.bars(plugin.broadband().wifiBars(wifi.router(), p.getLocation())) + " <white><n>",
+                Msg.p("n", wifi.router().name()));
     }
 
     /** " <green>▲" or " <red>▼" for the last change of this balance, "" until it first changes. */
