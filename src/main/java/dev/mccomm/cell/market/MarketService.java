@@ -5,7 +5,6 @@ import dev.mccomm.cell.band.Band;
 import dev.mccomm.cell.model.Carrier;
 import dev.mccomm.cell.model.Plan;
 import dev.mccomm.cell.model.Tower;
-import dev.mccomm.cell.workforce.Employee;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -328,8 +327,7 @@ public final class MarketService {
             double priceScore = Math.clamp((2 - ratio) / 1.5, 0, 1);
             double covRel = maxCov <= 0 ? 0 : coverageAbs.get(c.id()) / maxCov;
             double quality = quality(networkOf(c));
-            double supportLoad = plugin.workforce().enabled() ? plugin.workforce().load(c, Employee.Role.SUPPORT) : 0;
-            double support = supportLoad <= 1 ? 1 : 1 / supportLoad;
+            double support = plugin.workforce().support(c); // customer care funding (3-day average)
             double wsum = m().wQuality() + m().wCoverage() + m().wSupport() + m().wPrice();
             double sat = wsum <= 0 ? 0 : 100 * (m().wQuality() * quality + m().wCoverage() * covRel
                     + m().wSupport() * support + m().wPrice() * priceScore) / wsum;
@@ -370,11 +368,11 @@ public final class MarketService {
         int n = 0;
         for (Plan p : c.plans().values()) {
             if (p.business()) continue;
-            sum += p.periodHours() <= 0 ? 0 : p.price() * 24.0 / p.periodHours();
+            sum += p.periodHours() <= 0 ? 0 : plugin.sales().price(p) * 24.0 / p.periodHours();
             n++;
         }
         if (n == 0) { // only business plans: compare those
-            for (Plan p : c.plans().values()) sum += p.periodHours() <= 0 ? 0 : p.price() * 24.0 / p.periodHours();
+            for (Plan p : c.plans().values()) sum += p.periodHours() <= 0 ? 0 : plugin.sales().price(p) * 24.0 / p.periodHours();
             n = c.plans().size();
         }
         return sum / n;
@@ -409,7 +407,7 @@ public final class MarketService {
         double ref = Math.log1p(m().speedReference());
         for (Tower t : towers) {
             if (!working(t)) continue;
-            double r = Math.min(plugin.billing().decaySpeed(t), plugin.workforce().wearSpeed(t)) * plugin.workforce().engineerSpeed(t);
+            double r = Math.min(plugin.billing().decaySpeed(t), plugin.workforce().wearSpeed(t)) * plugin.workforce().networkFactor(t);
             rel += r;
             double peak = 0;
             int dropped = Math.max(plugin.billing().decayDroppedBands(t), plugin.workforce().wearDroppedBands(t));

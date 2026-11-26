@@ -15,10 +15,10 @@ Every carrier gets a satisfaction score from 0 to 100%:
 
 | Part | Weight | What it measures |
 |---|---|---|
-| Service | 35% | 60% reliability (worn, unpaid, silent or offline towers and understaffed engineering pull it down) and 40% speed (the top speed your towers give: best band × backhaul, on a log scale where 300 Mbps is full marks) |
+| Service | 35% | 60% reliability (worn, unpaid, silent or offline towers and underfunded network ops pull it down) and 40% speed (the top speed your towers give: best band × backhaul, on a log scale where 300 Mbps is full marks) |
 | Coverage | 20% | Area your towers cover, weighted by band, compared with the best-covered carrier |
-| Support | 20% | Customer support staffing: 100% when staffed, lower when overloaded |
-| Price | 25% | Your average plan price per day against the going rate |
+| Support | 20% | Your customer care funding (3-day average): 100% when fully funded |
+| Price | 25% | Your average plan price per day against the going rate ([sale prices](sales.md) count while they last) |
 
 **The going rate** is the server's fair price (`market.reference-price-per-day`,
 12 cr/day by default) blended half and half with the median of rivals' prices. So
@@ -46,7 +46,7 @@ If your network has no working towers at all, customers leave fast and nobody jo
 
 ## Growth
 
-The server can let the pool grow over time (`market.growth.per-day`, off by default; `0.01` is 1% a day), up to 10,000 customers (`market.growth.max-size`). The newcomers have no carrier yet, so they shop around like everyone else. This doesn't depend on staff or maintenance, so it carries on when the [workforce is switched off](operations.md).
+The server can let the pool grow over time (`market.growth.per-day`, off by default; `0.01` is 1% a day), up to 10,000 customers (`market.growth.max-size`). The newcomers have no carrier yet, so they shop around like everyone else. This doesn't depend on operations or maintenance, so it carries on when [operations are switched off](operations.md).
 
 ## Switching
 
@@ -68,28 +68,24 @@ carrier is unappealing, many of them stay without a carrier.
   a premium, but well above the going rate it loses more than it gains.
 - **Coverage and speed win customers.** More area, newer bands and better backhaul
   all raise your score.
-- **Staff matter.** Too few support agents makes customers unhappy. Too few network
-  engineers slows the whole network, real players included, which hurts service.
+- **Operations matter.** Underfunded customer care makes customers unhappy. Underfunded
+  network ops slows the whole network, real players included, which hurts service.
 - **Repairs matter.** Worn towers are slower, which lowers service.
 - **Decline is gradual.** A struggling carrier loses customers bit by bit, so there's
   time to fix things.
 
-## Staff for subscribers
+## Operations and the score
 
-Subscribers here means real subscribers plus simulated customers. The first 25 need
-no office staff (`workforce.self-service-subscribers`).
+Support and part of service come from your [operations budget](operations.md#the-budget):
 
-| Role | Covers (regular) | Works in | Room needs |
-|---|---|---|---|
-| Customer support | 60 subscribers | Call centre | One seat (stairs) and one lectern each |
-| Network engineer | 100 subscribers on your towers (including MVNOs you host) | Network operations centre | One seat (stairs) and one observer each |
+- **Customer care** funding is your support score directly.
+- **Network ops** funding multiplies network speed (never below ×0.6), which lowers service.
 
-Juniors cover 75% as much and seniors 135%. Hire them on the **Staff** tab, build the
-rooms with `/facility create callcentre <name>` or `/facility create noc <name>`.
-See [Operations and repairs](operations.md) for wages, hiring and payday.
+Both follow a 3-day average of what you actually paid, and the first 25 subscribers
+(`operations.self-service-subscribers`) need neither.
 
 ## Transit
 
-Data costs the network that carries it **1 cr per GB** (`workforce.transit`), paid
-on payday with wages and rent. Simulated customers count as 1 GB a day each, only
+Data costs the network that carries it **1 cr per GB** (`operations.transit`), paid
+hourly with the operations bill. Simulated customers count as 1 GB a day each, only
 while simulated revenue is on.

@@ -20,7 +20,7 @@ import java.util.Locale;
 /** /cell — opens the phone; subcommands are shortcuts (status, speedtest, SIMs, numbers, towers, HUD). */
 public final class CellCommand extends Cmd {
     private static final List<String> SUBS = List.of("status", "eshop", "wallet", "pay", "plan", "speedtest", "subscribe", "unsubscribe", "activate",
-            "deactivate", "data", "number", "contacts", "messages", "sims", "towers", "carriers", "account", "hud", "help");
+            "deactivate", "data", "number", "contacts", "messages", "sims", "towers", "carriers", "account", "hud", "help", "acceptsale", "declinesale");
 
     public CellCommand(CellPlugin plugin) {
         super(plugin);

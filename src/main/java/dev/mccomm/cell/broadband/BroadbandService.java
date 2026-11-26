@@ -385,7 +385,46 @@ public final class BroadbandService {
     public double transitCapacity(Isp isp) {
         int peers = 0;
         for (String id : isp.peers()) if (store.isp(id) != null) peers++;
-        return cfg().transit().mbpsPerTier() * isp.transitTier() * (1 + cfg().transit().peerBonus() * peers);
+        return cfg().transit().mbpsPerTier() * isp.transitTier() * (1 + cfg().transit().peerBonus() * peers) * networkFactor(isp);
+    }
+
+    /** How well the ISP's network ops are funded, as a share of its backbone that works (1 = all of it). */
+    public double networkFactor(Isp isp) {
+        if (isp.carrierBacked()) return 1;
+        return Math.max(plugin.settings().workforce.networkMinSpeed(), Math.min(1, plugin.workforce().funding(isp, dev.mccomm.cell.workforce.OpsPart.NETWORK)));
+    }
+
+    /** In-game hours before a crew fixes an unpaid fault: 6 at 0% field crews, half an hour at 100%, less above. */
+    public double autoRepairHours(Isp isp) {
+        double f = plugin.workforce().funding(isp, dev.mccomm.cell.workforce.OpsPart.FIELD);
+        return cfg().faults().autoRepairHours() / (1 + 11 * f);
+    }
+
+    /** Plan income per day: active lines at their current price, plus simulated households and businesses. */
+    public double incomePerDay(Isp isp) {
+        double sum = 0;
+        for (Router r : store.routersOfIsp(isp.id())) {
+            if (r.state() != Router.State.ACTIVE) continue;
+            InternetPlan live = isp.plans().get(r.planId());
+            if (live != null) sum += priceFor(isp, live, r.owner()) * 24.0 / Math.max(1, live.periodHours());
+        }
+        if (cfg().market().pays()) {
+            sum += avgPerHour(isp, Segment.RESIDENTIAL) * 24 * isp.simCustomers();
+            sum += avgPerHour(isp, Segment.BUSINESS) * 24 * isp.simBusinesses();
+        }
+        return sum;
+    }
+
+    /** The average current hourly price of the ISP's plans for one kind of customer (what simulated ones pay). */
+    private double avgPerHour(Isp isp, Segment seg) {
+        double perHour = 0;
+        int n = 0;
+        for (InternetPlan p : isp.plans().values()) {
+            if (p.segment() != seg) continue;
+            perHour += plugin.sales().price(p) / (double) Math.max(1, p.periodHours());
+            n++;
+        }
+        return n == 0 ? 0 : perHour / n;
     }
 
     /** What the customers would pull at once: plan speeds times the utilisation factor. */
@@ -585,8 +624,9 @@ public final class BroadbandService {
 
     /** The price the router's owner pays for a plan: the live price less any bundle discount. */
     public long priceFor(Isp isp, InternetPlan plan, UUID customer) {
+        long base = plugin.sales().price(plan); // the sale price while a sale is on
         int disc = bundleDiscount(isp, customer);
-        return disc <= 0 ? plan.price() : Math.round(plan.price() * (100 - disc) / 100.0);
+        return disc <= 0 ? base : Math.round(base * (100 - disc) / 100.0);
     }
 
     /** What this plan would deliver at {@code where} for the owner of {@code asking}. */
@@ -905,8 +945,9 @@ public final class BroadbandService {
             return false;
         }
         int max = cfg().maxIspsPerPlayer();
-        if (max >= 0 && !p.hasPermission("mccomm.admin") && store.ispsOwnedBy(p.getUniqueId()).size() >= max) {
-            Msg.send(p, "<red>You already own the maximum number of ISPs (<n>).", Msg.p("n", "" + max));
+        if (max >= 0 && !p.hasPermission("mccomm.admin")
+                && plugin.groups().ownedOutsideGroups(p.getUniqueId(), dev.mccomm.cell.model.Company.Kind.ISP) >= max) {
+            Msg.send(p, "<red>You already own the maximum number of ISPs (<n>). ISPs inside a parent company (/company) don't count.", Msg.p("n", "" + max));
             return false;
         }
         return true;
@@ -969,6 +1010,13 @@ public final class BroadbandService {
 
     /** Deletes the ISP: nodes come down, customers lose their plan (no refunds), and what's left in it goes to the owner. */
     public void deleteIsp(Isp isp) {
+        var group = plugin.groups().groupOf(isp);
+        if (group != null) {
+            if (isp.balance() > 0) plugin.groups().creditTreasury(group, isp.balance(), "Closing balance of " + isp.name());
+            isp.balance(0);
+            plugin.groups().detach(group, isp);
+        }
+        plugin.workforce().companyRemoved(isp.ref());
         if (isp.balance() > 0) {
             PlayerProfile prof = plugin.store().profile(isp.owner());
             prof.balance(prof.balance() + isp.balance());
@@ -1006,49 +1054,19 @@ public final class BroadbandService {
         store.markDirty();
     }
 
+    /** Wallet → ISP, through the company rules (owner only, the normal transfer fee). */
     public boolean deposit(Player p, Isp isp, long amount) {
-        PlayerProfile prof = plugin.store().profile(p.getUniqueId());
-        if (amount <= 0 || prof.balance() < amount) {
-            Msg.send(p, "<red>You need <white><a></white> in your wallet; you have <white><bal></white>.",
-                    Msg.p("a", money(Math.max(0, amount))), Msg.p("bal", money(prof.balance())));
-            return false;
-        }
-        prof.balance(prof.balance() - amount);
-        prof.log(-amount, "Deposit to " + isp.name());
-        isp.balance(isp.balance() + amount);
-        isp.log(amount, "Deposit by " + p.getName());
-        store.markDirty();
-        plugin.store().markDirty();
-        Msg.send(p, "<green>Deposited <white><a></white> into <white><isp></white>. Balance: <white><bal></white>.",
-                Msg.p("a", money(amount)), Msg.p("isp", isp.name()), Msg.p("bal", money(isp.balance())));
-        return true;
+        long before = isp.balance();
+        plugin.companies().move(p, isp, amount, false);
+        return isp.balance() != before;
     }
 
-    /** The owner takes money out, but never the next upkeep bill. */
+    /** ISP → owner's wallet, through the company rules (fee, the next upkeep stays, nothing while it owes its parent). */
     public boolean withdraw(Player p, Isp isp, long amount) {
-        if (!p.hasPermission("mccomm.admin") && !isp.owner().equals(p.getUniqueId())) {
-            Msg.send(p, "<red>Only the owner can withdraw.");
-            return false;
-        }
-        long reserve = upkeepDue(isp);
-        long free = Math.max(0, isp.balance() - reserve);
-        if (amount <= 0 || amount > free) {
-            Msg.send(p, "<red>You can withdraw up to <white><f></white> (the next upkeep bill, <white><res></white>, stays in the ISP).",
-                    Msg.p("f", money(free)), Msg.p("res", money(reserve)));
-            return false;
-        }
-        PlayerProfile prof = plugin.store().profile(p.getUniqueId());
-        isp.balance(isp.balance() - amount);
-        isp.log(-amount, "Withdrawn by " + p.getName());
-        prof.balance(prof.balance() + amount);
-        prof.log(amount, "Withdrawal from " + isp.name());
-        store.markDirty();
-        plugin.store().markDirty();
-        Msg.send(p, "<green>Withdrew <white><a></white> from <white><isp></white>.", Msg.p("a", money(amount)), Msg.p("isp", isp.name()));
-        return true;
+        long before = isp.balance();
+        plugin.companies().move(p, isp, amount, true);
+        return isp.balance() != before;
     }
-
-    // ---- ratings
 
     /** 1.0-5.0 from measured speed, reliability, value for money and coverage. */
     public double rating(Isp isp) {
@@ -1069,7 +1087,7 @@ public final class BroadbandService {
         for (InternetPlan p : isp.plans().values()) {
             double cap = Math.min(p.speedCapMbps(), spec(p.tech()).maxMbps());
             nominal = Math.max(nominal, Math.min(1, Math.log10(1 + cap) / Math.log10(1 + 10000)));
-            double ppd = p.price() * 24.0 / p.periodHours();
+            double ppd = plugin.sales().price(p) * 24.0 / p.periodHours();
             TechSpec s = spec(p.tech());
             double ref = (s.maxMbps() * 0.5) / (s.starterPrice() + 1);
             value += Math.clamp((cap / (ppd + 1)) / Math.max(0.001, ref) / 2, 0, 1);
@@ -1086,7 +1104,8 @@ public final class BroadbandService {
         }
         double delivery = n == 0 ? 1 : delivered / n;
         speed = 0.5 * nominal + 0.5 * delivery;
-        double score = 0.35 * speed + 0.25 * isp.reliability() + 0.25 * value + 0.15 * coverage;
+        double care = plugin.workforce().support(isp); // customer care funding (3-day average)
+        double score = 0.30 * speed + 0.20 * isp.reliability() + 0.20 * value + 0.15 * coverage + 0.15 * care;
         return 1 + 4 * Math.clamp(score, 0, 1);
     }
 
@@ -1557,6 +1576,7 @@ public final class BroadbandService {
             }
             if (now < isp.nextUpkeep()) continue;
             long due = upkeepDue(isp);
+            if (due > isp.balance()) plugin.groups().backBill(isp, due - isp.balance(), "Upkeep");
             if (due <= 0 || isp.balance() >= due) {
                 if (due > 0) {
                     isp.balance(isp.balance() - due);
@@ -1692,11 +1712,11 @@ public final class BroadbandService {
             return;
         }
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        long auto = cfg().faults().autoRepairHours() * GAME_HOUR; // in-game hours
         for (Node n : store.nodes()) {
             Isp isp = store.isp(n.ispId());
             if (isp == null) continue;
             if (n.faulted()) {
+                long auto = Math.round(autoRepairHours(isp) * GAME_HOUR); // in-game hours, faster with funded field crews
                 if (now - n.faultAt() >= auto) {
                     n.faultAt(0);
                     store.markDirty();
@@ -1712,8 +1732,9 @@ public final class BroadbandService {
             if (rnd.nextDouble() < p) {
                 n.faultAt(now);
                 store.markDirty();
-                plugin.billing().notify(isp.owner(), "<red>Node <white><n></white> of <isp> has a fault: its customers are offline. Repair it from the node screen, or a crew arrives in <h> in-game hours (about <m> min).",
-                        Msg.p("n", n.name()), Msg.p("isp", isp.name()), Msg.p("h", "" + cfg().faults().autoRepairHours()), Msg.p("m", "" + Math.max(1, Math.round(cfg().faults().autoRepairHours() * GAME_HOUR / 60_000.0))));
+                double hours = autoRepairHours(isp);
+                plugin.billing().notify(isp.owner(), "<red>Node <white><n></white> of <isp> has a fault: its customers are offline. Repair it from the node screen, or your field crews fix it in <h> in-game hours (about <m> min).",
+                        Msg.p("n", n.name()), Msg.p("isp", isp.name()), Msg.p("h", String.format("%.1f", hours)), Msg.p("m", "" + Math.max(1, Math.round(hours * GAME_HOUR / 60_000.0))));
             }
         }
     }
@@ -1763,7 +1784,7 @@ public final class BroadbandService {
         double price = 0, fair = 0;
         for (InternetPlan p : isp.plans().values()) {
             if (p.segment() != seg) continue;
-            price += p.price() * 24.0 / Math.max(1, p.periodHours());
+            price += plugin.sales().price(p) * 24.0 / Math.max(1, p.periodHours());
             fair += spec(p.tech()).starterPrice() * (seg == Segment.BUSINESS ? BUSINESS_PRICE_FACTOR : 1);
         }
         return fair <= 0 ? (price > 0 ? Double.MAX_VALUE : 0) : price / fair;
@@ -1824,7 +1845,7 @@ public final class BroadbandService {
         int n = 0;
         for (InternetPlan p : isp.plans().values()) {
             if (p.segment() != seg) continue;
-            perHour += p.price() / (double) p.periodHours();
+            perHour += plugin.sales().price(p) / (double) p.periodHours();
             n++;
         }
         long rev = n == 0 ? 0 : Math.round(customers * (perHour / n) * (elapsedMs / (double) HOUR));

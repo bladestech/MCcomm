@@ -17,7 +17,7 @@ There are two modes (`simulation.mode` in the config):
 
 **Spread evenly:** the scaffolding button at the top gives every carrier the same number of simulated users. In market mode it shares out the whole pool (nobody is left without a carrier); in fixed mode it evens out the users carriers already have. Customers then move on as usual.
 
-**Growth:** in market mode the pool itself grows by `market.growth.per-day` (off by default; `0.01` is 1% a day) up to `market.growth.max-size` (10,000; 0 = no limit). New customers arrive without a carrier and shop around. Growth doesn't depend on maintenance, staff or wear, so it keeps going with `workforce.enabled: false`. With `per-day: 0` the pool stays fixed.
+**Growth:** in market mode the pool itself grows by `market.growth.per-day` (off by default; `0.01` is 1% a day) up to `market.growth.max-size` (10,000; 0 = no limit). New customers arrive without a carrier and shop around. Growth doesn't depend on maintenance, operations or wear, so it keeps going with `operations.enabled: false`. With `per-day: 0` the pool stays fixed.
 
 **Fixed mode:** click a carrier to set its simulated users: −100, −10, −1, +1, +10, +100, **Set exactly**, or **Clear**. Changes show on the towers immediately.
 
@@ -27,7 +27,7 @@ There are two modes (`simulation.mode` in the config):
 - Each is on **one of the carrier's plans at random**, and that plan's band cap applies. The spread is seeded, so numbers don't jump around between updates.
 - **Counted separately** from real players: tower screens read like `3 users · 50 sim`, and carrier stats show them on their own.
 - **Lighter load:** for congestion and the load meter, **500 simulated users count as one real player** (`simulation.users-per-real-user`).
-- **Full cost:** for tower wear, staffing needs and data transit, each one counts fully, because each pays full price.
+- **Full cost:** for tower wear, operations costs and data transit, each one counts fully, because each pays full price.
 
 ## Simulated revenue
 
@@ -41,4 +41,4 @@ When it's on, simulated users **pay their plan** like real subscribers:
 - Their data costs the carrier **transit** (1 GB per customer per day at 1 cr/GB by default), paid on payday.
 
 !!! danger "This creates money"
-    Simulated revenue adds credits from nothing. Staff, transit and the market keep a big carrier's margin far below the old ~98%, but money still comes in. Leave it off on servers where credits should stay scarce, and only give `mccomm.simulate` to people you trust while it's on.
+    Simulated revenue adds credits from nothing. Operations, transit and the market keep a big carrier's margin far below the old ~98%, but money still comes in. Leave it off on servers where credits should stay scarce, and only give `mccomm.simulate` to people you trust while it's on.

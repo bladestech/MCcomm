@@ -18,7 +18,7 @@ grows with the business:
 
 | Part | Carrier full cost per day | ISP full cost per day | Range |
 |---|---|---|---|
-| Field crews | 25 per macro cell + 10 per small cell + 0.25 per subscriber | 0.5 × each node's upkeep + 0.1 per customer | 0-150% |
+| Field crews | 15 per macro cell + 6 per small cell + 0.25 per subscriber | 0.5 × each node's upkeep + 0.1 per customer | 0-150% |
 | Customer care | 1.7 per subscriber beyond 25 | 1.2 per customer beyond 25 | 0-100% |
 | Network ops | 2 per network subscriber beyond 25 (MVNOs included) | 1.5 per customer beyond 25 | 0-100% |
 
@@ -30,8 +30,8 @@ grows with the business:
   only for field crews (and nothing at 0%).
 
 A worked example: NovaMobile with 3 macro cells, 1 small cell and 400 customers pays
-at 100% about 75 + 10 + 100 = 185 for field crews, 638 for care and 750 for network
-ops, about 1,570 a day plus transit. That is close to what its staffed version paid.
+at 100% about 45 + 6 + 100 = 151 for field crews, 638 for care and 750 for network
+ops, about 1,540 a day plus transit. That is close to what its staffed version paid.
 
 ### Funding levels
 
@@ -58,7 +58,7 @@ funding only while the market is sampled.
 
 | Part | Effect of average funding `f` |
 |---|---|
-| Field crews | Repair time = base ÷ f (1.5 → about 0.7×). Below 25%, no crews: repairs go to contractors after 30 minutes at 3× the cost, as today |
+| Field crews | Repair time = base ÷ speed, where speed = f up to 100% and 1 + 0.8 × (f − 1) above (1.5 → about 0.7×). Below 25%, no crews: repairs go to contractors after 30 minutes at 3× the cost, as today |
 | Customer care | Carrier: the market's support score = f. ISP: a new care term in the rating |
 | Network ops | Carrier: speed × max(0.6, f). ISP: transit capacity × max(0.6, f) |
 

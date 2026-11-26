@@ -175,6 +175,9 @@ public final class CommCommands {
                     Msg.send(s, "<green>Config reloaded and all towers refreshed.");
                 }
                 case "save" -> {
+                    if (plugin.broadband() != null) plugin.broadband().store().save();
+                    plugin.groups().save();
+                    plugin.sales().save();
                     plugin.store().save();
                     Msg.send(s, "<green>Data saved.");
                 }
@@ -258,10 +261,10 @@ public final class CommCommands {
                     plugin.billing().tick();
                     Msg.send(s, "<green>Billing check ran.");
                 }
-                case "workforce" -> {
+                case "operations", "workforce" -> {
                     boolean now = plugin.settings().workforce.enabled();
                     if (args.length < 2) {
-                        Msg.send(s, "<gray>Maintenance, technicians, staff and tower wear are <state>. <white>/celladmin workforce on|off [reset]</white> to change it, or <white>/celladmin workforce reset</white> to clear all wear.",
+                        Msg.send(s, "<gray>Operations (tower wear, repairs and the operations budget) are <state>. <white>/celladmin operations on|off [reset]</white> to change it, or <white>/celladmin operations reset</white> to clear all wear.",
                                 Msg.p("state", now ? "ON" : "OFF"));
                         return;
                     }
@@ -274,32 +277,34 @@ public final class CommCommands {
                         Msg.send(s, "<green>Reset the wear of <n> worn tower(s) and cancelled all repair jobs.", Msg.p("n", "" + n));
                         return;
                     } else {
-                        Msg.send(s, "<red>Usage: /celladmin workforce on|off [reset] | reset");
+                        Msg.send(s, "<red>Usage: /celladmin operations on|off [reset] | reset");
                         return;
                     }
-                    plugin.getConfig().set("workforce.enabled", on);
+                    plugin.getConfig().set(plugin.getConfig().isConfigurationSection("operations") || !plugin.getConfig().isConfigurationSection("workforce")
+                            ? "operations.enabled" : "workforce.enabled", on);
                     plugin.saveConfig();
                     plugin.reloadSettings();
                     if (!on && reset) {
                         int n = plugin.workforce().resetWear();
                         Msg.send(s, "<gray>Tower wear reset on <n> tower(s); repair jobs cancelled.", Msg.p("n", "" + n));
                     }
-                    Msg.send(s, on ? "<green>Maintenance, technicians and tower wear are back on."
-                            : "<yellow>Maintenance, technicians, staff costs and tower wear are off. Existing stations and staff stay saved, and everything is paused until you turn it back on.");
+                    Msg.send(s, on ? "<green>Operations and tower wear are back on."
+                            : "<yellow>Operations and tower wear are off: no wear, no repairs, no operations bills, and full service. Budgets stay saved, and everything is paused until you turn it back on.");
                 }
-                default -> Msg.send(s, "<red>Usage: /celladmin reload | save | credits | carriercredits | givephone | billing | timewarp | workforce");
+                default -> Msg.send(s, "<red>Usage: /celladmin reload | save | credits | carriercredits | givephone | billing | timewarp | operations");
             }
         }
 
         @Override
         public Collection<String> suggest(CommandSourceStack src, String[] args) {
-            if (args.length <= 1) return filter(List.of("reload", "save", "credits", "carriercredits", "givephone", "billing", "timewarp", "workforce"), args.length == 0 ? "" : args[0]);
+            if (args.length <= 1) return filter(List.of("reload", "save", "credits", "carriercredits", "givephone", "billing", "timewarp", "operations"), args.length == 0 ? "" : args[0]);
             String sub = args[0].toLowerCase(Locale.ROOT);
             if (args.length == 2 && (sub.equals("credits") || sub.equals("givephone"))) return filter(onlineNames(), args[1]);
             if (args.length == 2 && sub.equals("carriercredits")) return filter(carrierNames(), args[1]);
             if (args.length == 3 && sub.equals("givephone")) return filter(plugin.settings().phones.keySet(), args[2]);
-            if (args.length == 2 && sub.equals("workforce")) return filter(List.of("on", "off", "reset"), args[1]);
-            if (args.length == 3 && sub.equals("workforce") && args[1].equalsIgnoreCase("off")) return filter(List.of("reset"), args[2]);
+            boolean ops = sub.equals("operations") || sub.equals("workforce");
+            if (args.length == 2 && ops) return filter(List.of("on", "off", "reset"), args[1]);
+            if (args.length == 3 && ops && args[1].equalsIgnoreCase("off")) return filter(List.of("reset"), args[2]);
             return List.of();
         }
     }

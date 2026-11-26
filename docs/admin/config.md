@@ -49,7 +49,9 @@ See [Signal reference](../signal.md) for how these numbers are used.
 | `manufacturing` | Manufacturers per player, upkeep share (10%), research points per credit, manufacturing costs, research costs, Generic manufacturer on/off and margin |
 | `companies` | Transfer fee (5%), liquidation fee (10%), MVNO farewell share, tower scrap and stock refund rates, paperweight resale, valuation income days |
 | `partners` | Agreement notice period, deprioritized speed share, MVNO grace period |
-| `workforce` | Tower wear rates and effects, office staff (support, engineers), transit, technician wages and levels, hiring and firing costs, station rent, service radius and travel speed, repair times and parts, contractors, visible technicians. See [Operations](../carriers/operations.md) |
+| `operations` | Tower wear rates and effects, repair times and parts, contractors, default funding, the averaging window, the cost of field crews, customer care and network ops for carriers and ISPs, and transit. Older configs with a `workforce` section still load. See [Operations](../carriers/operations.md) |
+| `groups` | Parent companies: per-player and member limits, the 2.5% inside fee, extra bankruptcy days, the operations discount. See [Parent companies](../groups.md) |
+| `sales` | Plan sales: discount range, longest sale, the clean-price wait, and the regulator's window, allowed days, warnings and fines. See [Plan sales](../carriers/sales.md) |
 
 ## Extras
 

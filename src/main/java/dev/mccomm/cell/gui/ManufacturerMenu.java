@@ -420,7 +420,7 @@ public final class ManufacturerMenu {
         }
         if (hist.isEmpty()) hist.add("<dark_gray>Nothing yet");
         menu.set(24, Items.of(Material.BOOK, "<white>Ledger", hist));
-        plugin.companyMenu().manufacturerItems(menu, p, m, () -> money(p, m));
+        plugin.companyMenu().items(menu, p, m, () -> money(p, m));
         Frame.help(menu, "Money", "Deposit ores into the company wallet.", "Moving money between you and the",
                 "company costs " + s().transferFeePercent + "%. Valuation is a guide for", "selling; liquidating closes it for good.");
         menu.open(p);

@@ -43,7 +43,7 @@
 | `/carrier info [name]` · `/carrier list` | Info |
 | `/carrier color <name> <colours...>` | Branding: a colour, a 2–4 colour gradient, or a preset |
 | `/carrier employee add\|remove <name> <player>` | Staff |
-| `/carrier delete <name> confirm` | Delete outright |
+| `/carrier delete <name> confirm` | Liquidate it |
 
 ## Towers
 
@@ -57,14 +57,28 @@
 | `/tower setgen <gen>` | Admin: set the tower's generation |
 | `/tower tp <name>` | Admin: teleport to a tower |
 
-## Facilities
+## Parent companies
 
 | Command | Description |
 |---|---|
-| `/facility create station\|callcentre\|noc <name> [carrier]` | Register the wall sign you look at as a facility |
-| `/facility check <name> [carrier]` | Re-count its room now |
-| `/facility remove <name> [carrier]` | Remove it (its staff go idle) |
-| `/facility list [carrier]` | List a carrier's facilities |
+| `/company` (`/group`) · `/company manage [group]` | Open your parent company |
+| `/company create <name>` | Found one (2-24 letters, digits, `_` or `-`) |
+| `/company list` · `/company info [group]` | Yours · details |
+| `/company add\|remove <carrier\|mfr\|isp> <name> [group]` | Put a company you own in, or take it out |
+| `/company deposit\|withdraw <amount> [group]` | Wallet ↔ treasury (5%) |
+| `/company give\|take <carrier\|mfr\|isp> <name> <amount>` | Treasury → member, or member → treasury (2.5%) |
+| `/company color <group> <colours...>` | Branding |
+| `/company liquidate <group> confirm` | Liquidate every member and the group |
+
+See [Parent companies](../groups.md).
+
+## Sales
+
+| Command | Description |
+|---|---|
+| `/cell acceptsale` · `/cell declinesale` | Answer an offer to buy a company or parent company |
+
+Plan sales are started from the plan editor. See [Plan sales](../carriers/sales.md).
 
 ## Manufacturers
 
@@ -76,7 +90,7 @@
 | `/manufacturer list` | All manufacturers |
 | `/manufacturer color <name> <colours...>` | Branding |
 | `/manufacturer employee add\|remove <name> <player>` | Staff |
-| `/manufacturer delete <name> confirm` | Delete outright |
+| `/manufacturer delete <name> confirm` | Liquidate it |
 
 ## Home internet
 
@@ -97,11 +111,11 @@
 | `/isp node install <dsl\|cable\|fiber\|satellite> <name> [isp]` | Build a node on the sign you look at |
 | `/isp plan add [business] <tech> <price> <mbps> <name...>` | Add a plan (home by default, or a business plan) |
 | `/isp plan delete <name...>` · `delete tech <tech>` · `list` | Delete plans (cancelling their subscribers), or list them |
-| `/isp deposit\|withdraw <amount> [isp]` | Move credits in or out |
+| `/isp deposit\|withdraw <amount> [isp]` | Move credits in or out (5%) |
 | `/isp info [isp]` · `/isp list` | Details · all ISPs |
 | `/isp employee add\|remove <isp> <player>` | Staff |
 | `/isp color <isp> <colors...>` | Name style |
-| `/isp delete <isp> confirm` | Shut an ISP down |
+| `/isp delete <isp> confirm` | Liquidate an ISP |
 
 See [Home internet](../players/home-internet.md) and [Running an ISP](../isps.md).
 
@@ -116,6 +130,6 @@ See [Home internet](../players/home-internet.md) and [Running an ISP](../isps.md
 | `/celladmin givephone <player> <model>` | Give a phone (worth nothing on resale) |
 | `/celladmin billing` | Run the billing check now |
 | `/celladmin timewarp <days>` | Fast-forward the economy (see [Data, backups and testing](data.md)) |
-| `/celladmin workforce [on\|off [reset]]` | Show, or switch, tower wear, technicians, staff and stations. `off reset` also clears all tower wear ([Operations](../carriers/operations.md)) |
-| `/celladmin workforce reset` | Set every tower's wear to 0 and cancel all repair jobs |
+| `/celladmin operations [on\|off [reset]]` | Show, or switch, tower wear, repairs and operations budgets (`workforce` also works). `off reset` also clears all tower wear ([Operations](../carriers/operations.md)) |
+| `/celladmin operations reset` | Set every tower's wear to 0 and cancel all repair jobs |
 | `/cellsim` | [Simulated users](simulation.md) |

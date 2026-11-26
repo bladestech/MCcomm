@@ -160,7 +160,6 @@ public final class BillingService implements Listener {
                 for (Tower t : plugin.store().towersOf(c.id())) plugin.towers().refresh(t);
             }
         }
-        if (c.unpaidSince() == 0) plugin.workforce().retryWages(c); // wages only once upkeep is covered
     }
 
     // ================================================================ phones
@@ -342,7 +341,8 @@ public final class BillingService implements Listener {
         Plan plan = livePlan(prof, carrierId); // renewal moves them onto the live terms
         Subscription sub = prof.sub(carrierId);
         if (plan == null || plan.prepaid()) return 0;
-        return plan.price() - plugin.broadband().carrierDiscount(prof.player(), carrierId, plan.price()) + (sub.financing() ? Math.min(sub.financeInstallment(), sub.financeRemaining()) : 0);
+        long price = plugin.sales().price(plan);
+        return price - plugin.broadband().carrierDiscount(prof.player(), carrierId, price) + (sub.financing() ? Math.min(sub.financeInstallment(), sub.financeRemaining()) : 0);
     }
 
     private boolean blockIfOverdue(Player p) {
@@ -496,7 +496,7 @@ public final class BillingService implements Listener {
         PlayerProfile prof = prof(p.getUniqueId());
         if (wrongAccount(p, prof, plan)) return false;
         PhoneModel phone = null;
-        long cost = plan.price();
+        long cost = plugin.sales().price(plan);
         if (plan.financed()) {
             phone = financeCheck(p, c, plan);
             if (phone == null) return false;
@@ -506,7 +506,7 @@ public final class BillingService implements Listener {
         long now = System.currentTimeMillis();
         Subscription sub = new Subscription(plan.id(), now + plan.periodMillis());
         sub.dataLeftMB(Math.max(0, plan.dataMB()));
-        collect(p.getUniqueId(), c, plan.price(), plan.prepaid() ? plan.name() + " top-up" : plan.name());
+        collect(p.getUniqueId(), c, plugin.sales().price(plan), plan.prepaid() ? plan.name() + " top-up" : plan.name());
         if (phone != null) {
             transfer(p.getUniqueId(), c, plan.downPayment(), "Down payment " + phone.name());
             startFinancing(p, c, plan, phone, sub);
@@ -551,8 +551,8 @@ public final class BillingService implements Listener {
         boolean prepaidSwitch = plan.prepaid() || (current != null && current.prepaid());
         if (prepaidSwitch) {
             // Switching to or from prepaid starts the new plan now.
-            if (!afford(p, plan.price(), plan.name())) return;
-            collect(p.getUniqueId(), c, plan.price(), plan.prepaid() ? plan.name() + " top-up" : plan.name());
+            if (!afford(p, plugin.sales().price(plan), plan.name())) return;
+            collect(p.getUniqueId(), c, plugin.sales().price(plan), plan.prepaid() ? plan.name() + " top-up" : plan.name());
             sub.nextBill(now + plan.periodMillis());
             sub.dataLeftMB(Math.max(0, plan.dataMB()));
             sub.expiredNotice(false);
@@ -576,12 +576,12 @@ public final class BillingService implements Listener {
             Msg.send(p, "<red>That SIM isn't on a prepaid plan.");
             return;
         }
-        if (!afford(p, plan.price(), "A top-up")) return;
+        if (!afford(p, plugin.sales().price(plan), "A top-up")) return;
         if (sub.grandfathered() != null) {
             sub.grandfathered(null);
             Msg.send(p, "<gray>Your plan's updated terms apply from this top-up.");
         }
-        collect(p.getUniqueId(), c, plan.price(), plan.name() + " top-up");
+        collect(p.getUniqueId(), c, plugin.sales().price(plan), plan.name() + " top-up");
         long now = System.currentTimeMillis();
         if (now >= sub.nextBill()) {
             sub.nextBill(now + plan.periodMillis());
@@ -715,7 +715,7 @@ public final class BillingService implements Listener {
     /** "20 cr/day · 5.0 GB · up to 4G+ · 50.0 Mbps cap · no texts" (MiniMessage, gray). */
     public String shortTerms(Plan p) {
         List<String> parts = new ArrayList<>();
-        parts.add(s().money(p.price()) + (p.prepaid() ? " per top-up (" + period(p.periodHours()) + ")" : "/" + period(p.periodHours())));
+        parts.add(plugin.sales().label(p.price(), p.sale()) + (p.prepaid() ? " per top-up (" + period(p.periodHours()) + ")" : "/" + period(p.periodHours())));
         parts.add(p.unlimited() ? "unlimited data" : Settings.data(p.dataMB()) + " data");
         if (p.maxBand() != null) parts.add("up to " + s().spec(p.maxBand()).name());
         if (p.speedCapMbps() > 0) parts.add(Msg.speed(p.speedCapMbps()) + " cap");
@@ -880,6 +880,7 @@ public final class BillingService implements Listener {
         if (c.mvno() && host == null) c.mvnoOwed(0); // no host any more: nothing to settle
         long share = host == null ? 0 : c.mvnoOwed();
         long cost = towers + share;
+        if (c.balance() < cost) plugin.groups().backBill(c, cost - c.balance(), "Upkeep"); // a parent company covers it
         if (c.balance() >= cost) {
             c.balance(c.balance() - cost);
             if (towers > 0) {
@@ -936,8 +937,10 @@ public final class BillingService implements Listener {
                 }
             }
         }
-        // Bills in order of importance: upkeep (above) first, then wages and rent, then repairs.
+        // Bills in order of importance: upkeep (above) first, then operations, then repairs.
         plugin.workforce().tick(now);
+        plugin.groups().tick();
+        plugin.sales().tick(now);
         plugin.companies().checkBankruptcies(now);
 
         for (PlayerProfile p : new ArrayList<>(plugin.store().profiles())) {
@@ -979,7 +982,8 @@ public final class BillingService implements Listener {
                     }
                     charge = nextCharge(p, c.id());
                     if (p.balance() >= charge) {
-                        collect(p.player(), c, plan.price() - plugin.broadband().carrierDiscount(p.player(), c.id(), plan.price()), plan.name());
+                        long sale = plugin.sales().price(plan);
+                        collect(p.player(), c, sale - plugin.broadband().carrierDiscount(p.player(), c.id(), sale), plan.name());
                         if (sub.financing()) {
                             long inst = Math.min(sub.financeInstallment(), sub.financeRemaining());
                             transfer(p.player(), c, inst, "Phone instalment");
@@ -1050,6 +1054,7 @@ public final class BillingService implements Listener {
             plugin.workforce().shift(d);
             plugin.market().shift(d);
             plugin.broadband().shift(d);
+            plugin.sales().shift(d);
             tick();
             plugin.broadband().tick();
             ticks++;

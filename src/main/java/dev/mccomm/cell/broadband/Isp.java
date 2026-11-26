@@ -13,7 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /** An internet service provider: a company that builds nodes and sells home internet plans. */
-public final class Isp {
+public final class Isp implements dev.mccomm.cell.model.Company {
     private final String id;
     private String name;
     private UUID owner;
@@ -45,6 +45,7 @@ public final class Isp {
         return name.toLowerCase(Locale.ROOT);
     }
 
+    @Override public Kind kind() { return Kind.ISP; }
     public String id() { return id; }
     public String name() { return name; }
     public UUID owner() { return owner; }
@@ -96,4 +97,9 @@ public final class Isp {
         ledger.addFirst(new LedgerEntry(System.currentTimeMillis(), amount, note));
         while (ledger.size() > 30) ledger.removeLast();
     }
+
+    private String group; // parent company id, null = on its own
+
+    @Override public String group() { return group; }
+    @Override public void group(String g) { this.group = g; }
 }

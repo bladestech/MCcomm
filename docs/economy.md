@@ -21,10 +21,12 @@ Credits never turn back into ores.
 | From → to | Fee |
 |---|---|
 | Player → player (`/cell pay`, wallet **Send credits**) | **Free** |
-| Your carrier or manufacturer → you | **5%** |
-| You → your carrier or manufacturer | **5%** |
+| Your carrier, manufacturer or ISP → you | **5%** |
+| You → your carrier, manufacturer or ISP | **5%** |
+| You ↔ your [parent company](groups.md) | **5%** |
+| Parent company ↔ one of its members | **2.5%** |
 
-Company transfers are on the **Money** tab of `/carrier manage` and `/manufacturer manage` (or `/carrier company`, `/manufacturer company`), owner only. You're warned if a withdrawal leaves the carrier short of its next upkeep. Fees **round up** and payouts **round down**, so rounding never creates credits.
+Company transfers are on the **Money** tab of `/carrier manage`, `/manufacturer manage` and the ISP menu (or `/carrier company`, `/manufacturer company`), owner only. A company that owes its parent company can't send money out until the loan is repaid. You're warned if a withdrawal leaves the carrier short of its next upkeep. Fees **round up** and payouts **round down**, so rounding never creates credits.
 
 ## Valuation
 
@@ -32,10 +34,14 @@ Each company page shows a **valuation**, a guide for setting a sale price:
 
 - **Carrier:** wallet + installed towers at what they'd cost to build + unused stock at purchase price + **30 days of net income** (plan income minus upkeep), if positive.
 - **Manufacturer:** wallet + what its research is worth + 30 days of upkeep-share income.
+- **ISP:** wallet + nodes at what they'd cost to build + 30 days of net income, if positive.
+- **Parent company:** treasury + every member's valuation. A loan to a member counts for the parent and against the member, so it cancels out.
 
 ## Selling a company
 
-**Money → Sell the company**: name an online player and a price. They get clickable **Accept** and **Decline** buttons, valid for 5 minutes. The price moves from their wallet to yours, and **everything else carries over unchanged**: towers, plans, subscribers, agreements, loans, research and models.
+**Money → Sell the company**: name an online player and a price. They get clickable **Accept** and **Decline** buttons, valid for 5 minutes. The price moves from their wallet to yours, and **everything else carries over unchanged**: towers, plans, subscribers, agreements, loans, research, models and operations budgets.
+
+Selling a company that's in a parent company takes it out of the group; anything it owes the group must be repaid first. To sell the whole group, sell it from the group menu.
 
 ## Liquidating a carrier
 
@@ -54,13 +60,19 @@ Each company page shows a **valuation**, a guide for setting a sale price:
 
 ### Bankruptcy
 
-A carrier that can't pay its upkeep or its staff for 7 days in a row (`companies.bankruptcy-days`) is liquidated automatically, the same way, with owed wages and severance paid first. See [Operations](carriers/operations.md#bankruptcy).
+A carrier or ISP that can't pay its upkeep for 7 days in a row (`companies.bankruptcy-days`) is liquidated automatically, the same way. Members of a parent company get 7 more days. See [Operations](carriers/operations.md#bankruptcy).
 
 ## Liquidating a manufacturer
 
 - Carriers holding its unsold models are **refunded their purchase price** from the manufacturer's wallet first, scaled down if it can't cover them all.
 - The rest, minus the 10% fee, goes to the owner.
 - Its installed towers keep working; they just stop paying it the upkeep share.
+
+## Liquidating an ISP
+
+Wallet + nodes as scrap (**30%** of build cost), minus the 10% fee, goes to the owner. The nodes come down and every customer loses their line.
+
+A company inside a [parent company](groups.md) pays its liquidation money into the treasury, not your wallet.
 
 ## Economy safeguards
 

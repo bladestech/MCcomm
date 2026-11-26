@@ -217,6 +217,7 @@ public final class DataStore {
                     List<TextColor> cols = dev.mccomm.cell.util.Style.fromHex(s.getStringList("colors"));
                     if (!cols.isEmpty()) c.colors(cols);
                     c.balance(s.getLong("balance", 0));
+                    c.group(s.getString("group"));
                     c.nextUpkeep(s.getLong("next-upkeep", 0));
                     c.unpaidSince(s.getLong("unpaid-since", 0));
                     c.tradeIn(s.getBoolean("trade-in", false));
@@ -234,6 +235,7 @@ public final class DataStore {
                             ConfigurationSection ps0 = pls.getConfigurationSection(pid);
                             if (ps0 == null) continue;
                             dev.mccomm.cell.model.Plan pl = readPlan(ps0, pid);
+                            pl.sale().read(ps0);
                             c.plans().put(pid, pl);
                         }
                     }
@@ -264,6 +266,7 @@ public final class DataStore {
                     List<TextColor> cols = dev.mccomm.cell.util.Style.fromHex(s.getStringList("colors"));
                     if (!cols.isEmpty()) m.colors(cols);
                     m.balance(s.getLong("balance", 0));
+                    m.group(s.getString("group"));
                     m.researchPoints(s.getLong("research-points", 0));
                     m.researchedGen(s.getInt("researched-gen", 1));
                     m.smallCells(s.getBoolean("small-cells", false));
@@ -558,6 +561,7 @@ public final class DataStore {
             cy.set(p + "created-at", c.createdAt());
             cy.set(p + "prefix", c.prefix());
             cy.set(p + "balance", c.balance());
+            cy.set(p + "group", c.group());
             cy.set(p + "next-upkeep", c.nextUpkeep());
             cy.set(p + "unpaid-since", c.unpaidSince());
             cy.set(p + "trade-in", c.tradeIn());
@@ -570,6 +574,7 @@ public final class DataStore {
             cy.set(p + "trade-in-percent", c.tradeInPercent());
             for (dev.mccomm.cell.model.Plan pl : c.plans().values()) {
                 writePlan(cy, p + "plans." + pl.id() + ".", pl);
+                pl.sale().write(cy, p + "plans." + pl.id() + ".");
             }
             writeLedger(cy, p + "ledger", c.ledger());
             cy.set(p + "employees", c.employees().stream().map(UUID::toString).toList());
@@ -657,6 +662,7 @@ public final class DataStore {
             my.set(p + "employees", m.employees().stream().map(UUID::toString).toList());
             my.set(p + "colors", dev.mccomm.cell.util.Style.toHex(m.colors()));
             my.set(p + "balance", m.balance());
+            my.set(p + "group", m.group());
             my.set(p + "research-points", m.researchPoints());
             my.set(p + "researched-gen", m.researchedGen());
             my.set(p + "small-cells", m.smallCells());

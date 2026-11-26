@@ -17,7 +17,7 @@ import java.util.UUID;
  * A tower manufacturer: researches generations and bands, designs tower models and sells them to
  * carriers. The built-in "Generic" manufacturer ({@code system}) is run by the server.
  */
-public final class Manufacturer {
+public final class Manufacturer implements Company {
     public static final String GENERIC = "generic";
 
     private final String id;
@@ -45,6 +45,7 @@ public final class Manufacturer {
         return name.toLowerCase(Locale.ROOT);
     }
 
+    @Override public Kind kind() { return Kind.MANUFACTURER; }
     public String id() { return id; }
     public String name() { return name; }
     public UUID owner() { return owner; }
@@ -81,4 +82,9 @@ public final class Manufacturer {
         while (models.containsKey("m" + i)) i++;
         return "m" + i;
     }
+
+    private String group; // parent company id, null = on its own
+
+    @Override public String group() { return group; }
+    @Override public void group(String g) { this.group = g; }
 }

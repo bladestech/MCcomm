@@ -654,14 +654,15 @@ upkeep:
     # highest band. After the last listed stage the towers go silent.
     speed: [0.6, 0.4, 0.25]
 
-# Network wear, maintenance stations and technicians. Towers wear down from the
-# traffic they carry; technicians sent from your maintenance stations repair them.
-# Wages, rent and repair parts are spent (they leave the economy).
-workforce:
+# Operations: tower wear, repairs and the operations budget. Towers wear down from the
+# traffic they carry; field crews repair them. Operations are virtual: no buildings or
+# staff, just a daily budget in three parts that grows with your network and customers.
+# Owners choose how much of each part to fund. Everything paid is spent (it leaves the economy).
+operations:
   # The master switch. false turns all of it off: no tower wear, no repair jobs, no
-  # technicians, staff, stations, wages, rent or transit costs, and the Operations screens
-  # are hidden. Stations and staff already built stay saved and everything is paused (not
-  # backdated) until you switch it back on. Same as: /celladmin workforce on|off
+  # operations bills or transit costs, full service everywhere, and the Operations tabs
+  # are hidden. Budgets stay saved and everything is paused (not backdated) until you
+  # switch it back on. Same as: /celladmin operations on|off
   enabled: true
   wear:
     # Wear points per day (a tower goes from 0 to 100). Simulated users count fully
@@ -674,65 +675,84 @@ workforce:
     speed-at-40: 0.85
     speed-at-60: 0.6
     speed-at-80: 0.4
-  technicians:
-    wage: 150                 # credits per day for a regular technician
-    junior-wage: 0.75         # wage multiplier by level
-    senior-wage: 1.4
-    junior-repair-time: 1.33  # repair time multiplier by level
-    senior-repair-time: 0.74
-    junior-odds: 0.45         # level mix among job seekers
-    regular-odds: 0.40
-    senior-odds: 0.15
-    recruitment-fee-days: 3   # hiring costs this many days of wage
-    severance-days: 7         # firing costs this many days of wage
-    quit-after-unpaid-days: 3
-    max-per-company: 60
-  stations:
-    # A station is a closed, roofed room with a wall sign registered by
-    # /facility create station <name>. One bed = one technician.
-    rent-base: 10             # per day
-    rent-per-bed: 2           # per day, for every bed built
-    service-radius: 2000      # technicians only go this far (same dimension)
-    travel-blocks-per-minute: 150
-    barrels-per-step: 4       # every 4 barrels (spare parts) make repairs 5% faster...
-    barrel-step: 0.05
-    barrel-max: 0.25          # ...up to 25%
-    max-room-blocks: 4096
-    recheck-minutes: 10       # beds are re-counted this often while loaded
   repairs:
     set-out-minutes: 5
-    base-minutes: 20          # on-site time = base + minutes-per-wear x wear
+    base-minutes: 20          # on-site time = base + minutes-per-wear x wear, divided by crew speed
     minutes-per-wear: 0.5
     parts-base: 5             # parts cost = base + per-wear x wear
     parts-per-wear: 0.2
   contractors:
-    # When no technician can take a job within after-minutes, a contractor is booked
-    # (unless the carrier turned contractors off).
+    # Used when field crews are funded below field-crews.min-funding, or a job waits
+    # longer than after-minutes (unless the carrier turned contractors off).
     after-minutes: 30
     delay-hours: 6
-    cost-multiplier: 3        # x (parts + a technician's labour)
+    cost-multiplier: 3        # x (parts + labour)
+    labour-per-day: 150       # a day of labour, prorated to the job's length
     minimum: 60
-  # Office staff. They cover subscribers (real plus simulated); the first few need no staff.
+  # Funding level for new companies (field crews go up to 1.5, the others up to 1.0).
+  default-funding:
+    field-crews: 1.0
+    customer-care: 1.0
+    network-ops: 1.0
+  # Service follows an average of what was actually paid over this many days, so funding
+  # only around market checks doesn't work.
+  average-days: 3
+  # The first subscribers need no customer care or network ops.
   self-service-subscribers: 25
-  junior-productivity: 0.75   # how many subscribers juniors/seniors cover compared with regulars
-  senior-productivity: 1.35
-  support:
-    # Call centre: one seat (stairs) and one lectern per agent.
-    wage: 100
-    subscribers-each: 60      # understaffed support makes customers unhappy
-  engineers:
-    # Network operations centre: one seat (stairs) and one observer per engineer.
-    wage: 200
-    subscribers-each: 100     # counts the subscribers of MVNOs you host too
-    min-speed: 0.6            # understaffed engineering slows the whole network, down to this
+  # Full (100%) cost per day of each part, for carriers.
+  field-crews:
+    per-macro-cell: 15
+    per-small-cell: 6
+    per-subscriber: 0.25      # only for carriers with towers (MVNOs pay no field crews)
+    min-funding: 0.25         # below this, every repair goes to contractors
+  customer-care:
+    per-subscriber: 1.7       # beyond self-service-subscribers; sets the market support score
+  network-ops:
+    per-subscriber: 2.0       # every subscriber on your towers, MVNOs' included
+    min-speed: 0.6            # underfunded network ops slow the whole network, down to this
+  # Full cost per day for internet providers. 5G Home providers pay customer care only.
+  isp:
+    field-crews-per-upkeep: 0.5   # x each node's daily upkeep; faster fault repairs
+    field-crews-per-customer: 0.1
+    customer-care-per-customer: 1.2
+    network-ops-per-customer: 1.5 # sets how much of the transit capacity works
   transit:
-    # Data carried costs the network transit, paid on payday with wages and rent.
+    # Data carried costs the network transit, billed with operations.
     cr-per-gb: 1
     simulated-gb-per-day: 1   # per simulated customer (only while simulated revenue is on)
-  # Show a technician figure at the tower during a repair.
-  visible-technicians: true
   # /celladmin timewarp step size.
   timewarp-step-minutes: 10
+
+# Parent companies (groups). Optional: one owner can bundle carriers, manufacturers and
+# internet providers under a parent company with a shared treasury. /company
+groups:
+  enabled: true
+  max-per-player: -1          # -1 = no limit. Companies inside a group don't count
+                              # toward the per-player carrier, manufacturer or ISP limits.
+  max-members: -1
+  transfer-fee-percent: 2.5   # moving money between the treasury and its members
+  # Members that can't pay upkeep, operations or repairs are covered by the treasury
+  # as a fee-free loan, repaid from their income before anything else.
+  bankruptcy-extra-days: 7    # added to companies.bankruptcy-days for members
+  ops-discount-per-member: 0.05  # operations cost this much less per other member...
+  ops-discount-max: 0.15         # ...up to this
+
+# Temporary plan sales and the regulator that watches for permanent "sales".
+sales:
+  enabled: true
+  min-percent: 5
+  max-percent: 70
+  max-hours: 168              # one sale lasts at most this long
+  clean-price-days: 7         # the normal price must be unchanged this long before a sale
+  # A day counts when any of the company's plans was on sale that day.
+  window-days: 30
+  allowed-days: 10            # sale days allowed in the window
+  warn-at: [8, 10]
+  # Every further sale day is fined max(fine-min, fine-per-customer x customers),
+  # doubled for each earlier offence in the last offence-memory-days.
+  fine-min: 100
+  fine-per-customer: 2
+  offence-memory-days: 90
 
 messaging:
   sms-expire-minutes: 10
