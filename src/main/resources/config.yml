@@ -587,7 +587,7 @@ market:
   growth:
     # The pool of customers itself grows over time (new people arrive and shop around).
     # It does not depend on maintenance or staff, so it works with workforce.enabled: false.
-    per-day: 0.01             # share of the pool added per day (0 = the pool never grows)
+    per-day: 0                # share of the pool added per day, e.g. 0.01 = 1% (0 = the pool never grows)
     max-size: 10000           # growth stops at this many customers (0 = no limit)
   switching:
     # Customers with a carrier also compare now and then, and move to a rival that's

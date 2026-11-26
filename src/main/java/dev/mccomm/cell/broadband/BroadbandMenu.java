@@ -298,7 +298,7 @@ public final class BroadbandMenu {
                     }
                     if (isp.plans().size() >= bb().cfg().maxPlansPerIsp()) return;
                     boolean biz = seg == Segment.BUSINESS;
-                    InternetPlan pl = new InternetPlan(bb().newPlanId(isp, name), name, t, s.starterPrice() * (biz ? 3 : 1), 24,
+                    InternetPlan pl = new InternetPlan(bb().newPlanId(isp, name), name, t, s.starterPrice() * (biz ? BroadbandService.BUSINESS_PRICE_FACTOR : 1), 24,
                             Math.max(1, Math.round(s.maxMbps() * (biz ? 0.8 : 0.5))), s.installFee() * (biz ? 2 : 1));
                     pl.segment(seg);
                     isp.plans().put(pl.id(), pl);

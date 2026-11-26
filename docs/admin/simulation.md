@@ -17,7 +17,7 @@ There are two modes (`simulation.mode` in the config):
 
 **Spread evenly:** the scaffolding button at the top gives every carrier the same number of simulated users. In market mode it shares out the whole pool (nobody is left without a carrier); in fixed mode it evens out the users carriers already have. Customers then move on as usual.
 
-**Growth:** in market mode the pool itself grows by `market.growth.per-day` (1% a day by default) up to `market.growth.max-size` (10,000; 0 = no limit). New customers arrive without a carrier and shop around. Growth doesn't depend on maintenance, staff or wear, so it keeps going with `workforce.enabled: false`. Set `per-day: 0` to keep the pool fixed.
+**Growth:** in market mode the pool itself grows by `market.growth.per-day` (off by default; `0.01` is 1% a day) up to `market.growth.max-size` (10,000; 0 = no limit). New customers arrive without a carrier and shop around. Growth doesn't depend on maintenance, staff or wear, so it keeps going with `workforce.enabled: false`. With `per-day: 0` the pool stays fixed.
 
 **Fixed mode:** click a carrier to set its simulated users: −100, −10, −1, +1, +10, +100, **Set exactly**, or **Clear**. Changes show on the towers immediately.
 

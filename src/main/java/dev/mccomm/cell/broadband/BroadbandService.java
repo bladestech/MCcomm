@@ -931,8 +931,9 @@ public final class BroadbandService {
     /** A carrier's home business: an ISP whose "network" is the carrier's towers (5G Home). */
     public Isp createCarrierIsp(Player p, String name, Carrier carrier) {
         if (!checkNewIsp(p, name)) return null;
-        if (!carrier.isStaff(p.getUniqueId()) && !p.hasPermission("mccomm.admin")) {
-            Msg.send(p, "<red>You don't work for <white><carrier></white>.", Msg.p("carrier", carrier.name()));
+        // Only the carrier's owner: the ISP runs on the carrier's towers, so its income belongs to whoever owns them.
+        if (!carrier.owner().equals(p.getUniqueId()) && !p.hasPermission("mccomm.admin")) {
+            Msg.send(p, "<red>Only the owner of <white><carrier></white> can start its home internet business.", Msg.p("carrier", carrier.name()));
             return null;
         }
         if (carrier.mvno()) {
@@ -943,7 +944,7 @@ public final class BroadbandService {
             Msg.send(p, "<red><carrier> already has a home internet business.", Msg.p("carrier", carrier.name()));
             return null;
         }
-        Isp isp = new Isp(name, p.getUniqueId(), System.currentTimeMillis());
+        Isp isp = new Isp(name, carrier.owner(), System.currentTimeMillis());
         isp.carrierId(carrier.id());
         isp.colors(carrier.colors());
         InternetPlan plan = starterPlan(isp, Technology.FIXED_WIRELESS);
@@ -964,8 +965,17 @@ public final class BroadbandService {
         return isp.carrierBacked() ? new Technology[]{Technology.FIXED_WIRELESS} : Technology.nodeTechs();
     }
 
-    /** Deletes the ISP: nodes come down and customers lose their plan (no refunds). */
+    /** Deletes the ISP: nodes come down, customers lose their plan (no refunds), and what's left in it goes to the owner. */
     public void deleteIsp(Isp isp) {
+        if (isp.balance() > 0) {
+            PlayerProfile prof = plugin.store().profile(isp.owner());
+            prof.balance(prof.balance() + isp.balance());
+            prof.log(isp.balance(), "Closing balance of " + isp.name());
+            plugin.billing().notify(isp.owner(), "<yellow><isp> closed. Its balance of <white><b></white> went to your wallet.",
+                    Msg.p("isp", isp.name()), Msg.p("b", money(isp.balance())));
+            isp.balance(0);
+            plugin.store().markDirty();
+        }
         for (Node n : new ArrayList<>(store.nodesOf(isp.id()))) removeNode(n, true);
         for (Router r : new ArrayList<>(store.routersOfIsp(isp.id()))) {
             plugin.billing().notify(r.owner(), "<red><isp> has shut down. Your internet at <white><h></white> is gone: pick a new provider on your router.",
@@ -1534,6 +1544,7 @@ public final class BroadbandService {
         lastTick = now;
 
         validateLoaded();
+        syncCarrierIsps();
 
         // ISP upkeep: node and transit upkeep every period; a missed bill darkens the whole network until it is paid.
         for (Isp isp : new ArrayList<>(store.isps())) {
@@ -1739,6 +1750,23 @@ public final class BroadbandService {
         return out;
     }
 
+    /** Business plans start at this many times a home plan's price (the starter plans, and the fair price below). */
+    public static final int BUSINESS_PRICE_FACTOR = 3;
+
+    /**
+     * The ISP's average daily price for one kind of customer, divided by the fair price: the average starter price
+     * of the same technologies (times {@link #BUSINESS_PRICE_FACTOR} for businesses). 1 = fair, 0 = nothing sold.
+     */
+    public double priceRatio(Isp isp, Segment seg) {
+        double price = 0, fair = 0;
+        for (InternetPlan p : isp.plans().values()) {
+            if (p.segment() != seg) continue;
+            price += p.price() * 24.0 / Math.max(1, p.periodHours());
+            fair += spec(p.tech()).starterPrice() * (seg == Segment.BUSINESS ? BUSINESS_PRICE_FACTOR : 1);
+        }
+        return fair <= 0 ? (price > 0 ? Double.MAX_VALUE : 0) : price / fair;
+    }
+
     /** True if the ISP sells at least one plan to this kind of customer. */
     private static boolean sells(Isp isp, Segment seg) {
         for (InternetPlan p : isp.plans().values()) if (p.segment() == seg) return true;
@@ -1760,7 +1788,10 @@ public final class BroadbandService {
         for (Isp isp : store.isps()) {
             if (seg == Segment.RESIDENTIAL) isp.simCustomers(0);
             if (count <= 0 || isp.carrierBacked() || !isp.paidUp() || !sells(isp, seg) || healthy(isp).isEmpty()) continue;
-            double s = Math.pow(rating(isp), 2);
+            // Same price rule as the carrier market: too dear and nobody signs up, dearer than fair and fewer do.
+            double r = priceRatio(isp, seg);
+            if (r >= plugin.settings().market.refuseRatio()) continue;
+            double s = Math.pow(rating(isp), 2) * Math.min(1, 1 / (r * r));
             eligible.add(isp);
             score.put(isp.id(), s);
             total += s;
@@ -1799,6 +1830,25 @@ public final class BroadbandService {
             isp.balance(isp.balance() + rev);
             isp.log(rev, note);
             store.markDirty();
+        }
+    }
+
+    /**
+     * A carrier-backed ISP always belongs to its carrier's owner (so it follows a carrier sold or handed over,
+     * and fixes ISPs a staff member created before this rule). If the carrier is gone, the ISP closes.
+     */
+    private void syncCarrierIsps() {
+        for (Isp isp : new ArrayList<>(store.isps())) {
+            if (!isp.carrierBacked()) continue;
+            Carrier c = plugin.store().carrier(isp.carrierId());
+            if (c == null) {
+                deleteIsp(isp);
+                store.markDirty();
+            } else if (!c.owner().equals(isp.owner())) {
+                isp.employees().remove(c.owner());
+                isp.owner(c.owner());
+                store.markDirty();
+            }
         }
     }
 

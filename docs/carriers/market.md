@@ -46,7 +46,7 @@ If your network has no working towers at all, customers leave fast and nobody jo
 
 ## Growth
 
-The pool itself grows: **1% a day** by default (`market.growth.per-day`), up to 10,000 customers (`market.growth.max-size`). The newcomers have no carrier yet, so they shop around like everyone else. This doesn't depend on staff or maintenance, so it carries on when the [workforce is switched off](operations.md).
+The server can let the pool grow over time (`market.growth.per-day`, off by default; `0.01` is 1% a day), up to 10,000 customers (`market.growth.max-size`). The newcomers have no carrier yet, so they shop around like everyone else. This doesn't depend on staff or maintenance, so it carries on when the [workforce is switched off](operations.md).
 
 ## Switching
 

@@ -51,7 +51,7 @@ public record MarketSettings(
                 Math.max(0, m.getDouble("switching.loyalty", 0.15)),
                 Math.clamp(m.getDouble("service.speed-weight", 0.4), 0, 1),
                 Math.max(1, m.getDouble("service.speed-reference-mbps", 300)),
-                Math.clamp(m.getDouble("growth.per-day", 0.01), 0, 1),
+                Math.clamp(m.getDouble("growth.per-day", 0), 0, 1),
                 Math.max(0, m.getInt("growth.max-size", 10_000)));
     }
 }

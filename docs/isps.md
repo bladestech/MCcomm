@@ -69,7 +69,7 @@ Subscribers of a deleted plan are cancelled (no refunds).
 
 ## Rating
 
-Every ISP has a **1-5 star rating** from the speed its customers actually get, how much of the time the network is up, value for money and coverage. Customers see it in the Providers list. If the server enables the household market, simulated households pick providers by rating, load your nodes, and pay your plans.
+Every ISP has a **1-5 star rating** from the speed its customers actually get, how much of the time the network is up, value for money and coverage. Customers see it in the Providers list. If the server enables the household market, simulated households pick providers by rating, load your nodes, and pay your plans. Price counts as it does for carriers: the further your average price is above the fair price (the starter price for each technology, three times that for business plans), the fewer sign up, and at `market.refuse-price-ratio` times the fair price (3 by default) nobody does.
 
 ## Faults
 
@@ -83,13 +83,13 @@ Your customers share the ISP's **backbone** (transit): 5,000 Mbps per tier. If w
 
 ## Carrier ISPs: 5G Home
 
-A mobile carrier's owner or staff can sell home internet over its towers:
+A mobile carrier's owner can sell home internet over its towers:
 
 ```
 /isp create <name> carrier <carrier>
 ```
 
-There are no nodes to build. A home's line is the best 5G link from the carrier's towers at its door, so towers, bands and upkeep matter for home customers too. It only sells **5G Home** plans and pays no node upkeep.
+There are no nodes to build. A home's line is the best 5G link from the carrier's towers at its door, so towers, bands and upkeep matter for home customers too. It only sells **5G Home** plans and pays no node upkeep. It always belongs to the carrier's owner (it follows the carrier if that changes hands) and closes if the carrier does.
 
 ## Bundles
 
@@ -119,7 +119,7 @@ Customers of the carrier get the first discount on your home plans; your home cu
 /isp color <isp> <colors...>
 ```
 
-Staff can build and take down nodes and edit plans. Only the owner withdraws or shuts the ISP down (`/isp delete <name> confirm`, which cancels every customer).
+Staff can build and take down nodes and edit plans. Only the owner withdraws or shuts the ISP down (`/isp delete <name> confirm`, which cancels every customer and pays what is left in the ISP to the owner's wallet).
 
 ## Commands
 

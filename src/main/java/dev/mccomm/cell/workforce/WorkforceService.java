@@ -132,12 +132,16 @@ public final class WorkforceService {
     public Collection<Employee> employees() { return employees.values(); }
     public RepairJob job(Tower t) { return enabled() ? jobs.get(t.id()) : null; }
 
-    /** Wages and rent a company owes. Always 0 while the workforce is switched off. */
+    /**
+     * Wages and rent a company owes. Debts from before the workforce was switched off still count (they block
+     * withdrawals and come out of a liquidation), so switching it off can't be used to walk away from them.
+     */
     public long owedWages(String companyId) {
-        return enabled() ? state(companyId).wagesOwed() : 0;
+        StaffState st = states.get(companyId);
+        return st == null ? 0 : st.wagesOwed();
     }
 
-    /** When a company started owing wages (0 = not owing, or the workforce is switched off). */
+    /** When a company started owing wages (0 = not owing, or the workforce is switched off: no bankruptcy clock while paused). */
     public long owedSince(String companyId) {
         return enabled() ? state(companyId).owedSince() : 0;
     }
@@ -527,7 +531,7 @@ public final class WorkforceService {
 
     /** After money comes in: pays owed wages and rent at once, and staff go back to work. */
     public void retryWages(Carrier c) {
-        if (!enabled()) return;
+        // Runs even while switched off, so an old debt can still be paid (and withdrawals unblocked).
         StaffState st = states.get(c.id());
         if (st == null || st.wagesOwed() <= 0 || c.balance() - st.wagesOwed() < upkeepReserve(c)) return;
         long owed = st.wagesOwed();
@@ -831,7 +835,7 @@ public final class WorkforceService {
 
     /** What liquidation must settle first: wages and rent owed plus severance for everyone. */
     public long liquidationCost(String companyId) {
-        if (!enabled()) return 0;
+        // Counted even while switched off: the staff are still employed and still owed.
         StaffState st = states.get(companyId);
         long sum = st == null ? 0 : st.wagesOwed();
         for (Employee e : staffOf(companyId)) sum += severance(e);
