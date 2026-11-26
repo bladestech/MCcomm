@@ -22,6 +22,9 @@ carriers, manufacturers and ISPs.
 **Financial backing.** When a member can't pay its upkeep, its operations bill or a
 repair, the treasury lends it the difference automatically, with no fee and no interest.
 
+- A member spends its own wallet first and only borrows what it can't pay. Because the
+  treasury stands behind its next upkeep, it doesn't hold that back the way a company on
+  its own does.
 - The member keeps running instead of going dark.
 - It repays the loan from its income before anything else: whatever it has above its
   next upkeep and the next hour of operations goes back to the treasury.

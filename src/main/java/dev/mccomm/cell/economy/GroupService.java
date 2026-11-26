@@ -110,6 +110,21 @@ public final class GroupService {
         return n;
     }
 
+    /**
+     * How much of a member's own reserve its group stands behind: the treasury, which covers upkeep the moment it's
+     * due. A member doesn't need to hold that much back for its next upkeep, so it can spend its own wallet first.
+     */
+    public long backing(Company c) {
+        if (!enabled()) return 0;
+        Group gr = groupOf(c);
+        return gr == null ? 0 : Math.max(0, gr.balance());
+    }
+
+    /** The part of {@code reserve} a company must still hold back itself once its group's backing is counted. */
+    public long ownReserve(Company c, long reserve) {
+        return Math.max(0, reserve - backing(c));
+    }
+
     /** What this member owes its group's treasury. */
     public long owes(Company c) {
         Group gr = groupOf(c);
