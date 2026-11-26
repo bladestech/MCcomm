@@ -476,7 +476,7 @@ public final class BroadbandMenu {
         if (n.faulted()) {
             m.set(22, Items.of(Material.IRON_PICKAXE, "<gold>Send a technician", "<gray>Fixes the fault now.",
                     "<gray>Cost: <white>" + (admin(p) ? "free (admin)" : money(s.repairCost())) + " <gray>from the ISP balance.",
-                    "<gray>Otherwise a crew arrives in " + bb().cfg().faults().autoRepairHours() + " h."), e -> {
+                    "<gray>Otherwise a crew arrives in " + bb().cfg().faults().autoRepairHours() + " in-game h", "<gray>(about " + Math.max(1, Math.round(bb().cfg().faults().autoRepairHours() * 50 / 60.0)) + " real minutes)."), e -> {
                 Frame.click(p);
                 bb().repairNode(p, n);
                 node(p, n);

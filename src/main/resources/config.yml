@@ -385,7 +385,7 @@ broadband:
   # The ISP can pay a technician (repair-cost per technology), or a crew fixes it after a while.
   faults:
     enabled: true
-    auto-repair-hours: 6
+    auto-repair-hours: 6      # in-game hours (one is 50 real seconds), so 6 = about 5 minutes
 
   # 5G Home: a carrier-backed ISP (/isp create <name> carrier <carrier>) sells plans over
   # the carrier's towers. Speed comes from the signal at the home (indoor loss applied).

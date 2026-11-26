@@ -73,7 +73,7 @@ Every ISP has a **1-5 star rating** from the speed its customers actually get, h
 
 ## Faults
 
-Nodes break down now and then (more in storms; copper and coax suffer most). A faulted node serves no one: customers aren't billed and re-connect to another healthy node of yours if one reaches them. Send a technician from the node screen or `/isp node repair <name>` (costs the ISP), or a crew arrives after 6 hours.
+Nodes break down now and then (more in storms; copper and coax suffer most). A faulted node serves no one: customers aren't billed and re-connect to another healthy node of yours if one reaches them. Send a technician from the node screen or `/isp node repair <name>` (costs the ISP), or a crew arrives after 6 in-game hours (about 5 real minutes; `broadband.faults.auto-repair-hours`).
 
 ## Transit and peering
 

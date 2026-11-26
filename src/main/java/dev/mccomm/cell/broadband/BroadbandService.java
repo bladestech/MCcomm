@@ -47,6 +47,8 @@ import java.util.regex.Pattern;
  */
 public final class BroadbandService {
     private static final long HOUR = 3_600_000L;
+    /** One in-game hour: 1,000 ticks, 50 real seconds at 20 TPS. */
+    private static final long GAME_HOUR = 50_000L;
     private static final Pattern DEVICE_NAME = Pattern.compile("^[A-Za-z0-9_\\- ]{1,16}$");
     private static final int TEST_PING = 20, TEST_DL = 50, TEST_UL = 50;
 
@@ -1690,7 +1692,7 @@ public final class BroadbandService {
             return;
         }
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        long auto = cfg().faults().autoRepairHours() * HOUR;
+        long auto = cfg().faults().autoRepairHours() * GAME_HOUR; // in-game hours
         for (Node n : store.nodes()) {
             Isp isp = store.isp(n.ispId());
             if (isp == null) continue;
@@ -1710,8 +1712,8 @@ public final class BroadbandService {
             if (rnd.nextDouble() < p) {
                 n.faultAt(now);
                 store.markDirty();
-                plugin.billing().notify(isp.owner(), "<red>Node <white><n></white> of <isp> has a fault: its customers are offline. Repair it from the node screen, or a crew arrives in <h> hours.",
-                        Msg.p("n", n.name()), Msg.p("isp", isp.name()), Msg.p("h", "" + cfg().faults().autoRepairHours()));
+                plugin.billing().notify(isp.owner(), "<red>Node <white><n></white> of <isp> has a fault: its customers are offline. Repair it from the node screen, or a crew arrives in <h> in-game hours (about <m> min).",
+                        Msg.p("n", n.name()), Msg.p("isp", isp.name()), Msg.p("h", "" + cfg().faults().autoRepairHours()), Msg.p("m", "" + Math.max(1, Math.round(cfg().faults().autoRepairHours() * GAME_HOUR / 60_000.0))));
             }
         }
     }
