@@ -142,6 +142,7 @@ public final class TowerManager {
     /** Re-renders sign, screen and any open GUIs. Safe to call often. */
     public void refresh(Tower t) {
         plugin.store().markDirty();
+        if (plugin.billing().warping()) return; // every tower is refreshed once when the timewarp ends
         if (t.isChunkLoaded()) {
             measureHeight(t);
             Block b = t.block();

@@ -1038,10 +1038,126 @@ public final class BillingService implements Listener {
      * Every schedule (plan charges, upkeep, decay, agreements, simulated revenue) is moved back by
      * each step and a billing tick runs.
      */
-    public int timewarp(long ms, long step) {
-        int ticks = 0;
-        for (long done = 0; done < ms; done += step) {
-            long d = Math.min(step, ms - done);
+    /** A running timewarp: it advances a slice of steps every server tick until it's done. */
+    private static final class Warp {
+        final org.bukkit.command.CommandSender by;
+        final double days;
+        final long step;
+        final long startedAt = System.currentTimeMillis();
+        long left;
+        int steps;
+        long reportAt;
+        org.bukkit.scheduler.BukkitTask task;
+
+        Warp(org.bukkit.command.CommandSender by, double days, long ms, long step) {
+            this.by = by;
+            this.days = days;
+            this.left = ms;
+            this.step = step;
+            this.reportAt = startedAt + 5_000;
+        }
+    }
+
+    /** Milliseconds of each server tick a timewarp may use, so the server keeps running while it works. */
+    private static final long WARP_BUDGET_NANOS = 20_000_000L;
+    private Warp warp;
+
+    /** True while a timewarp is running (tower signs and screens wait until it's done). */
+    public boolean warping() {
+        return warp != null;
+    }
+
+    /** How far the running timewarp is, as "3.2 of 30 days", or null. */
+    public String warpProgress() {
+        if (warp == null) return null;
+        double done = warp.days - warp.left / 86_400_000.0;
+        return String.format(java.util.Locale.ROOT, "%.1f of %s days", done, fmtDays(warp.days));
+    }
+
+    private static String fmtDays(double d) {
+        return d == Math.floor(d) ? String.valueOf((long) d) : String.valueOf(d);
+    }
+
+    /**
+     * Admin/testing: fast-forwards the economy by {@code ms}, in steps of {@code step}, as if that time had passed.
+     * It runs a few steps per server tick (about 20 ms of work each) instead of all at once, so long warps don't
+     * freeze or crash the server. False if one is already running.
+     */
+    public boolean startWarp(org.bukkit.command.CommandSender by, double days, long ms, long step) {
+        if (warp != null || ms <= 0 || step <= 0) return false;
+        Warp w = new Warp(by, days, ms, step);
+        warp = w;
+        w.task = Bukkit.getScheduler().runTaskTimer(plugin, this::warpTick, 1L, 1L);
+        return true;
+    }
+
+    /** Stops a running timewarp where it is. False if none was running. */
+    public boolean stopWarp() {
+        if (warp == null) return false;
+        finishWarp(true);
+        return true;
+    }
+
+    private void warpTick() {
+        Warp w = warp;
+        if (w == null) return;
+        long until = System.nanoTime() + WARP_BUDGET_NANOS;
+        try {
+            do {
+                long d = Math.min(w.step, w.left);
+                warpStep(d);
+                w.left -= d;
+                w.steps++;
+            } while (w.left > 0 && System.nanoTime() < until);
+        } catch (RuntimeException ex) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Timewarp failed at step " + w.steps + "; stopping it.", ex);
+            finishWarp(true);
+            return;
+        }
+        if (w.left <= 0) {
+            finishWarp(false);
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now >= w.reportAt) {
+            w.reportAt = now + 5_000;
+            warpMessage(w, "<gray>Timewarp: <white>" + warpProgress() + "</white> done…");
+        }
+    }
+
+    private void finishWarp(boolean stopped) {
+        Warp w = warp;
+        if (w == null) return;
+        warp = null;
+        if (w.task != null) w.task.cancel();
+        plugin.store().markDirty();
+        if (plugin.broadband() != null) plugin.broadband().store().save();
+        plugin.groups().save();
+        plugin.sales().save();
+        plugin.store().save();
+        plugin.towers().refreshAll();
+        double done = w.days - w.left / 86_400_000.0;
+        String took = String.format(java.util.Locale.ROOT, "%.1f", (System.currentTimeMillis() - w.startedAt) / 1000.0);
+        warpMessage(w, (stopped ? "<yellow>Timewarp stopped after <white>" : "<green>Fast-forwarded the economy <white>")
+                + String.format(java.util.Locale.ROOT, "%.1f", done) + "</white> days (<white>" + w.steps + "</white> steps, "
+                + took + " s).");
+    }
+
+    /** Tells whoever started the warp (if they're still there) and the server log. */
+    private void warpMessage(Warp w, String mm) {
+        if (w.by instanceof Player p) {
+            if (p.isOnline()) Msg.send(p, mm);
+        } else if (w.by instanceof org.bukkit.command.ConsoleCommandSender) {
+            Msg.send(w.by, mm);
+            return; // the console already logs it
+        }
+        plugin.getLogger().info(net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                .serialize(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(mm)));
+    }
+
+    /** One warp step: every schedule moves back by {@code d}, then a billing tick runs. */
+    private void warpStep(long d) {
+        {
             for (Carrier c : plugin.store().carriers()) {
                 if (c.nextUpkeep() > 0) c.nextUpkeep(c.nextUpkeep() - d);
                 if (c.unpaidSince() > 0) c.unpaidSince(c.unpaidSince() - d);
@@ -1057,10 +1173,7 @@ public final class BillingService implements Listener {
             plugin.sales().shift(d);
             tick();
             plugin.broadband().tick();
-            ticks++;
         }
-        plugin.store().markDirty();
-        return ticks;
     }
 
     // =============================================================== helpers
