@@ -17,8 +17,12 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /** The screens of home internet: the ISP management menu, the router, the computer and nodes. */
@@ -648,13 +652,69 @@ public final class BroadbandMenu {
     private record Offer(Isp isp, InternetPlan plan, Quote quote) {
     }
 
+    /** The Providers tab: one "folder" per ISP. Click one to see its plans. */
     private void providersTab(Menu m, Player p, Router r, int page) {
-        List<Offer> offers = new ArrayList<>();
-        for (Isp isp : store().isps()) {
-            for (InternetPlan pl : isp.plans().values()) offers.add(new Offer(isp, pl, bb().quote(isp, pl, r.key(), r)));
+        List<Isp> isps = new ArrayList<>();
+        for (Isp isp : store().isps()) if (!isp.plans().isEmpty()) isps.add(isp);
+        // Your current provider first, then providers that can serve this address, then by name.
+        Map<String, Boolean> serves = new HashMap<>();
+        for (Isp isp : isps) {
+            boolean any = false;
+            for (InternetPlan pl : isp.plans().values()) if (bb().quote(isp, pl, r.key(), r).ok()) any = true;
+            serves.put(isp.id(), any);
         }
-        offers.sort(Comparator.comparing((Offer o) -> !o.quote().ok()).thenComparing(o -> -o.quote().downMbps()));
-        if (offers.isEmpty()) m.set(22, Frame.empty("No providers yet", "A player can start one with /isp create <name>."));
+        isps.sort(Comparator.comparing((Isp i) -> !(r.subscribed() && i.id().equals(r.ispId())))
+                .thenComparing(i -> !serves.get(i.id())).thenComparing(i -> i.name().toLowerCase(Locale.ROOT)));
+        if (isps.isEmpty()) m.set(22, Frame.empty("No providers yet", "A player can start one with /isp create <name>."));
+        Frame.page(m, p, isps, page, LIST4, isp -> ispFolder(r, isp, serves.get(isp.id())), (isp, e) -> {
+            Frame.click(p);
+            providerPlans(p, r, isp, 0);
+        }, pg -> router(p, r, PROVIDERS, pg));
+    }
+
+    private ItemStack ispFolder(Router r, Isp isp, boolean serves) {
+        boolean current = r.subscribed() && isp.id().equals(r.ispId());
+        Set<String> techs = new LinkedHashSet<>();
+        long cheapest = Long.MAX_VALUE;
+        double fastest = 0;
+        int ok = 0;
+        for (InternetPlan pl : isp.plans().values()) {
+            techs.add(spec(pl.tech()).name());
+            Quote q = bb().quote(isp, pl, r.key(), r);
+            if (!q.ok()) continue;
+            ok++;
+            cheapest = Math.min(cheapest, q.price());
+            fastest = Math.max(fastest, q.downMbps());
+        }
+        List<String> lore = new ArrayList<>();
+        lore.add("<gray>Rating: " + bb().ratingLore(isp));
+        lore.add("<gray>Technologies: <white>" + String.join(", ", techs));
+        lore.add("<gray>Plans: <white>" + isp.plans().size() + (serves ? " <gray>(<green>" + ok + "<gray> available here)" : ""));
+        if (serves) {
+            lore.add("<gray>From: <white>" + money(cheapest));
+            lore.add("<green>↓ <white>up to ~" + Msg.speed(fastest));
+        } else {
+            lore.add("<red>Doesn't reach this address");
+        }
+        if (current) lore.add("<green>Your current provider");
+        lore.add("<yellow>Click to open");
+        ItemStack it = Items.of(Material.CHEST, "<white>" + isp.styled(), lore);
+        return current ? Items.glow(it) : it;
+    }
+
+    /** Inside an ISP's folder: its plans, in the order the ISP set. */
+    private void providerPlans(Player p, Router r, Isp isp, int page) {
+        if (store().isp(isp.id()) != isp) {
+            router(p, r, PROVIDERS, 0);
+            return;
+        }
+        Menu m = Frame.create(p, "Router · " + r.name(), "bb-router-providers");
+        Frame.tabs(m, p, List.of(
+                new Frame.Tab(STATUS, Material.COMPARATOR, "Connection"),
+                new Frame.Tab(PROVIDERS, Material.COMPASS, "Providers")), PROVIDERS, k -> router(p, r, k, 0));
+        List<Offer> offers = new ArrayList<>();
+        for (InternetPlan pl : isp.plans().values()) offers.add(new Offer(isp, pl, bb().quote(isp, pl, r.key(), r)));
+        if (offers.isEmpty()) m.set(22, Frame.empty("No plans", "This provider has no plans right now."));
         Frame.page(m, p, offers, page, LIST4, o -> offerItem(r, o), (o, e) -> {
             Frame.click(p);
             if (!o.quote().ok()) {
@@ -674,8 +734,10 @@ public final class BroadbandMenu {
                     () -> {
                         bb().subscribe(p, r, o.isp(), o.plan());
                         router(p, r, STATUS, 0);
-                    }, () -> router(p, r, PROVIDERS, 0));
-        }, pg -> router(p, r, PROVIDERS, pg));
+                    }, () -> providerPlans(p, r, isp, page));
+        }, pg -> providerPlans(p, r, isp, pg));
+        Frame.back(m, p, "Providers", () -> router(p, r, PROVIDERS, 0));
+        m.open(p);
     }
 
     private ItemStack offerItem(Router r, Offer o) {

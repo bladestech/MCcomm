@@ -15,9 +15,9 @@ Put a router in your house, pick an internet provider, and every computer and ph
 
     The sign becomes a **router**. You can have up to 3.
 
-2. **Right-click the router** and open the **Providers** tab. Every ISP's plans are listed with a quote for *this exact spot*:
+2. **Right-click the router** and open the **Providers** tab. Each ISP is a **folder** (your current provider first, then the ones that reach you). Each folder shows its rating, technologies, cheapest price and top speed here. Click one to open its plans, in the order the ISP set, each with a quote for *this exact spot*:
 
-    | The list shows | Meaning |
+    | The plans show | Meaning |
     |---|---|
     | Technology | DSL, Cable, Fiber or Satellite (see below) |
     | `↓ ~speed` and ms | What you'd get here, and the ping |
