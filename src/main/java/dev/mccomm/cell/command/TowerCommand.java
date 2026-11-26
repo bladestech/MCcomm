@@ -19,7 +19,7 @@ import java.util.Locale;
 
 /** /tower — build and manage towers. Most subcommands act on the wall sign you are looking at. */
 public final class TowerCommand extends Cmd {
-    private static final List<String> SUBS = List.of("install", "rename", "remove", "info", "manage", "list", "setgen", "tp");
+    private static final List<String> SUBS = List.of("install", "replace", "rename", "remove", "info", "manage", "list", "setgen", "tp");
 
     public TowerCommand(CellPlugin plugin) {
         super(plugin);
@@ -56,6 +56,7 @@ public final class TowerCommand extends Cmd {
         if (p == null) return;
         switch (sub) {
             case "install", "create" -> install(p, args);
+            case "replace" -> replace(p);
             case "remove" -> {
                 Tower t = lookedAt(p);
                 if (t == null) return;
@@ -166,6 +167,7 @@ public final class TowerCommand extends Cmd {
         Msg.raw(s, "<white>/tower install <name> [carrier] <gray>— put a tower from your stock on the wall sign you look at");
         Msg.raw(s, "<gray>Buy tower models in <white>/carrier manage</white> → Tower shop.");
         Msg.raw(s, "<white>/tower manage <gray>— open the tower GUI (or right-click the sign)");
+        Msg.raw(s, "<white>/tower replace <gray>— swap the tower you look at for another model from stock, keeping its name");
         Msg.raw(s, "<white>/tower info <gray>· <white>/tower rename <name> <gray>· <white>/tower remove");
         Msg.raw(s, "<white>/tower list [carrier]");
         if (s.hasPermission("mccomm.admin")) Msg.raw(s, "<white>/tower setgen <gen> <gray>· <white>/tower tp <name>");
@@ -216,12 +218,37 @@ public final class TowerCommand extends Cmd {
             return;
         }
         final Carrier carrier = c;
-        plugin.manufacturerMenu().pickStock(p, c, name, ref -> finishInstall(p, carrier, b, name, ref));
+        plugin.manufacturerMenu().pickStock(p, c, name, ref -> finishInstall(p, carrier, b, name, ref, null));
     }
 
-    private void finishInstall(Player p, Carrier c, Block b, String name, String ref) {
+    /**
+     * /tower replace: swaps the tower on the sign you look at for another model from its carrier's stock, keeping
+     * the name. Works like breaking the tower and installing a new one, without typing the name again: the old
+     * tower goes (its backhaul block is destroyed, as when it is broken) and the new one starts offline.
+     */
+    private void replace(Player p) {
+        Tower old = lookedAt(p);
+        if (old == null) return;
+        if (!plugin.towers().canManage(p, old)) {
+            Msg.send(p, "<red>You don't manage this tower.");
+            return;
+        }
+        Carrier c = plugin.store().carrier(old.carrierId());
+        if (c == null) {
+            Msg.send(p, "<red>That tower's carrier no longer exists.");
+            return;
+        }
+        Block b = target(p);
+        plugin.manufacturerMenu().pickStock(p, c, old.name(), "Replace", ref -> finishInstall(p, c, b, old.name(), ref, old));
+    }
+
+    /** Installs the picked model on the sign. {@code replacing} is the tower being swapped out (null for a new install). */
+    private void finishInstall(Player p, Carrier c, Block b, String name, String ref, Tower replacing) {
         // Re-check: things may have changed while the menu was open.
-        if (!TowerManager.isWallSign(b) || plugin.towers().towerAt(b) != null || plugin.store().towerByName(name) != null) {
+        boolean gone = replacing != null && plugin.store().tower(replacing.id()) != replacing;
+        boolean taken = replacing == null ? plugin.towers().towerAt(b) != null || plugin.store().towerByName(name) != null
+                : plugin.towers().towerAt(b) != replacing;
+        if (!TowerManager.isWallSign(b) || gone || taken) {
             Msg.send(p, "<red>That sign or name is no longer available.");
             return;
         }
@@ -236,6 +263,7 @@ public final class TowerCommand extends Cmd {
             var sc = plugin.settings().smallCells;
             int macros = 0, smalls = 0;
             for (Tower x : plugin.store().towersOf(c.id())) {
+                if (x == replacing) continue; // being swapped out
                 if (x.small()) smalls++;
                 else macros++;
             }
@@ -245,7 +273,7 @@ public final class TowerCommand extends Cmd {
                 return;
             }
             for (Tower x : plugin.store().towersOf(c.id())) {
-                if (!x.small() || !x.worldId().equals(b.getWorld().getUID())) continue;
+                if (x == replacing || !x.small() || !x.worldId().equals(b.getWorld().getUID())) continue;
                 double dx = x.x() - b.getX(), dy = x.y() - b.getY(), dz = x.z() - b.getZ();
                 if (dx * dx + dy * dy + dz * dz < (double) sc.minSpacing() * sc.minSpacing()) {
                     Msg.send(p, "<red>Too close to small cell <white><t></white>: keep them <white><n></white> blocks apart.",
@@ -262,14 +290,15 @@ public final class TowerCommand extends Cmd {
                 return;
             }
             c.balance(c.balance() - cost);
-            c.log(-cost, "Installed tower " + name);
+            c.log(-cost, (replacing != null ? "Replaced tower " : "Installed tower ") + name);
         }
         if (have == 1) c.stock().remove(ref);
         else c.stock().put(ref, have - 1);
+        if (replacing != null) plugin.towers().remove(replacing, false); // like breaking it: the backhaul is gone, the sign stays
         Tower t = plugin.towers().create(p, b, c, name, maker, model);
         List<String> bands = new ArrayList<>();
         for (Band band : t.enabledBands()) bands.add(plugin.settings().spec(band).name());
-        Msg.send(p, "<green>Installed <white><id></white> for <white><c></white>: <model> by <maker> (<bands>).",
+        Msg.send(p, "<green>" + (replacing != null ? "Replaced" : "Installed") + " <white><id></white> for <white><c></white>: <model> by <maker> (<bands>).",
                 Msg.p("id", t.name()), Msg.p("c", c.name()), Msg.p("model", model.name()), Msg.p("maker", maker.name()),
                 Msg.p("bands", String.join(", ", bands)));
         Msg.send(p, "<yellow>It's offline until you install a backhaul block. Right-click the sign to open the GUI.");

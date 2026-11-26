@@ -20,7 +20,7 @@ import java.util.Locale;
 /** /cell — opens the phone; subcommands are shortcuts (status, speedtest, SIMs, numbers, towers, HUD). */
 public final class CellCommand extends Cmd {
     private static final List<String> SUBS = List.of("status", "eshop", "wallet", "pay", "plan", "speedtest", "subscribe", "unsubscribe", "activate",
-            "deactivate", "data", "number", "contacts", "messages", "sims", "towers", "carriers", "hud", "help");
+            "deactivate", "data", "number", "contacts", "messages", "sims", "towers", "carriers", "account", "hud", "help");
 
     public CellCommand(CellPlugin plugin) {
         super(plugin);
@@ -135,6 +135,18 @@ public final class CellCommand extends Cmd {
             case "messages", "inbox" -> plugin.phone().messages(p);
             case "sims" -> sims(p, prof);
             case "towers" -> towers(p);
+            case "account" -> {
+                if (args.length < 2) {
+                    Msg.send(p, "<gray>Your account is a <white><t></white> one. <white>/cell account personal|business</white> switches it (with no SIMs).", Msg.p("t", prof.business() ? "business" : "personal"));
+                    return;
+                }
+                dev.mccomm.cell.broadband.Segment seg = dev.mccomm.cell.broadband.Segment.fromKey(args[1]);
+                if (seg == null) {
+                    Msg.send(p, "<red>Usage: /cell account <personal|business>");
+                    return;
+                }
+                plugin.billing().setAccount(p, seg == dev.mccomm.cell.broadband.Segment.BUSINESS);
+            }
             case "hud" -> {
                 boolean now = plugin.hud().enabled(p);
                 prof.hud(!now);
@@ -167,6 +179,7 @@ public final class CellCommand extends Cmd {
         Msg.raw(s, "<white>/cell sims <gray>— list your SIMs");
         Msg.raw(s, "<white>/cell towers <gray>— nearby towers");
         Msg.raw(s, "<white>/cell carriers <gray>— all carriers");
+        Msg.raw(s, "<white>/cell account [personal|business] <gray>— which kind of plans you see and take");
         Msg.raw(s, "<white>/cell hud <gray>— toggle the signal sidebar");
         Msg.raw(s, "<white>/text <number|contact|player> <msg> <gray>· <white>/call start <number|contact|player>|accept|deny|end");
     }
@@ -272,6 +285,7 @@ public final class CellCommand extends Cmd {
         if (args.length == 2 && src.getSender() instanceof Player p) {
             PlayerProfile prof = plugin.store().profile(p.getUniqueId());
             List<String> opts = switch (sub) {
+                case "account" -> List.of("personal", "business");
                 case "subscribe", "plan" -> carrierNames();
                 case "pay" -> onlineNames();
                 case "unsubscribe" -> names(prof.active(), prof.inactive());

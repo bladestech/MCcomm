@@ -19,3 +19,6 @@ permissions:
   mccomm.use:
     description: Use /cell, /text and /call.
     default: true
+  mccomm.isp.create:
+    description: Start your own internet service provider.
+    default: true

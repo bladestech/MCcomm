@@ -44,6 +44,16 @@ A scoreboard on the right of the screen shows, for each SIM:
    Standard · Unlimited       ← plan · data left
 ```
 
+When you're connected to [home Wi-Fi](home-internet.md) (see `/broadband connect`) it gets its own block under the SIMs, laid out the same way, with bars like the cell signal:
+
+```
+ » Home Cord · Wi-Fi           ← the network you're connected to
+   |||| Wi-Fi 6                ← bars, router generation
+   Cordline Fiber · 940 Mbps   ← provider · line speed
+```
+
+The bars fall as you walk away from the router or put walls between you. In action bar mode the Wi-Fi is added to the end of the line.
+
 Under the SIMs it shows any call, the carriers you run with their balances (green, gold or red by health, with ▲/▼ for the last change), and a footer with your wallet, phone and the time.
 
 Turn it off and on with **`/cell hud`** or in **Settings**.

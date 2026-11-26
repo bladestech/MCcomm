@@ -45,6 +45,19 @@ public final class SimulationService {
         return new ArrayList<>(c.plans().values());
     }
 
+    /** Picks the plan for the next simulated user: a business plan for a share of them (if the carrier sells any), else a personal one. */
+    private Plan pick(List<Plan> personal, List<Plan> business, Random rng) {
+        boolean biz = !business.isEmpty() && (personal.isEmpty() || rng.nextDouble() < plugin.settings().businessShare);
+        List<Plan> pool = biz ? business : personal;
+        return pool.isEmpty() ? null : pool.get(rng.nextInt(pool.size()));
+    }
+
+    private static List<Plan> ofKind(List<Plan> all, boolean business) {
+        List<Plan> out = new ArrayList<>();
+        for (Plan p : all) if (p.business() == business) out.add(p);
+        return out;
+    }
+
     private static long seed(Carrier c) {
         return c.id().hashCode() * 31L + c.simulatedUsers();
     }
@@ -56,7 +69,7 @@ public final class SimulationService {
             if (n <= 0) continue;
             List<Tower> towers = network(c);
             if (towers.isEmpty()) continue;
-            List<Plan> plans = plans(c);
+            List<Plan> personal = ofKind(plans(c), false), business = ofKind(plans(c), true);
             Band mvnoCap = null;
             if (c.mvno()) {
                 var deal = plugin.partners().mvnoHost(c);
@@ -68,7 +81,7 @@ public final class SimulationService {
                 Tower t = towers.get(k);
                 int here = n / towers.size() + (k < n % towers.size() ? 1 : 0);
                 for (int i = 0; i < here; i++) {
-                    Plan plan = plans.isEmpty() ? null : plans.get(planRng.nextInt(plans.size()));
+                    Plan plan = pick(personal, business, planRng);
                     List<Band> allowed = new ArrayList<>();
                     for (Band b : t.enabledBands()) {
                         if (!plugin.towers().available(t, b)) continue;
@@ -88,10 +101,10 @@ public final class SimulationService {
     public Map<String, Integer> planCounts(Carrier c) {
         Map<String, Integer> out = new LinkedHashMap<>();
         int n = c.simulatedUsers();
-        List<Plan> plans = plans(c);
-        if (n <= 0 || plans.isEmpty()) return out;
+        List<Plan> personal = ofKind(plans(c), false), business = ofKind(plans(c), true);
+        if (n <= 0 || (personal.isEmpty() && business.isEmpty())) return out;
         Random planRng = new Random(seed(c)); // same sequence addTo uses for plans
-        for (int i = 0; i < n; i++) out.merge(plans.get(planRng.nextInt(plans.size())).id(), 1, Integer::sum);
+        for (int i = 0; i < n; i++) out.merge(pick(personal, business, planRng).id(), 1, Integer::sum);
         return out;
     }
 

@@ -44,6 +44,10 @@ Every day a share of your customers leaves:
 
 If your network has no working towers at all, customers leave fast and nobody joins.
 
+## Growth
+
+The server can let the pool grow over time (`market.growth.per-day`, off by default; `0.01` is 1% a day), up to 10,000 customers (`market.growth.max-size`). The newcomers have no carrier yet, so they shop around like everyone else. This doesn't depend on staff or maintenance, so it carries on when the [workforce is switched off](operations.md).
+
 ## Switching
 
 Customers who are happy enough to stay still compare carriers now and then: **2% of each

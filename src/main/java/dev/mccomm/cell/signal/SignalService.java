@@ -40,9 +40,9 @@ public final class SignalService {
      * @param deprioritized the host puts this user behind its own customers when a band is busy
      */
     public record SimStatus(int slot, Carrier carrier, Link link, dev.mccomm.cell.model.Plan plan, String issue, boolean throttled,
-                            Carrier roamingOn, boolean deprioritized) {
-        public boolean texts() { return link != null && plan != null && plan.texts(); }
-        public boolean calls() { return link != null && plan != null && plan.calls(); }
+                            Carrier roamingOn, boolean deprioritized, boolean wifi) {
+        public boolean texts() { return (link != null || wifi) && plan != null && plan.texts(); }
+        public boolean calls() { return (link != null || wifi) && plan != null && plan.calls(); }
     }
 
     /**
@@ -82,6 +82,12 @@ public final class SignalService {
 
         public boolean hasService() {
             return primary() != null;
+        }
+
+        /** True if a SIM can call and text over home Wi-Fi although no tower reaches the player. */
+        public boolean wifiCalling() {
+            for (SimStatus s : sims) if (s.wifi()) return true;
+            return false;
         }
 
         public SimStatus slot(int slot) {
@@ -192,6 +198,7 @@ public final class SignalService {
     }
 
     public Status compute(Player p) {
+        final boolean wifiOn = plugin.settings().broadband.wifi().calling() && plugin.broadband().onWifi(p);
         PlayerProfile prof = plugin.store().profile(p.getUniqueId());
         dev.mccomm.cell.economy.PhoneModel phone = plugin.billing().phoneOf(p);
         boolean emergency = phone != null && !bestLinks(p, cid -> phone.maxBand()).isEmpty();
@@ -247,8 +254,10 @@ public final class SignalService {
                     }
                 }
             }
+            // No tower, but home Wi-Fi reaches the player: calls and texts work over Wi-Fi.
+            boolean wifi = issue == null && link == null && plan != null && wifiOn;
             sims.add(new SimStatus(thisSlot, c, link, plan, issue, issue == null && plugin.billing().throttled(prof, id),
-                    roamingOn, link != null && deprioritized));
+                    roamingOn, link != null && deprioritized, wifi));
         }
         return new Status(List.copyOf(sims), emergency, prof.dataSim(), phone);
     }
@@ -429,9 +438,20 @@ public final class SignalService {
         return downloadMbps(l) * s().spec(l.band()).uploadRatio();
     }
 
+    /** Business plans keep more of their speed on a congested band: the factor to multiply by (1 = no priority). */
+    private double priority(SimStatus sim) {
+        if (sim.plan() == null || !sim.plan().business()) return 1;
+        Link l = sim.link();
+        double users = Math.max(1, load(l.tower(), l.band()));
+        double cap = capacity(l.tower());
+        if (users <= cap) return 1; // not busy: everyone gets full speed
+        double share = cap / users;
+        return Math.min(1 / share, s().businessPriority);
+    }
+
     /** Download for a SIM, after its plan's speed cap. */
     public double downloadMbps(SimStatus sim) {
-        double d = downloadMbps(sim.link());
+        double d = downloadMbps(sim.link()) * priority(sim);
         if (sim.plan() != null && sim.plan().speedCapMbps() > 0) d = Math.min(d, sim.plan().speedCapMbps());
         if (sim.throttled()) d = Math.min(d, s().throttleMbps);
         if (sim.deprioritized() && load(sim.link().tower(), sim.link().band()) > s().capacity(sim.link().tower().generation())) d *= s().deprioritizedSpeed;
@@ -440,7 +460,7 @@ public final class SignalService {
 
     public double uploadMbps(SimStatus sim) {
         double ratio = s().spec(sim.link().band()).uploadRatio();
-        double u = uploadMbps(sim.link());
+        double u = uploadMbps(sim.link()) * priority(sim);
         if (sim.plan() != null && sim.plan().speedCapMbps() > 0) u = Math.min(u, sim.plan().speedCapMbps() * ratio);
         if (sim.throttled()) u = Math.min(u, s().throttleMbps * ratio);
         if (sim.deprioritized() && load(sim.link().tower(), sim.link().band()) > s().capacity(sim.link().tower().generation())) u *= s().deprioritizedSpeed;
@@ -456,7 +476,7 @@ public final class SignalService {
 
     public String hudLine(Status st) {
         if (st.phone() == null) return "<red>No phone</red> <gray>· /cell eshop";
-        if (st.sims().isEmpty() || !st.hasService()) {
+        if (st.sims().isEmpty() || (!st.hasService() && !st.wifiCalling())) {
             if (st.emergency()) return "<red>No Service</red> <gray>· Emergency calls only (" + s().emergencyNumber + ")";
             return "<dark_gray>No Signal";
         }
@@ -464,7 +484,7 @@ public final class SignalService {
         for (SimStatus sim : st.sims()) {
             if (!sb.isEmpty()) sb.append(" <dark_gray>|</dark_gray> ");
             if (sim.link() == null) {
-                sb.append(sim.carrier().styled()).append(" <red>No Service");
+                sb.append(sim.carrier().styled()).append(sim.wifi() ? " <aqua>Wi-Fi calling" : " <red>No Service");
             } else {
                 sb.append(sim.carrier().styled()).append(sim.roamingOn() != null ? " <gold>R</gold>" : "").append(" ")
                         .append(Msg.bars(sim.link().bars())).append(" <white>").append(s().spec(sim.link().band()).name());

@@ -46,7 +46,7 @@ public final class HudService {
         }
         if (!plugin.settings().hudSidebar) {
             clear(p);
-            p.sendActionBar(Msg.mm(plugin.signal().hudLine(st)));
+            p.sendActionBar(Msg.mm(plugin.signal().hudLine(st)).append(wifiInline(p)));
             return;
         }
         List<Component> lines = build(p, st);
@@ -86,6 +86,10 @@ public final class HudService {
      *    -78 dBm · 312 m · LF1
      *    Plan · 3.2 GB             (plan in its style, data left)
      *
+     *  » Home Cord · Wi-Fi         (when connected to home Wi-Fi: its own block)
+     *    |||| Wi-Fi 6              (bars, router generation)
+     *    Cordline Fiber · 940 Mbps (provider, line speed)
+     *
      *  ☎ Bob                       (in a call)
      *  Pilot+ · 14:05              (phone, in-game time)
      * </pre>
@@ -112,7 +116,8 @@ public final class HudService {
                 out.add(Msg.mm(" <dark_gray>»</dark_gray> " + c.styled() + (dual && st.isDataSim(sim) ? " <dark_gray>·</dark_gray> <aqua>data" : "")));
                 SignalService.Link l = sim.link();
                 if (l == null) {
-                    out.add(sim.issue() != null ? Msg.mm("   <red><i>", Msg.p("i", sim.issue()))
+                    if (sim.wifi()) out.add(Msg.mm("   <aqua>Wi-Fi calling <dark_gray>· no tower in range"));
+                    else                     out.add(sim.issue() != null ? Msg.mm("   <red><i>", Msg.p("i", sim.issue()))
                             : Msg.mm(st.emergency() ? "   <red>No Service <dark_gray>· SOS" : "   <dark_gray>No Signal"));
                 } else {
                     out.add(Msg.mm("   " + Msg.bars(l.bars()) + " <white><band>"
@@ -130,6 +135,15 @@ public final class HudService {
                 out.add(Component.empty());
             }
             out.removeLast();
+        }
+        var wifi = wifiOf(p);
+        if (wifi != null) {
+            // Its own block, laid out like a SIM: name, signal, then the line behind it.
+            out.add(Component.empty());
+            out.add(Msg.mm(" <dark_gray>»</dark_gray> <white><n></white> <dark_gray>·</dark_gray> <aqua>Wi-Fi", Msg.p("n", wifi.router().name())));
+            out.add(Msg.mm("   " + Msg.bars(plugin.broadband().wifiBars(wifi, p.getLocation())) + " <white><gen>" + (wifi.via() != null ? " <dark_gray>·</dark_gray> <aqua><via>" : ""),
+                    Msg.p("gen", plugin.settings().broadband.tier(wifi.router().tier()).name()), Msg.p("via", wifi.via() == null ? "" : wifi.via().name())));
+            out.add(Msg.mm("   <gray><isp> <dark_gray>·</dark_gray> <spd>", Msg.p("isp", wifi.isp().name()), Msg.p("spd", Msg.speed(wifi.downMbps()))));
         }
         out.add(Component.empty());
         String partner = plugin.calls().partnerName(p);
@@ -167,6 +181,20 @@ public final class HudService {
             else out.remove(out.size() - 2);
         }
         return out;
+    }
+
+    /** The home Wi-Fi the player is connected to, or null. */
+    private dev.mccomm.cell.broadband.BroadbandService.Link wifiOf(Player p) {
+        var bb = plugin.broadband();
+        return plugin.settings().broadband.phonesUseWifi() ? bb.wifiLink(p) : null;
+    }
+
+    /** One-line Wi-Fi segment for the action bar ("" when not on Wi-Fi). */
+    private Component wifiInline(Player p) {
+        var wifi = wifiOf(p);
+        if (wifi == null) return Component.empty();
+        return Msg.mm(" <dark_gray>|</dark_gray> <aqua>Wi-Fi</aqua> " + Msg.bars(plugin.broadband().wifiBars(wifi, p.getLocation())) + " <white><n>",
+                Msg.p("n", wifi.router().name()));
     }
 
     /** " <green>▲" or " <red>▼" for the last change of this balance, "" until it first changes. */

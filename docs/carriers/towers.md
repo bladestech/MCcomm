@@ -83,7 +83,7 @@ wall sign with `/tower install <name>`.
 
 | | Macro cell | Small cell |
 |---|---|---|
-| Range | Band range + height bonus | 15% of the band's range, no height bonus |
+| Range | Band range + height bonus | 15% of the band's range, no height bonus; **5G High and 5G mmWave keep 100%** of the band's range (`small-cells.full-range-bands`) |
 | Walls near the cell | Normal loss | Half the loss |
 | Capacity per band | By generation | ×2 |
 | Bands | Any | 4G and 5G only (Gen 3+ models) |
@@ -103,6 +103,10 @@ wall sign with `/tower install <name>`.
 The tower screen shows `Small cell · via NV1` for a wirelessly linked one; the Network
 tab shows small cells with an end rod icon.
 
+## Replacing a tower
+
+Look at a tower's sign and run `/tower replace` to swap it for a different model from your carrier's stock. It works like breaking the tower and installing a new one, without typing the name again: the tower keeps the same name on its sign, the old tower is gone (its backhaul block is destroyed and it isn't returned to stock), and the new model starts offline until you install a backhaul block. It uses up one of the new model in stock, and the same limits as an install apply (including small cell spacing and the number per macro).
+
 ## Removing and protecting towers
 
 - **Breaking the sign**, or the block it hangs on, removes the tower. Only carrier staff and admins can break them.
@@ -116,6 +120,7 @@ tab shows small cells with an end rod icon.
 |---|---|
 | `/tower install <name> [carrier]` | Install a tower from stock on the sign you look at (`create` is an alias) |
 | `/tower manage` · `/tower info` | Open the GUI, or show info, for the sign you look at |
+| `/tower replace` | Swap the tower you look at for another model from stock, keeping its name |
 | `/tower rename <name>` | Rename it |
 | `/tower remove` | Remove it |
 | `/tower list [carrier]` | List towers |

@@ -56,7 +56,9 @@ See [Signal reference](../signal.md) for how these numbers are used.
 | Section | Controls |
 |---|---|
 | `simulation` | `users-per-real-user` (500) and `mode` (market or fixed). See [Simulated users](simulation.md) |
-| `small-cells` | Small cell range, wall loss, capacity, upkeep, wear and repair factors, wireless backhaul, limits per macro and spacing, cost and research. See [Towers](../carriers/towers.md#small-cells) |
+| `business-plans` | Business plans for carriers: `priority` on a congested band and the `customer-share` of simulated users that are businesses. See [Plans](../carriers/plans.md) |
+| `small-cells` | Small cell range (and `full-range-bands`, the bands where they keep 100% of the range), wall loss, capacity, upkeep, wear and repair factors, wireless backhaul, limits per macro and spacing, cost and research. See [Towers](../carriers/towers.md#small-cells) |
+| `broadband` | ISPs, nodes, routers and Wi-Fi: limits, billing and grace times, Wi-Fi generations and wall loss, Wi-Fi calling, `wifi.auto-connect` (phones join Wi-Fi by themselves, or only with `/broadband connect`), `wifi.extender` (range and speed kept by Wi-Fi extenders, their price and the limit per player), transit and peering, faults, fixed wireless, the household market, the browser, bundle limits, and each technology (DSL, cable, fiber, satellite, fixed-wireless: range, speed, ping, falloff, capacity, costs, cabling and fault rates), business plans (`business.priority` and simulated businesses). See [Running an ISP](../isps.md) |
 | `market` | Fair price, churn rates, shopping rate, satisfaction weights, coverage grid and band weights. See [The customer market](../carriers/market.md) |
 | `squaremap` | Map integration. See [squaremap](squaremap.md) |
 

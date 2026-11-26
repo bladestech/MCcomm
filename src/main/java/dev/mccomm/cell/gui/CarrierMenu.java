@@ -398,21 +398,33 @@ public final class CarrierMenu {
         Frame.page(m, p, plans, pg, Frame.range(27, 43), plan -> {
             List<String> lore = new ArrayList<>(plugin.phone().planLore(plan));
             int sim = counts.getOrDefault(plan.id(), 0);
+            if (plan.business()) lore.add("<gold>Business plan");
             lore.add("<gray>Subscribers: <white>" + plugin.billing().subscribers(c, plan) + (sim > 0 ? " <dark_gray>+ " + sim + " customers" : ""));
-            if (owner) lore.add("<yellow>Click · edit · <yellow>Shift-right · delete");
+            if (owner) {
+                lore.add("<yellow>Click · edit · <yellow>Right · move later");
+                lore.add("<yellow>Shift-left · move earlier · <yellow>Shift-right · delete");
+            }
             return Items.of(Material.PAPER, "<b>" + plan.styled(c), lore);
         }, (plan, e) -> {
             if (!owner) return;
             click(p);
             if (e.isShiftClick() && e.isRightClick()) deletePlan(p, c, plan);
-            else editor(p, c, plan);
+            else if (e.isShiftClick() || e.isRightClick()) {
+                if (dev.mccomm.cell.util.Reorder.move(c.plans(), plan.id(), e.isShiftClick() ? -1 : 1)) plugin.store().markDirty();
+                customers(p, c, pg);
+            } else editor(p, c, plan);
         }, n -> customers(p, c, n));
         if (owner) {
-            m.set(44, Items.of(Material.WRITABLE_BOOK, "<green>New plan", "<gray>Starts as a copy of the default."), e -> {
+            m.set(44, Items.of(Material.WRITABLE_BOOK, "<green>New plan", "<gray>Starts as a copy of the default.", "<yellow>Click · personal plan", "<yellow>Right-click · business plan"), e -> {
                 click(p);
-                plugin.prompt().ask(p, "<aqua>Name for the new plan:", in -> {
+                final boolean biz = e.isRightClick();
+                plugin.prompt().ask(p, "<aqua>Name for the new " + (biz ? "business " : "") + "plan:", in -> {
                     Plan plan = plugin.billing().addDefaultPlan(c);
                     plan.name(clip(in, 24));
+                    if (biz) {
+                        plan.segment(dev.mccomm.cell.broadband.Segment.BUSINESS);
+                        plan.price(plan.price() * 3); // business lines start pricier
+                    }
                     Msg.send(p, "<green>Plan <white><n></white> created. Set its price and limits.", Msg.p("n", plan.name()));
                     editor(p, c, plan);
                 });
@@ -534,6 +546,20 @@ public final class CarrierMenu {
             hdr.add("<gray>their next renewal. They're notified.");
         }
         m.set(4, Items.of(Material.PAPER, "<b>" + plan.styled(c), hdr));
+
+        int planSubs = plugin.billing().subscribers(c, plan);
+        m.set(6, Items.of(plan.business() ? Material.GOLD_BLOCK : Material.OAK_DOOR, "<white>For: " + (plan.business() ? "<gold>Business" : "<green>Personal"),
+                "<gray>Personal accounts see personal plans;", "<gray>business accounts see business plans.",
+                plan.business() ? "<gray>Business lines keep their speed on a busy band (×" + st.businessPriority + " priority)." : "<gray>Business plans cost more but get priority.",
+                planSubs > 0 ? "<dark_gray>Can't change while it has subscribers." : "<yellow>Click to switch"), e -> {
+            click(p);
+            if (planSubs > 0) {
+                Msg.send(p, "<red>This plan has <white><n></white> subscriber(s), so who it is for can't change. Create a new plan instead.", Msg.p("n", "" + planSubs));
+                return;
+            }
+            plan.segment(plan.segment().other());
+            saved(p, c, plan, before);
+        });
 
         // ---- row 1: basics
         m.set(9, Items.of(Material.PAINTING, "<white>Style: " + plan.styled(c),
@@ -748,6 +774,22 @@ public final class CarrierMenu {
                         c.balance() < ph.price() ? "<gold>Your wallet can't cover a phone right now!" : "<green>Your wallet covers " + (c.balance() / Math.max(1, ph.price())) + " phone(s)"));
             }
         }
+
+        // ---- order in the plan lists (here and on the phone)
+        int pos = dev.mccomm.cell.util.Reorder.indexOf(c.plans(), plan.id());
+        int total = c.plans().size();
+        m.set(38, Items.of(Material.SPECTRAL_ARROW, "<white>Move earlier", "<gray>Position <white>" + (pos + 1) + "<gray> of <white>" + total,
+                "<gray>Plans show in this order to subscribers.", "<yellow>Click · up one · <yellow>Shift-click · to the top"), e -> {
+            click(p);
+            if (dev.mccomm.cell.util.Reorder.move(c.plans(), plan.id(), e.isShiftClick() ? -total : -1)) plugin.store().markDirty();
+            editor(p, c, plan);
+        });
+        m.set(42, Items.of(Material.ARROW, "<white>Move later", "<gray>Position <white>" + (pos + 1) + "<gray> of <white>" + total,
+                "<gray>Plans show in this order to subscribers.", "<yellow>Click · down one · <yellow>Shift-click · to the bottom"), e -> {
+            click(p);
+            if (dev.mccomm.cell.util.Reorder.move(c.plans(), plan.id(), e.isShiftClick() ? total : 1)) plugin.store().markDirty();
+            editor(p, c, plan);
+        });
 
         Frame.help(m, "Editing a plan", "Changes in subscribers' favour apply", "now; anything worse applies at their",
                 "next renewal (they're told).", "", "Simulated customers pick plans evenly,", "so every plan counts towards your price.");

@@ -45,6 +45,10 @@ The wallet shows each SIM's plan, data left and next charge.
 - Right-click a prepaid SIM to **top up**, or a SIM on a data plan to **buy a data pack** (if the carrier offers one).
 - Click a SIM to **change plan**. A new postpaid price applies from your next charge; switching to or from prepaid starts the new plan immediately.
 
+## Personal and business accounts
+
+Carriers sell **personal** and **business** plans. Your account is personal by default; run `/cell account business` (or use **Settings** on your phone) to switch, and you'll only see business plans. You can switch only when you have no SIMs, because a line is on one kind of plan or the other. Business plans usually cost more, but on a busy band they **keep their speed longer** than personal ones (×2 priority by default).
+
 ## When a carrier changes your plan
 
 - **Changes in your favour** (a lower price, more data, fewer limits) apply immediately. Extra data is added to your current period.

@@ -58,6 +58,7 @@ nav:
       - The phone: players/phone.md
       - SIMs, numbers and plans: players/plans.md
       - Texts, calls and /internet: players/messaging.md
+      - Home internet: players/home-internet.md
       - Wallet and phones: players/wallet.md
   - Running a carrier:
       - Overview: carriers/index.md
@@ -68,6 +69,7 @@ nav:
       - The customer market: carriers/market.md
       - Roaming and MVNOs: carriers/partners.md
   - Running a manufacturer: manufacturers.md
+  - Running an ISP: isps.md
   - Companies and economy: economy.md
   - Signal reference: signal.md
   - Admin:

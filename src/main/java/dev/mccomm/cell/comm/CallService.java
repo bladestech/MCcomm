@@ -88,7 +88,7 @@ public final class CallService implements Listener {
             Msg.send(caller, "<red>None of your plans include calls.");
             return;
         }
-        if (!st.hasService()) {
+        if (!st.hasService() && st.outgoing(true) == null) {
             Msg.send(caller, st.emergency()
                     ? "<red>No Service</red> <gray>· Emergency calls only (<n>).".replace("<n>", plugin.settings().emergencyNumber)
                     : "<red>No signal. The call could not be placed.");
@@ -177,7 +177,8 @@ public final class CallService implements Listener {
         for (Map.Entry<UUID, UUID> e : Map.copyOf(inCall).entrySet()) {
             Player a = Bukkit.getPlayer(e.getKey());
             if (a == null || !inCall.containsKey(e.getKey())) continue;
-            if (!plugin.signal().status(a).hasService()) {
+            var aSt = plugin.signal().status(a);
+            if (!aSt.hasService() && !aSt.wifiCalling()) {
                 end(a, "<red>Call dropped <gray>— signal lost.");
             }
         }
@@ -194,11 +195,17 @@ public final class CallService implements Listener {
         String text = PlainTextComponentSerializer.plainText().serialize(e.message());
         SignalService.SimStatus a = plugin.signal().status(p).primary();
         SignalService.SimStatus b = plugin.signal().status(o).primary();
-        int bars = Math.min(a == null ? 0 : a.link().bars(), b == null ? 0 : b.link().bars());
+        int bars = Math.min(callBars(p, a), callBars(o, b));
         String heard = bars <= plugin.settings().garbleBars ? garble(text) : text;
         Msg.raw(p, "<dark_aqua>[Call] <white>You</white><gray>: <white><m>", Msg.p("m", text));
         String asSeen = partnerName(o);
         Msg.raw(o, "<dark_aqua>[Call] <white><n></white><gray>: <white><m>", Msg.p("n", asSeen == null ? p.getName() : asSeen), Msg.p("m", heard));
+    }
+
+    /** Signal bars for call quality: the tower link, or full bars over home Wi-Fi. */
+    private int callBars(Player p, SignalService.SimStatus sim) {
+        if (sim != null && sim.link() != null) return sim.link().bars();
+        return plugin.signal().status(p).wifiCalling() ? 4 : 0;
     }
 
     private String garble(String s) {

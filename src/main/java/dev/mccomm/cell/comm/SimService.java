@@ -167,7 +167,7 @@ public final class SimService {
     /** True if the owner of this number has service on that specific SIM right now. */
     public boolean hasServiceOn(Player p, String digits) {
         SignalService.SimStatus s = simFor(p, digits);
-        return s != null && s.link() != null;
+        return s != null && (s.link() != null || s.wifi());
     }
 
     /** The owner's SIM status for this number, or null if that SIM isn't active. */

@@ -364,6 +364,7 @@ public final class DataStore {
                     for (String c : s.getStringList("active")) if (carriers.containsKey(c)) p.active().add(c);
                     for (String c : s.getStringList("inactive")) if (carriers.containsKey(c)) p.inactive().add(c);
                     if (s.contains("hud")) p.hud(s.getBoolean("hud"));
+                    p.business(s.getBoolean("business", false));
                     p.dnd(s.getBoolean("dnd", false));
                     p.phone(s.getString("phone"));
                     p.ownedPhones().addAll(s.getStringList("owned-phones"));
@@ -450,6 +451,7 @@ public final class DataStore {
         } catch (IllegalArgumentException ignored) {
         }
         pl.dataMB(ps0.getLong("data-mb", -1));
+        pl.segment(dev.mccomm.cell.broadband.Segment.fromKey(ps0.getString("segment")));
         pl.overagePerGb(ps0.getLong("overage-per-gb", 10));
         pl.packMB(ps0.getLong("pack-mb", 0));
         pl.packPrice(ps0.getLong("pack-price", 0));
@@ -472,6 +474,7 @@ public final class DataStore {
         y.set(pp + "texts", pl.texts());
         y.set(pp + "calls", pl.calls());
         y.set(pp + "type", pl.type().name());
+        if (pl.business()) y.set(pp + "segment", pl.segment().key());
         y.set(pp + "data-mb", pl.dataMB());
         y.set(pp + "out-of-data", pl.outOfData().name());
         y.set(pp + "overage-per-gb", pl.overagePerGb());
@@ -606,6 +609,7 @@ public final class DataStore {
             py.set(p + "active", new ArrayList<>(pr.active()));
             py.set(p + "inactive", new ArrayList<>(pr.inactive()));
             if (pr.hud() != null) py.set(p + "hud", pr.hud());
+            if (pr.business()) py.set(p + "business", true);
             if (pr.dnd()) py.set(p + "dnd", true);
             if (pr.dataSim() != null) py.set(p + "data-sim", pr.dataSim());
             if (pr.phone() != null) py.set(p + "phone", pr.phone());
@@ -675,16 +679,14 @@ public final class DataStore {
         sy.set("market.size", marketSize);
         sy.set("market.at", marketAt);
 
-        try {
-            sy.save(new File(dir, "server.yml"));
-            my.save(new File(dir, "manufacturers.yml"));
-            cy.save(new File(dir, "carriers.yml"));
-            ty.save(new File(dir, "towers.yml"));
-            py.save(new File(dir, "players.yml"));
-            if (plugin instanceof dev.mccomm.cell.CellPlugin cp && cp.workforce() != null) cp.workforce().save();
-            dirty = false;
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to save MCcomm data", e);
-        }
+        // Written in the background (see YamlFiles); errors are logged there.
+        var log = plugin.getLogger();
+        dev.mccomm.cell.util.YamlFiles.save(sy, new File(dir, "server.yml"), log);
+        dev.mccomm.cell.util.YamlFiles.save(my, new File(dir, "manufacturers.yml"), log);
+        dev.mccomm.cell.util.YamlFiles.save(cy, new File(dir, "carriers.yml"), log);
+        dev.mccomm.cell.util.YamlFiles.save(ty, new File(dir, "towers.yml"), log);
+        dev.mccomm.cell.util.YamlFiles.save(py, new File(dir, "players.yml"), log);
+        if (plugin instanceof dev.mccomm.cell.CellPlugin cp && cp.workforce() != null) cp.workforce().save();
+        dirty = false;
     }
 }

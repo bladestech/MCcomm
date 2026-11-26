@@ -39,6 +39,7 @@ public final class Settings {
     public final dev.mccomm.cell.workforce.WorkforceSettings workforce;
     public final dev.mccomm.cell.market.MarketSettings market;
     public final dev.mccomm.cell.tower.SmallCellSettings smallCells;
+    public final dev.mccomm.cell.broadband.BroadbandSettings broadband;
     public final boolean squaremapEnabled, squaremapCoverage, squaremapPerBand, squaremapCoverageHidden,
             squaremapBandLayers, squaremapBandLayersHidden;
     public final int squaremapIntervalSeconds, squaremapIconSize;
@@ -91,6 +92,8 @@ public final class Settings {
     public final int valuationDays;
     public final int bankruptcyDays; // 0 = off
     public final double deprioritizedSpeed;
+    public final double businessPriority; // business plans: times the share a personal line keeps on a congested band
+    public final double businessShare;    // share of a carrier's simulated users that are businesses (when it sells business plans)
 
     /** Sign board geometry, in blocks, relative to the sign block's centre. */
     public record SignGeom(double width, double height, double centerY, double faceOffset) {
@@ -194,6 +197,7 @@ public final class Settings {
         workforce = dev.mccomm.cell.workforce.WorkforceSettings.read(c);
         market = dev.mccomm.cell.market.MarketSettings.read(c);
         smallCells = dev.mccomm.cell.tower.SmallCellSettings.read(c);
+        broadband = dev.mccomm.cell.broadband.BroadbandSettings.read(c, log);
         capacityPerGen = cap.isEmpty() ? List.of(4, 6, 9, 13, 18) : cap;
         speedtestCooldown = c.getInt("speedtest.cooldown-seconds", 10);
         jitterPercent = c.getDouble("speedtest.jitter-percent", 10);
@@ -301,6 +305,8 @@ public final class Settings {
         bankruptcyDays = Math.max(0, c.getInt("companies.bankruptcy-days", 7));
         noticeHours = Math.max(0, c.getInt("partners.notice-hours", 24));
         deprioritizedSpeed = Math.clamp(c.getDouble("partners.deprioritized-speed", 0.5), 0.05, 1.0);
+        businessPriority = Math.max(1, c.getDouble("business-plans.priority", 2));
+        businessShare = Math.clamp(c.getDouble("business-plans.customer-share", 0.1), 0, 1);
         mvnoGraceHours = Math.max(0, c.getInt("partners.mvno-grace-hours", 24));
         internetMaxLength = Math.clamp(c.getInt("internet.max-length", 200), 1, 256);
         decaySpeed = ds.isEmpty() ? new double[]{0.6, 0.4, 0.25} : ds.stream().mapToDouble(Double::doubleValue).toArray();

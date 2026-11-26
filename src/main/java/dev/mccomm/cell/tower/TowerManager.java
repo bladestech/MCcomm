@@ -66,8 +66,8 @@ public final class TowerManager {
 
     /** Only regular wall signs can be towers (no standing or hanging signs). */
     public static boolean isWallSign(Block b) {
-        return b != null && b.getBlockData() instanceof WallSign
-                && b.getState() instanceof org.bukkit.block.Sign;
+        // Block data alone: getState() copies the whole sign and is far slower, and a WallSign block is always a sign.
+        return b != null && b.getBlockData() instanceof WallSign;
     }
 
     public Tower towerAt(Block b) {
@@ -160,10 +160,10 @@ public final class TowerManager {
         plugin.screen().ensure(t);
     }
 
-    /** Reach of one band from this tower: macro cells get the height bonus, small cells a fixed share. */
+    /** Reach of one band from this tower: macro cells get the height bonus, small cells a fixed share (all of it on 5G High and mmWave). */
     public double range(Tower t, Band b) {
         double base = s().spec(b).range();
-        return t.small() ? base * s().smallCells.rangePercent() : base * s().rangeMultiplier(t.heightAboveGround());
+        return t.small() ? base * s().smallCells.rangeShare(b) : base * s().rangeMultiplier(t.heightAboveGround());
     }
 
     /** Small cells linked wirelessly to this macro cell. */

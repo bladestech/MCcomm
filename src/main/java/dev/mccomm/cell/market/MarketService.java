@@ -40,6 +40,7 @@ public final class MarketService {
     private final Map<String, Double> joinAcc = new HashMap<>();
     private final Map<String, Double> switchAcc = new HashMap<>();
     private double shopAcc;
+    private double growAcc;
     private final Map<String, int[]> today = new HashMap<>();     // carrier -> {joined, left} in the current day
     private final Map<String, int[]> yesterday = new HashMap<>(); // the last full day
     private int hourOfDay;
@@ -172,8 +173,43 @@ public final class MarketService {
         recompute();
     }
 
+    /**
+     * Gives every carrier the same number of customers. In market mode the whole pool is shared out
+     * (nobody is left without a carrier); in fixed mode the users carriers already have are evened out.
+     *
+     * @return how many carriers share the customers (0 when there is nobody to share)
+     */
+    public int spreadEvenly() {
+        List<Carrier> list = new ArrayList<>(plugin.store().carriers());
+        int total = active() ? Math.max(plugin.store().marketSize(), customers()) : customers();
+        if (list.isEmpty() || total <= 0) return 0;
+        if (active()) plugin.store().marketSize(total);
+        for (int i = 0; i < list.size(); i++) list.get(i).simulatedUsers(total / list.size() + (i < total % list.size() ? 1 : 0));
+        plugin.store().markDirty();
+        recompute();
+        plugin.signal().tick();
+        return list.size();
+    }
+
+    /** Population growth: the pool of customers grows a little every hour, whatever else is switched on or off. */
+    private void grow(double frac) {
+        int size = plugin.store().marketSize();
+        if (m().growthPerDay() <= 0 || size <= 0) return;
+        int max = m().growthMax();
+        if (max > 0 && size >= max) {
+            growAcc = 0;
+            return;
+        }
+        growAcc += size * m().growthPerDay() * frac;
+        int add = (int) Math.floor(growAcc);
+        if (add <= 0) return;
+        growAcc -= add;
+        plugin.store().marketSize(max > 0 ? Math.min(max, size + add) : size + add);
+    }
+
     private void step(double frac) {
         recompute();
+        grow(frac);
         // Leaving.
         for (Carrier c : plugin.store().carriers()) {
             Score s = scores.get(c.id());
@@ -327,12 +363,21 @@ public final class MarketService {
         return (1 - m().rivalsWeight()) * ref + m().rivalsWeight() * median;
     }
 
-    /** Average daily price over the carrier's plans (simulated customers pick plans evenly). */
+    /** Average daily price over the carrier's personal plans (simulated customers pick plans evenly). Business plans are priced apart from this. */
     public double averagePrice(Carrier c) {
         if (c.plans().isEmpty()) return 0;
         double sum = 0;
-        for (Plan p : c.plans().values()) sum += p.periodHours() <= 0 ? 0 : p.price() * 24.0 / p.periodHours();
-        return sum / c.plans().size();
+        int n = 0;
+        for (Plan p : c.plans().values()) {
+            if (p.business()) continue;
+            sum += p.periodHours() <= 0 ? 0 : p.price() * 24.0 / p.periodHours();
+            n++;
+        }
+        if (n == 0) { // only business plans: compare those
+            for (Plan p : c.plans().values()) sum += p.periodHours() <= 0 ? 0 : p.price() * 24.0 / p.periodHours();
+            n = c.plans().size();
+        }
+        return sum / n;
     }
 
     /** The towers a carrier's customers use: its own, or its host's for an MVNO. */
