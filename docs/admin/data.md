@@ -28,9 +28,13 @@ Billing runs on **real time**. To test what happens over days or weeks:
 
 ```
 /celladmin timewarp <days>
+/celladmin timewarp status
+/celladmin timewarp stop
 ```
 
-This fast-forwards the economy in hourly steps, as if that time had passed: plan charges, low-balance warnings, overdue debt, upkeep, decay, MVNO settlement, agreement expiries and simulated revenue. Sixty days take a fraction of a second.
+This fast-forwards the economy in 10-minute steps (`operations.timewarp-step-minutes`), as if that time had passed: plan charges, low-balance warnings, overdue debt, upkeep, decay, MVNO settlement, agreement expiries, simulated revenue, the customer market, operations, wear and repairs, home internet, loans and sales.
+
+The warp runs in the background: a few steps every server tick (about 20 ms each), so the server keeps running and players can keep playing. You're told every few seconds how far it is, and when it's done. Only one warp runs at a time; `stop` ends it where it is. Tower signs and screens update once at the end.
 
 !!! warning
     Timewarp really charges and pays. Use it on a test server, not your live economy.

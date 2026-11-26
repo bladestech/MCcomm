@@ -239,23 +239,33 @@ public final class CommCommands {
                     Msg.send(s, "<green>Gave <white><m></white> to <white><p></white>.", Msg.p("m", model.name()), Msg.p("p", target.getName()));
                 }
                 case "timewarp" -> {
+                    if (args.length > 1 && (args[1].equalsIgnoreCase("stop") || args[1].equalsIgnoreCase("status"))) {
+                        String at = plugin.billing().warpProgress();
+                        if (at == null) Msg.send(s, "<gray>No timewarp is running.");
+                        else if (args[1].equalsIgnoreCase("status")) Msg.send(s, "<gray>Timewarp: <white><p></white> done.", Msg.p("p", at));
+                        else plugin.billing().stopWarp();
+                        return;
+                    }
                     double days;
                     try {
                         days = Double.parseDouble(args.length > 1 ? args[1] : "");
                     } catch (NumberFormatException e) {
-                        Msg.send(s, "<red>Usage: /celladmin timewarp <days>");
+                        Msg.send(s, "<red>Usage: /celladmin timewarp <days> | status | stop");
                         return;
                     }
                     if (days <= 0 || days > 3650) {
                         Msg.send(s, "<red>Days must be between 0 and 3650.");
                         return;
                     }
-                    int ticks = plugin.billing().timewarp(Math.round(days * 86_400_000L),
-                            plugin.settings().workforce.timewarpStepMinutes() * 60_000L);
-                    plugin.store().save();
-                    plugin.towers().refreshAll();
-                    Msg.send(s, "<green>Fast-forwarded the economy <white><d></white> days (<white><t></white> steps).",
-                            Msg.p("d", "" + days), Msg.p("t", "" + ticks));
+                    if (plugin.billing().warping()) {
+                        Msg.send(s, "<red>A timewarp is already running (<white><p></white>). <white>/celladmin timewarp stop</white> to stop it.",
+                                Msg.p("p", plugin.billing().warpProgress()));
+                        return;
+                    }
+                    long step = plugin.settings().workforce.timewarpStepMinutes() * 60_000L;
+                    plugin.billing().startWarp(s, days, Math.round(days * 86_400_000L), step);
+                    Msg.send(s, "<green>Timewarp started: <white><d></white> days in <white><n></white> steps.</green> <gray>The server keeps running meanwhile; you'll be told when it's done (<white>/celladmin timewarp status</white>).",
+                            Msg.p("d", "" + days), Msg.p("n", "" + (long) Math.ceil(days * 86_400_000L / step)));
                 }
                 case "billing" -> {
                     plugin.billing().tick();
@@ -302,6 +312,7 @@ public final class CommCommands {
             if (args.length == 2 && (sub.equals("credits") || sub.equals("givephone"))) return filter(onlineNames(), args[1]);
             if (args.length == 2 && sub.equals("carriercredits")) return filter(carrierNames(), args[1]);
             if (args.length == 3 && sub.equals("givephone")) return filter(plugin.settings().phones.keySet(), args[2]);
+            if (args.length == 2 && sub.equals("timewarp")) return filter(List.of("1", "7", "30", "status", "stop"), args[1]);
             boolean ops = sub.equals("operations") || sub.equals("workforce");
             if (args.length == 2 && ops) return filter(List.of("on", "off", "reset"), args[1]);
             if (args.length == 3 && ops && args[1].equalsIgnoreCase("off")) return filter(List.of("reset"), args[2]);

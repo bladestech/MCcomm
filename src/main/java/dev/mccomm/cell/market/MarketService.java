@@ -430,8 +430,41 @@ public final class MarketService {
         return (1 - m().speedWeight()) * rel + m().speedWeight() * speed;
     }
 
+    /** Coverage results by a fingerprint of the towers that produced them; coverage only changes when towers do. */
+    private final Map<Long, Double> coverageCache = new HashMap<>();
+
     /** Covered area in grid cells, each weighted by the best band reaching it. */
     private double coverage(List<Tower> towers) {
+        // Fingerprint: the settings in use, and each working tower's place, size and band ranges.
+        long key = 0x9E3779B97F4A7C15L ^ System.identityHashCode(m()) ^ ((long) System.identityHashCode(plugin.settings()) << 32);
+        Band[] all = Band.values();
+        for (Tower t : towers) {
+            if (!working(t)) continue;
+            key = mix(key, t.id());
+            key = mix(key, t.worldId().getMostSignificantBits() ^ t.worldId().getLeastSignificantBits());
+            key = mix(key, ((long) t.x() << 32) ^ (t.z() & 0xFFFFFFFFL));
+            key = mix(key, t.small() ? 1 : 0);
+            for (Band b : all) {
+                if (!t.enabledBands().contains(b) || !plugin.towers().available(t, b)) continue;
+                key = mix(key, b.ordinal());
+                key = mix(key, Double.doubleToLongBits(plugin.towers().range(t, b)));
+            }
+        }
+        Double cached = coverageCache.get(key);
+        if (cached != null) return cached;
+        double v = computeCoverage(towers);
+        if (coverageCache.size() > 256) coverageCache.clear();
+        coverageCache.put(key, v);
+        return v;
+    }
+
+    private static long mix(long h, long v) {
+        h ^= v + 0x9E3779B97F4A7C15L + (h << 6) + (h >>> 2);
+        h *= 0xBF58476D1CE4E5B9L;
+        return h ^ (h >>> 31);
+    }
+
+    private double computeCoverage(List<Tower> towers) {
         int cell = m().cellSize();
         Map<UUID, Map<Long, Double>> best = new HashMap<>();
         Band[] bands = Band.values();
