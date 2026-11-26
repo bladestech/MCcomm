@@ -19,7 +19,7 @@ import java.util.Locale;
 
 /** /tower — build and manage towers. Most subcommands act on the wall sign you are looking at. */
 public final class TowerCommand extends Cmd {
-    private static final List<String> SUBS = List.of("install", "rename", "remove", "info", "manage", "list", "setgen", "tp");
+    private static final List<String> SUBS = List.of("install", "replace", "rename", "remove", "info", "manage", "list", "setgen", "tp");
 
     public TowerCommand(CellPlugin plugin) {
         super(plugin);
@@ -56,6 +56,30 @@ public final class TowerCommand extends Cmd {
         if (p == null) return;
         switch (sub) {
             case "install", "create" -> install(p, args);
+            case "replace", "move" -> {
+                if (args.length < 2) {
+                    Msg.send(p, "<red>Usage: /tower replace <name> <gray>(look at the wall sign to move the tower onto)");
+                    return;
+                }
+                Tower t = plugin.store().towerByName(args[1]);
+                if (t == null) {
+                    Msg.send(p, "<red>No tower named <white><n></white>.", Msg.p("n", args[1]));
+                    return;
+                }
+                if (!plugin.towers().canManage(p, t)) {
+                    Msg.send(p, "<red>You don't manage this tower.");
+                    return;
+                }
+                String err = plugin.towers().replace(t, target(p));
+                if (err != null) {
+                    Msg.send(p, "<red><err>", Msg.p("err", err));
+                    return;
+                }
+                double reach = 0;
+                for (Band band : t.enabledBands()) reach = Math.max(reach, plugin.towers().range(t, band));
+                Msg.send(p, "<green>Tower <white><n></white> moved to this sign with its name, model, bands and backhaul. <gray>Reach: <white><reach> blocks</white>" + (plugin.settings().replaceKeepsRange ? " (kept)." : "."),
+                        Msg.p("n", t.name()), Msg.p("reach", "" + Math.round(reach)));
+            }
             case "remove" -> {
                 Tower t = lookedAt(p);
                 if (t == null) return;
@@ -166,6 +190,7 @@ public final class TowerCommand extends Cmd {
         Msg.raw(s, "<white>/tower install <name> [carrier] <gray>— put a tower from your stock on the wall sign you look at");
         Msg.raw(s, "<gray>Buy tower models in <white>/carrier manage</white> → Tower shop.");
         Msg.raw(s, "<white>/tower manage <gray>— open the tower GUI (or right-click the sign)");
+        Msg.raw(s, "<white>/tower replace <name> <gray>— move an existing tower onto the wall sign you look at, keeping its name and settings");
         Msg.raw(s, "<white>/tower info <gray>· <white>/tower rename <name> <gray>· <white>/tower remove");
         Msg.raw(s, "<white>/tower list [carrier]");
         if (s.hasPermission("mccomm.admin")) Msg.raw(s, "<white>/tower setgen <gen> <gray>· <white>/tower tp <name>");
@@ -305,6 +330,11 @@ public final class TowerCommand extends Cmd {
         if (args.length == 2 && (sub.equals("install") || sub.equals("create"))) return List.of("<name>");
         if (args.length == 3 && (sub.equals("install") || sub.equals("create"))) return filter(carrierNames(), args[2]);
         if (args.length == 2 && sub.equals("list")) return filter(carrierNames(), args[1]);
+        if (args.length == 2 && (sub.equals("replace") || sub.equals("move")) && src.getSender() instanceof Player pl) {
+            List<String> mine = new ArrayList<>();
+            for (Tower t : plugin.store().towers()) if (plugin.towers().canManage(pl, t)) mine.add(t.name());
+            return filter(mine, args[1]);
+        }
         if (args.length == 2 && sub.equals("tp")) {
             List<String> names = new ArrayList<>();
             for (Tower t : plugin.store().towers()) names.add(t.name());

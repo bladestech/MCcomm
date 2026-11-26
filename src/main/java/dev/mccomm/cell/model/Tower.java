@@ -17,12 +17,13 @@ public final class Tower {
     private String manufacturerId;  // who built it (for the upkeep share)
     private String modelName;       // model name at install time
     private final EnumSet<Band> modelBands = EnumSet.noneOf(Band.class); // bands the model includes
-    private final UUID worldId;
-    private final int x, y, z;
+    private UUID worldId;     // mutable: /tower replace moves a tower to another sign
+    private int x, y, z;
     private int generation;
     private final EnumSet<Band> enabledBands = EnumSet.noneOf(Band.class);
     private Material backhaul; // null = offline
     private double heightAboveGround; // antenna height over the surrounding terrain, measured when loaded
+    private boolean heightLocked;     // true = keep heightAboveGround (and so the range) instead of measuring it at the sign
     private UUID displayId, panelId; // old single-text screen, removed on next load
     private final java.util.Map<String, UUID> screen = new java.util.LinkedHashMap<>(); // role -> entity
     private final UUID createdBy;
@@ -63,6 +64,8 @@ public final class Tower {
     public EnumSet<Band> enabledBands() { return enabledBands; }
     public double heightAboveGround() { return heightAboveGround; }
     public void heightAboveGround(double h) { this.heightAboveGround = h; }
+    public boolean heightLocked() { return heightLocked; }
+    public void heightLocked(boolean l) { this.heightLocked = l; }
     public Material backhaul() { return backhaul; }
     public void backhaul(Material m) { this.backhaul = m; }
     public java.util.Map<String, UUID> screen() { return screen; }
@@ -80,6 +83,14 @@ public final class Tower {
     public void small(boolean s) { this.small = s; }
     public int wirelessLink() { return wirelessLink; }
     public void wirelessLink(int id) { this.wirelessLink = id; }
+
+    /** Puts the tower on another sign. Use TowerStore/DataStore.relocateTower so the lookup by block stays right. */
+    public void moveTo(UUID world, int x, int y, int z) {
+        this.worldId = world;
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
 
     public World world() {
         return Bukkit.getWorld(worldId);

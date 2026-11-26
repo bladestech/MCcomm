@@ -114,6 +114,55 @@ public final class TowerManager {
         return t;
     }
 
+    /**
+     * Moves an existing tower onto another wall sign without rebuilding it: name, model, bands, backhaul, wear and
+     * ownership stay. With {@code towers.replace-keeps-range} the range stays too (a macro cell keeps its measured
+     * height, a small cell its fixed share). Returns an error for the player, or null on success.
+     */
+    public String replace(Tower t, Block sign) {
+        if (sign == null || !isWallSign(sign)) return "Look at a wall sign (standing and hanging signs can't be towers).";
+        if (towerAt(sign) != null) return towerAt(sign) == t ? "That tower is already on this sign." : "That sign is already a tower.";
+        if (plugin.broadband().store().deviceAt(BlockKey.of(sign)) != null) return "That sign is already in use.";
+        if (t.small()) {
+            var sc = s().smallCells;
+            for (Tower x : plugin.store().towersOf(t.carrierId())) {
+                if (x == t || !x.small() || !x.worldId().equals(sign.getWorld().getUID())) continue;
+                double dx = x.x() - sign.getX(), dy = x.y() - sign.getY(), dz = x.z() - sign.getZ();
+                if (dx * dx + dy * dy + dz * dz < (double) sc.minSpacing() * sc.minSpacing()) {
+                    return "Too close to small cell " + x.name() + ": keep them " + sc.minSpacing() + " blocks apart.";
+                }
+            }
+        }
+        // Take everything off the old sign.
+        plugin.gui().closeAll(t);
+        removeEntity(t.displayId());
+        removeEntity(t.panelId());
+        plugin.screen().remove(t);
+        if (t.isChunkLoaded()) {
+            Block old = t.block();
+            if (old != null && old.getState() instanceof org.bukkit.block.Sign os) {
+                SignSide side = os.getSide(Side.FRONT);
+                for (int i = 0; i < 4; i++) side.line(i, Component.empty());
+                os.setWaxed(false);
+                os.update();
+            }
+        }
+        plugin.workforce().towerRemoved(t); // a repair crew heading to the old spot turns back; it's queued again if still worn
+        plugin.signal().forget(t);
+        double height = t.heightAboveGround();
+        plugin.store().relocateTower(t, sign.getWorld().getUID(), sign.getX(), sign.getY(), sign.getZ());
+        t.wirelessLink(0);
+        if (s().replaceKeepsRange) {
+            t.heightAboveGround(height);
+            t.heightLocked(true);
+        } else {
+            t.heightLocked(false);
+        }
+        refresh(t);
+        updateWireless();
+        return null;
+    }
+
     /** Removes the tower and its entities. The backhaul block is destroyed, never dropped. */
     public void remove(Tower t, boolean clearSign) {
         plugin.gui().closeAll(t);
@@ -251,6 +300,7 @@ public final class TowerManager {
      * @return true if the stored height changed noticeably
      */
     public boolean measureHeight(Tower t) {
+        if (t.heightLocked()) return false; // /tower replace kept this tower's range
         World w = t.world();
         if (w == null) return false;
         int r = s().heightSampleRadius;

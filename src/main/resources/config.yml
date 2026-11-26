@@ -178,6 +178,11 @@ carriers:
 towers:
   # Paid from the carrier's wallet when a tower is built (admins build free).
   creation-cost: 0     # extra fee on top of buying the tower model
+  # /tower replace moves a tower to another wall sign without rebuilding it: it keeps its
+  # name, model, bands, backhaul, wear and subscribers. true = it also keeps its range (a
+  # macro cell keeps the height it was measured at, a small cell its fixed share), so moving
+  # it doesn't change coverage; false = height is measured again at the new sign.
+  replace-keeps-range: true
   # Towers get a name at creation, like LF1 (Layford 1) or GH2 (Greene Hill 2).
   # Names are unique across the server, case-insensitive.
   name-pattern: "^[A-Za-z0-9_\\-]{1,12}$"

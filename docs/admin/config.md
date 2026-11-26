@@ -16,7 +16,7 @@ The config file itself is commented. This page is an overview by section.
 | `backhaul` | Which blocks can be backhaul, and their capacity multipliers |
 | `signal` | Best and cutoff dBm, falloff, bar thresholds, wall scanning, weather and underground loss, antenna height, update rate |
 | `congestion` | `capacity-per-generation`: users per band at full speed, by generation |
-| `towers` | Install fee, name pattern, height bonus (free blocks, % per block, cap, sample radius) |
+| `towers` | Install fee, name pattern, height bonus (free blocks, % per block, cap, sample radius), `replace-keeps-range` for /tower replace |
 | `display` | The sign screen's panel block, full-bright, `yaw-offset` (set 180 if text is mirrored), wall-sign geometry |
 
 See [Signal reference](../signal.md) for how these numbers are used.

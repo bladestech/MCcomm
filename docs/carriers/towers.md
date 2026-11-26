@@ -103,6 +103,12 @@ wall sign with `/tower install <name>`.
 The tower screen shows `Small cell · via NV1` for a wirelessly linked one; the Network
 tab shows small cells with an end rod icon.
 
+## Moving a tower
+
+`/tower replace <name>` moves an existing tower onto the wall sign you look at, without rebuilding it. It keeps its name, model, bands, backhaul block, wear, owner and subscribers; the old sign is cleared and the new one gets the screen. A repair crew on its way to the old spot turns back and is sent again if the tower is still worn.
+
+It also keeps its **range**: a macro cell keeps the height it was measured at (so it doesn't gain or lose its height bonus by moving), and a small cell keeps its fixed share of the band's range. A small cell still has to keep the usual spacing from the carrier's other small cells. Servers that want moving to re-measure the height can set `towers.replace-keeps-range: false`.
+
 ## Removing and protecting towers
 
 - **Breaking the sign**, or the block it hangs on, removes the tower. Only carrier staff and admins can break them.
@@ -116,6 +122,7 @@ tab shows small cells with an end rod icon.
 |---|---|
 | `/tower install <name> [carrier]` | Install a tower from stock on the sign you look at (`create` is an alias) |
 | `/tower manage` · `/tower info` | Open the GUI, or show info, for the sign you look at |
+| `/tower replace <name>` | Move that tower onto the wall sign you look at, keeping its settings and range |
 | `/tower rename <name>` | Rename it |
 | `/tower remove` | Remove it |
 | `/tower list [carrier]` | List towers |

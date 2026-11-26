@@ -51,6 +51,7 @@
 |---|---|
 | `/tower install <name> [carrier]` | Install a stocked tower on the wall sign you look at (`create` is an alias) |
 | `/tower manage` · `/tower info` | GUI or info for the sign you look at |
+| `/tower replace <name>` | Move a tower onto the wall sign you look at (name, model, bands, backhaul and range stay) |
 | `/tower rename <name>` · `/tower remove` | Rename or remove it |
 | `/tower list [carrier]` | List towers |
 | `/tower setgen <gen>` | Admin: set the tower's generation |
