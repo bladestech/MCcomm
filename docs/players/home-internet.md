@@ -56,7 +56,7 @@ Put a router in your house, pick an internet provider, and every computer and ph
 
 Server owners can retune all of this in [Configuration](../admin/config.md).
 
-Every provider has a **star rating** (speed, uptime, value and coverage) on the Providers list. Quotes show the speed and ping you would get *at your router*, and a cabling fee for wired lines (per block from the node).
+Every provider has a **star rating** (speed, uptime, value, coverage and customer care) on the Providers list. Quotes show the speed and ping you would get *at your router*, and a cabling fee for wired lines (per block from the node).
 
 !!! tip "Dish needs the sky"
     For satellite, nothing solid may be above the router's sign. Put it on an outside wall under open sky, or on a roof.

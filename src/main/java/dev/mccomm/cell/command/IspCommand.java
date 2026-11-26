@@ -264,6 +264,10 @@ public final class IspCommand extends Cmd {
                     Msg.p("n", isp.name()), Msg.p("nodes", "" + bb().store().nodesOf(isp.id()).size()));
             return;
         }
+        if (s instanceof Player p) {
+            plugin.companies().liquidate(p, isp); // scrap, fee, payout to the owner (or its parent company)
+            return;
+        }
         bb().deleteIsp(isp);
         Msg.send(s, "<yellow>ISP <white><n></white> shut down.", Msg.p("n", isp.name()));
     }

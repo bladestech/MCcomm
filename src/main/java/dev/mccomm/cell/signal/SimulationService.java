@@ -125,7 +125,7 @@ public final class SimulationService {
         double perDay = 0;
         for (var e : planCounts(c).entrySet()) {
             Plan plan = c.plans().get(e.getKey());
-            if (plan != null && plan.periodHours() > 0) perDay += e.getValue() * plan.price() * 24.0 / plan.periodHours();
+            if (plan != null && plan.periodHours() > 0) perDay += e.getValue() * plugin.sales().price(plan) * 24.0 / plan.periodHours();
         }
         return perDay;
     }

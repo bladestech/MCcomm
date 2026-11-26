@@ -197,7 +197,7 @@ Plans can carry a data allowance. When it is used up the line drops to a fair-us
 Wired technologies charge a **drop fee** per block from the node to the home (DSL 0.05, cable 0.15, fiber 0.4 credits per block), paid with the install fee and shown in the quote. Satellite and 5G Home have none. **Show the line** on the router screen draws the cable from the node in sparks for a few seconds.
 
 ### 8. Outages and weather
-Nodes develop random **faults** (a per-technology chance per hour, multiplied in storms: DSL x4, cable x3, satellite x2). A faulted node serves nobody and its customers aren't billed. Customers re-bind to another healthy node of the ISP if one reaches them. The ISP can pay a **technician** from the node screen (or `/isp node repair <name>`), or a crew fixes it after 6 hours.
+Nodes develop random **faults** (a per-technology chance per hour, multiplied in storms: DSL x4, cable x3, satellite x2). A faulted node serves nobody and its customers aren't billed. Customers re-bind to another healthy node of the ISP if one reaches them. The ISP can pay a **technician** from the node screen (or `/isp node repair <name>`), or a crew fixes it after 6 in-game hours (about 5 real minutes).
 Faults run on the node's own timer and don't use the carrier workforce system: a deliberate simplification.
 
 ### 9. Transit and peering

@@ -11,7 +11,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
-public final class Carrier {
+public final class Carrier implements Company {
     private final String id;
     private String name;
     private UUID owner;
@@ -48,6 +48,7 @@ public final class Carrier {
         return name.toLowerCase(Locale.ROOT);
     }
 
+    @Override public Kind kind() { return Kind.CARRIER; }
     public String id() { return id; }
     public String name() { return name; }
     public UUID owner() { return owner; }
@@ -97,4 +98,9 @@ public final class Carrier {
     public boolean isStaff(UUID player) {
         return owner.equals(player) || employees.contains(player);
     }
+
+    private String group; // parent company id, null = on its own
+
+    @Override public String group() { return group; }
+    @Override public void group(String g) { this.group = g; }
 }

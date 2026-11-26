@@ -158,7 +158,7 @@ public final class PhoneMenu {
         });
         List<Runnable> work = workApps(p);
         if (!work.isEmpty()) {
-            m.set(40, Items.of(Material.BUNDLE, "<aqua>Work", "<gray>Your carrier or factory."), e -> {
+            m.set(40, Items.of(Material.BUNDLE, "<aqua>Work", "<gray>Your companies."), e -> {
                 click(p);
                 if (work.size() == 1) work.getFirst().run();
                 else work(p);
@@ -207,6 +207,12 @@ public final class PhoneMenu {
         for (dev.mccomm.cell.model.Manufacturer mf : plugin.store().manufacturers()) {
             if (!mf.system() && mf.isStaff(p.getUniqueId())) out.add(() -> plugin.manufacturerMenu().open(p, mf));
         }
+        if (plugin.broadband() != null) {
+            for (dev.mccomm.cell.broadband.Isp isp : plugin.broadband().store().isps()) {
+                if (isp.isStaff(p.getUniqueId())) out.add(() -> plugin.broadbandMenu().isp(p, isp));
+            }
+        }
+        for (dev.mccomm.cell.economy.Group gr : plugin.groups().ownedBy(p.getUniqueId())) out.add(() -> plugin.groupMenu().open(p, gr));
         return out;
     }
 
@@ -227,6 +233,22 @@ public final class PhoneMenu {
             m.set(slot++, Items.of(Material.SMITHING_TABLE, "<b>" + mf.styled(), "<gray>Manufacturer", "<yellow>Click · open"), e -> {
                 click(p);
                 plugin.manufacturerMenu().open(p, mf);
+            });
+        }
+        if (plugin.broadband() != null) {
+            for (dev.mccomm.cell.broadband.Isp isp : plugin.broadband().store().isps()) {
+                if (!isp.isStaff(p.getUniqueId()) || slot > 34) continue;
+                m.set(slot++, Items.of(Material.LIGHTNING_ROD, "<b>" + isp.styled(), "<gray>Internet provider", "<yellow>Click · open"), e -> {
+                    click(p);
+                    plugin.broadbandMenu().isp(p, isp);
+                });
+            }
+        }
+        for (dev.mccomm.cell.economy.Group gr : plugin.groups().ownedBy(p.getUniqueId())) {
+            if (slot > 34) break;
+            m.set(slot++, Items.of(Material.LECTERN, "<b>" + gr.styled(), "<gray>Parent company", "<yellow>Click · open"), e -> {
+                click(p);
+                plugin.groupMenu().open(p, gr);
             });
         }
         m.open(p);

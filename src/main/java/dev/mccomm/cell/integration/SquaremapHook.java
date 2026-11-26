@@ -110,28 +110,8 @@ public final class SquaremapHook {
                         .markerOptions(MarkerOptions.builder().hoverTooltip(html).clickTooltip(html)));
             }
 
-            // Maintenance stations and how far their technicians go.
-            boolean anyStation = false;
-            for (var f : plugin.workforce().facilities()) if (f.worldId().equals(w.getUID())) anyStation = true;
-            if (anyStation && plugin.workforce().enabled()) {
-                SimpleLayerProvider st = layer(mw, mine, STATIONS, "Maintenance stations", 22, 290, false);
-                st.clearMarkers();
-                for (var f : plugin.workforce().facilities()) {
-                    if (!f.worldId().equals(w.getUID())) continue;
-                    Carrier c = plugin.store().carrier(f.companyId());
-                    int rgb = c == null ? 0xFFFFFF : c.color().value();
-                    int staff = plugin.workforce().staffAt(f).size();
-                    String html = "<div style='font-family:sans-serif'><b style='color:" + (c == null ? "#fff" : c.color().asHexString()) + "'>"
-                            + esc(c == null ? "?" : c.name()) + "</b> &middot; <b>" + esc(f.name()) + "</b><br>Maintenance station<br>Technicians: "
-                            + staff + "/" + f.capacity() + "<br>Reach: " + plugin.workforce().w().serviceRadius() + " blocks</div>";
-                    st.addMarker(Key.of("s" + f.id()), Marker.icon(Point.of(f.x() + 0.5, f.z() + 0.5), stationIcon(rgb), s().squaremapIconSize)
-                            .markerOptions(MarkerOptions.builder().hoverTooltip(html).clickTooltip(html)));
-                    Color col = new Color(rgb);
-                    st.addMarker(Key.of("r" + f.id()), Marker.circle(Point.of(f.x() + 0.5, f.z() + 0.5), plugin.workforce().w().serviceRadius())
-                            .markerOptions(MarkerOptions.builder().fill(false).strokeColor(col).strokeOpacity(0.6).strokeWeight(2)
-                                    .hoverTooltip(esc(f.name() + " · service area"))));
-                }
-            } else if (mine.containsKey(STATIONS)) {
+            // Old maintenance-station layer: stations are virtual now, so drop it if it's still around.
+            if (mine.containsKey(STATIONS) || mw.layerRegistry().hasEntry(STATIONS)) {
                 if (mw.layerRegistry().hasEntry(STATIONS)) mw.layerRegistry().unregister(STATIONS);
                 mine.remove(STATIONS);
             }
@@ -353,31 +333,6 @@ public final class SquaremapHook {
         g.setColor(c);
         drawMast(g);
         g.fillOval(13, 4, 6, 6);
-        g.dispose();
-        if (api.iconRegistry().hasEntry(key)) api.iconRegistry().unregister(key);
-        api.iconRegistry().register(key, img);
-        icons.add(key);
-        return key;
-    }
-
-    /** A small rounded square with a wrench, for maintenance stations. */
-    private Key stationIcon(int rgb) {
-        Key key = Key.of("mccomm_station_" + String.format("%06x", rgb & 0xFFFFFF));
-        if (icons.contains(key) && api.iconRegistry().hasEntry(key)) return key;
-        BufferedImage img = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = img.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setColor(new Color(20, 22, 28));
-        g.fillRoundRect(3, 3, 26, 26, 9, 9);
-        g.setColor(new Color(rgb));
-        g.setStroke(new BasicStroke(2f));
-        g.drawRoundRect(4, 4, 24, 24, 8, 8);
-        // wrench: handle and open jaw
-        g.setStroke(new BasicStroke(3.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.drawLine(10, 22, 18, 14);
-        g.fillOval(16, 8, 9, 9);
-        g.setColor(new Color(20, 22, 28));
-        g.fillRect(19, 7, 4, 6);
         g.dispose();
         if (api.iconRegistry().hasEntry(key)) api.iconRegistry().unregister(key);
         api.iconRegistry().register(key, img);

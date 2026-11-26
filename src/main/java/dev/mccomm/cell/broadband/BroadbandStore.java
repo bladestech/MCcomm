@@ -253,6 +253,7 @@ public final class BroadbandStore {
                     for (String e : s.getStringList("employees")) isp.employees().add(UUID.fromString(e));
                     isp.colors(Style.fromHex(s.getStringList("colors")));
                     isp.balance(s.getLong("balance", 0));
+                    isp.group(s.getString("group"));
                     isp.nextUpkeep(s.getLong("next-upkeep", 0));
                     isp.unpaidSince(s.getLong("unpaid-since", 0));
                     isp.carrierId(s.getString("carrier"));
@@ -272,7 +273,10 @@ public final class BroadbandStore {
                     if (ps != null) {
                         for (String pid : ps.getKeys(false)) {
                             InternetPlan plan = readPlan(ps.getConfigurationSection(pid), pid);
-                            if (plan != null) isp.plans().put(pid, plan);
+                            if (plan != null) {
+                                plan.sale().read(ps.getConfigurationSection(pid));
+                                isp.plans().put(pid, plan);
+                            }
                         }
                     }
                     for (Map<?, ?> m : s.getMapList("ledger")) {
@@ -479,6 +483,7 @@ public final class BroadbandStore {
             y.set(p + "employees", isp.employees().stream().map(UUID::toString).toList());
             y.set(p + "colors", Style.toHex(isp.colors()));
             y.set(p + "balance", isp.balance());
+            y.set(p + "group", isp.group());
             y.set(p + "next-upkeep", isp.nextUpkeep());
             y.set(p + "unpaid-since", isp.unpaidSince());
             y.set(p + "created-at", isp.createdAt());
@@ -493,7 +498,10 @@ public final class BroadbandStore {
                 y.set(q + "carrier-discount", b.carrierDiscount());
                 y.set(q + "accepted", b.accepted());
             }
-            for (InternetPlan pl : isp.plans().values()) writePlan(y, p + "plans." + pl.id() + ".", pl);
+            for (InternetPlan pl : isp.plans().values()) {
+                writePlan(y, p + "plans." + pl.id() + ".", pl);
+                pl.sale().write(y, p + "plans." + pl.id() + ".");
+            }
             if (!isp.ledger().isEmpty()) {
                 List<Map<String, Object>> out = new ArrayList<>();
                 for (LedgerEntry e : isp.ledger()) {

@@ -431,7 +431,7 @@ public final class SignalService {
         double share = users <= cap ? 1 : cap / users;
         return spec.maxMbps() * backhaulMultiplier(l.tower()) * signalFactor(l.dbm()) * share
                 * Math.min(plugin.billing().decaySpeed(l.tower()), plugin.workforce().wearSpeed(l.tower()))
-                * plugin.workforce().engineerSpeed(l.tower());
+                * plugin.workforce().networkFactor(l.tower());
     }
 
     public double uploadMbps(Link l) {

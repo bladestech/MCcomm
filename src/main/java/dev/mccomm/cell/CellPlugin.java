@@ -67,7 +67,10 @@ public final class CellPlugin extends JavaPlugin {
     private dev.mccomm.cell.broadband.BroadbandMenu broadbandMenu;
     private dev.mccomm.cell.broadband.ComputerBrowser browser;
     private dev.mccomm.cell.workforce.WorkforceService workforce;
-    private dev.mccomm.cell.gui.OperationsMenu operationsMenu;
+    private dev.mccomm.cell.economy.GroupService groups;
+    private dev.mccomm.cell.economy.SaleService sales;
+    private dev.mccomm.cell.gui.OpsMenu opsMenu;
+    private dev.mccomm.cell.gui.GroupMenu groupMenu;
     private dev.mccomm.cell.market.MarketService market;
     private BukkitTask signalTask;
     private Object squaremap; // SquaremapHook when squaremap is installed (kept as Object so the class only loads then)
@@ -110,7 +113,12 @@ public final class CellPlugin extends JavaPlugin {
         browser = new dev.mccomm.cell.broadband.ComputerBrowser(this);
         workforce = new dev.mccomm.cell.workforce.WorkforceService(this);
         workforce.load();
-        operationsMenu = new dev.mccomm.cell.gui.OperationsMenu(this);
+        groups = new dev.mccomm.cell.economy.GroupService(this);
+        groups.load();
+        sales = new dev.mccomm.cell.economy.SaleService(this);
+        sales.load();
+        opsMenu = new dev.mccomm.cell.gui.OpsMenu(this);
+        groupMenu = new dev.mccomm.cell.gui.GroupMenu(this);
         market = new dev.mccomm.cell.market.MarketService(this);
         billing.ensureDefaults();
         manufacturers.setup();
@@ -124,7 +132,6 @@ public final class CellPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(internet, this);
         Bukkit.getPluginManager().registerEvents(new dev.mccomm.cell.broadband.BroadbandListener(this), this);
         Bukkit.getPluginManager().registerEvents(new Menu.Listen(), this);
-        Bukkit.getPluginManager().registerEvents(new dev.mccomm.cell.workforce.FacilityListener(this), this);
 
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, e -> {
             var r = e.registrar();
@@ -138,7 +145,7 @@ public final class CellPlugin extends JavaPlugin {
             r.register("isp", "Start and run an internet service provider", List.of(), new dev.mccomm.cell.command.IspCommand(this));
             r.register("broadband", "Set up internet at home", List.of("wifi", "bb"), new dev.mccomm.cell.command.BroadbandCommand(this));
             r.register("cellsim", "Simulated users for roleplay", List.of(), new CommCommands.Sim(this));
-            r.register("facility", "Build and manage company facilities", List.of(), new dev.mccomm.cell.command.FacilityCommand(this));
+            r.register("company", "Run a parent company that owns carriers, manufacturers and ISPs", List.of("group"), new dev.mccomm.cell.command.GroupCommand(this));
             r.register("celladmin", "MCcomm admin tools", List.of(), new CommCommands.Admin(this));
         });
 
@@ -148,6 +155,8 @@ public final class CellPlugin extends JavaPlugin {
         Bukkit.getScheduler().runTaskTimer(this, store::saveIfDirty, 1200L, 1200L);
         Bukkit.getScheduler().runTaskTimer(this, broadband::tick, 100L, 100L);
         Bukkit.getScheduler().runTaskTimer(this, broadband.store()::saveIfDirty, 1200L, 1200L);
+        Bukkit.getScheduler().runTaskTimer(this, groups::saveIfDirty, 1200L, 1200L);
+        Bukkit.getScheduler().runTaskTimer(this, sales::saveIfDirty, 1200L, 1200L);
         long bill = settings.billingCheckSeconds * 20L;
         Bukkit.getScheduler().runTaskTimer(this, billing::tick, 100L, bill);
         startSquaremap();
@@ -187,6 +196,8 @@ public final class CellPlugin extends JavaPlugin {
         if (hud != null) hud.shutdown();
         if (workforce != null) workforce.shutdown();
         stopSquaremap();
+        if (groups != null) groups.save();
+        if (sales != null) sales.save();
         if (store != null) store.save();
     }
 
@@ -229,6 +240,9 @@ public final class CellPlugin extends JavaPlugin {
     public dev.mccomm.cell.broadband.BroadbandMenu broadbandMenu() { return broadbandMenu; }
     public dev.mccomm.cell.broadband.ComputerBrowser browser() { return browser; }
     public dev.mccomm.cell.workforce.WorkforceService workforce() { return workforce; }
-    public dev.mccomm.cell.gui.OperationsMenu operationsMenu() { return operationsMenu; }
+    public dev.mccomm.cell.economy.GroupService groups() { return groups; }
+    public dev.mccomm.cell.economy.SaleService sales() { return sales; }
+    public dev.mccomm.cell.gui.OpsMenu opsMenu() { return opsMenu; }
+    public dev.mccomm.cell.gui.GroupMenu groupMenu() { return groupMenu; }
     public dev.mccomm.cell.market.MarketService market() { return market; }
 }

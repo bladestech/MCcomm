@@ -96,7 +96,7 @@ public final class ManufacturerCommand extends Cmd {
                     return;
                 }
                 int max = plugin.settings().maxManufacturersPerPlayer;
-                long owned = plugin.store().manufacturers().stream().filter(m -> p.getUniqueId().equals(m.owner())).count();
+                long owned = plugin.groups().ownedOutsideGroups(p.getUniqueId(), dev.mccomm.cell.model.Company.Kind.MANUFACTURER);
                 if (max >= 0 && !p.hasPermission("mccomm.admin") && owned >= max) {
                     Msg.send(p, "<red>You already own the maximum number of manufacturers (<n>).", Msg.p("n", "" + max));
                     return;
@@ -113,8 +113,12 @@ public final class ManufacturerCommand extends Cmd {
                 Manufacturer m = arg(s, args[1]);
                 if (m == null || !isOwner(s, m)) return;
                 if (args.length < 3 || !args[2].equalsIgnoreCase("confirm")) {
-                    Msg.send(s, "<yellow>This deletes <white><m></white> and its models. Installed towers keep working. Run <white>/manufacturer delete <m> confirm</white>.",
+                    Msg.send(s, "<yellow>This liquidates <white><m></white>: its models are lost, carriers' unsold stock is refunded, and the rest is paid out minus the fee. Installed towers keep working. Run <white>/manufacturer delete <m> confirm</white>.",
                             Msg.p("m", m.name()));
+                    return;
+                }
+                if (s instanceof Player p) {
+                    plugin.companies().liquidate(p, m); // the wallet is paid out (after stock refunds and the fee)
                     return;
                 }
                 plugin.store().removeManufacturer(m);

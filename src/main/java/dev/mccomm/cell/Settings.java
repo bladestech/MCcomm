@@ -37,6 +37,8 @@ public final class Settings {
     private final List<Integer> capacityPerGen;
     public final double simulationWeight;
     public final dev.mccomm.cell.workforce.WorkforceSettings workforce;
+    public final dev.mccomm.cell.economy.GroupSettings groups;
+    public final dev.mccomm.cell.economy.SaleSettings sales;
     public final dev.mccomm.cell.market.MarketSettings market;
     public final dev.mccomm.cell.tower.SmallCellSettings smallCells;
     public final dev.mccomm.cell.broadband.BroadbandSettings broadband;
@@ -195,6 +197,8 @@ public final class Settings {
         squaremapIntervalSeconds = Math.max(5, c.getInt("squaremap.update-seconds", 30));
         squaremapIconSize = Math.clamp(c.getInt("squaremap.icon-size", 20), 8, 64);
         workforce = dev.mccomm.cell.workforce.WorkforceSettings.read(c);
+        groups = dev.mccomm.cell.economy.GroupSettings.read(c);
+        sales = dev.mccomm.cell.economy.SaleSettings.read(c);
         market = dev.mccomm.cell.market.MarketSettings.read(c);
         smallCells = dev.mccomm.cell.tower.SmallCellSettings.read(c);
         broadband = dev.mccomm.cell.broadband.BroadbandSettings.read(c, log);

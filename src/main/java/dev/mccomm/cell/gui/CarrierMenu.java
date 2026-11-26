@@ -12,7 +12,6 @@ import dev.mccomm.cell.model.PlayerProfile;
 import dev.mccomm.cell.model.Subscription;
 import dev.mccomm.cell.model.Tower;
 import dev.mccomm.cell.util.Msg;
-import dev.mccomm.cell.workforce.Employee;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -28,18 +27,18 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * /carrier manage: six tabs (Overview, Network, Customers, Staff, Money, Partners) plus their
+ * /carrier manage: six tabs (Overview, Network, Customers, Operations, Money, Partners) plus their
  * sub-pages (plan editor, branding, agreement terms). Every page uses the shared {@link Frame}.
  */
 public final class CarrierMenu {
     private static final long CONFIRM_MS = 5000;
-    public static final String OVERVIEW = "overview", NETWORK = "network", CUSTOMERS = "customers", STAFF = "staff",
+    public static final String OVERVIEW = "overview", NETWORK = "network", CUSTOMERS = "customers", OPERATIONS = "operations",
             MONEY = "money", PARTNERS = "partners";
     private static final List<Frame.Tab> TABS = List.of(
             new Frame.Tab(OVERVIEW, Material.BEACON, "Overview"),
             new Frame.Tab(NETWORK, Material.LIGHTNING_ROD, "Network"),
             new Frame.Tab(CUSTOMERS, Material.PLAYER_HEAD, "Customers"),
-            new Frame.Tab(STAFF, Material.IRON_PICKAXE, "Staff"),
+            new Frame.Tab(OPERATIONS, Material.IRON_PICKAXE, "Operations"),
             new Frame.Tab(MONEY, Material.GOLD_INGOT, "Money"),
             new Frame.Tab(PARTNERS, Material.FILLED_MAP, "Partners"));
 
@@ -92,7 +91,7 @@ public final class CarrierMenu {
         switch (tab) {
             case NETWORK -> network(p, c, 0);
             case CUSTOMERS -> customers(p, c, 0);
-            case STAFF -> staff(p, c);
+            case OPERATIONS, "staff" -> operations(p, c);
             case MONEY -> money(p, c);
             case PARTNERS -> partners(p, c);
             default -> overview(p, c);
@@ -107,7 +106,7 @@ public final class CarrierMenu {
             Subscription sub = pr.sub(c.id());
             if (sub == null || sub.planId() == null) continue;
             Plan plan = c.plans().get(sub.planId());
-            if (plan != null) perDay += plan.price() * 24.0 / plan.periodHours();
+            if (plan != null) perDay += plugin.sales().price(plan) * 24.0 / plan.periodHours();
         }
         return perDay + plugin.simulation().revenuePerDay(c);
     }
@@ -148,12 +147,12 @@ public final class CarrierMenu {
 
         double income = incomePerDay(c);
         double upkeepDay = upkeep * 24.0 / plugin.settings().upkeepPeriodHours;
-        long staffDay = plugin.workforce().dailyCost(c.id());
+        long staffDay = plugin.workforce().dailyCost(c);
         double net = income - upkeepDay - staffDay;
         m.set(21, Items.of(net >= 0 ? Material.EMERALD : Material.REDSTONE, (net >= 0 ? "<green>+" : "<red>-") + money(Math.round(Math.abs(net))) + " <gray>a day",
                 "<gray>Income: <green>+" + money(Math.round(income)),
                 "<gray>Upkeep: <red>-" + money(Math.round(upkeepDay)),
-                "<gray>Wages, rent, transit: <red>-" + money(staffDay)));
+                "<gray>Operations and transit: <red>-" + money(staffDay)));
 
         int real = realSubscribers(c);
         if (plugin.market().active()) {
@@ -197,21 +196,23 @@ public final class CarrierMenu {
             actions.add(() -> network(p, c, 0));
         }
         if (plugin.workforce().enabled()) {
-            for (Employee.Role r : new Employee.Role[]{Employee.Role.SUPPORT, Employee.Role.ENGINEER}) {
-                if (r == Employee.Role.ENGINEER && c.mvno()) continue;
-                double load = plugin.workforce().load(c, r);
-                if (load <= 1) continue;
-                alerts.add(Items.of(r == Employee.Role.SUPPORT ? Material.BELL : Material.COMPARATOR,
-                        "<gold>" + r.display + " overloaded",
-                        "<gray>Workload: <white>" + (Double.isInfinite(load) ? "no staff" : Math.round(load * 100) + "%"),
-                        "<gray>Need about <white>" + plugin.workforce().needed(c, r) + "</white> in total.", "<yellow>Click · Staff tab"));
-                actions.add(() -> staff(p, c));
+            for (var part : dev.mccomm.cell.workforce.OpsPart.values()) {
+                if (plugin.workforce().fullCost(c, part) <= 0) continue;
+                double f = plugin.workforce().funding(c, part);
+                if (f >= 0.75) continue;
+                boolean short_ = plugin.workforce().state(c).lastPaid(part) + 0.01 < plugin.workforce().state(c).target(part);
+                alerts.add(Items.of(part.icon, "<gold>" + part.display + " at " + dev.mccomm.cell.workforce.WorkforceService.pct(f),
+                        short_ ? "<red>The balance couldn't pay the full bill." : "<gray>Funded below what the business needs.",
+                        "<yellow>Click · Operations tab"));
+                actions.add(() -> operations(p, c));
             }
-            long owed = plugin.workforce().state(c.id()).wagesOwed();
-            if (owed > 0) {
-                alerts.add(Items.of(Material.SKELETON_SKULL, "<red>Wages owed: " + money(owed), "<gray>Unpaid staff don't work.", "<yellow>Click · deposit"));
-                actions.add(() -> plugin.deposit().open(p, c, () -> overview(p, c)));
-            }
+        }
+        long owesGroup = plugin.groups().owes(c);
+        if (owesGroup > 0) {
+            var gr = plugin.groups().groupOf(c);
+            alerts.add(Items.of(Material.GOLD_NUGGET, "<gold>Owes " + Items.esc(gr == null ? "its parent" : gr.name()) + " " + money(owesGroup),
+                    "<gray>Repaid from income automatically.", "<gray>Nothing can go to a wallet meanwhile."));
+            actions.add(() -> money(p, c));
         }
         int offers = plugin.partners().offersTo(c).size();
         if (offers > 0) {
@@ -249,12 +250,12 @@ public final class CarrierMenu {
             click(p);
             customers(p, c, 0);
         });
-        m.set(42, Items.of(Material.PLAYER_HEAD, "<white>Hire staff"), e -> {
+        m.set(42, Items.of(Material.IRON_PICKAXE, "<white>Operations"), e -> {
             click(p);
-            staff(p, c);
+            operations(p, c);
         });
-        Frame.help(m, "Running a carrier", "Build towers (Network), set plans", "(Customers), hire staff, keep the wallet",
-                "above upkeep and payday.", "", "Alerts in the middle row show what", "needs attention; click one to go there.");
+        Frame.help(m, "Running a carrier", "Build towers (Network), set plans", "(Customers), fund operations, and keep",
+                "the wallet above upkeep.", "", "Alerts in the middle row show what", "needs attention; click one to go there.");
         m.open(p);
     }
 
@@ -285,41 +286,26 @@ public final class CarrierMenu {
         } else {
             Frame.page(m, p, towers, pg, Frame.rows(1, 3), t -> towerItem(c, t), null, n -> network(p, c, n));
         }
-        if (plugin.workforce().enabled()) {
-            m.set(37, Items.of(Material.EMERALD, "<green>Tower shop", "<gray>Buy towers from manufacturers."), e -> {
-                click(p);
-                plugin.manufacturerMenu().shop(p, c);
-            });
-        } else {
-            m.set(38, Items.of(Material.EMERALD, "<green>Tower shop", "<gray>Buy towers from manufacturers."), e -> {
-                click(p);
-                plugin.manufacturerMenu().shop(p, c);
-            });
-        }
+        m.set(38, Items.of(Material.EMERALD, "<green>Tower shop", "<gray>Buy towers from manufacturers."), e -> {
+            click(p);
+            plugin.manufacturerMenu().shop(p, c);
+        });
         int stock = plugin.manufacturerMenu().stockCount(c);
-        m.set(plugin.workforce().enabled() ? 39 : 42, Items.amount(Items.of(Material.CHEST, "<white>Stock: " + stock,
+        m.set(42, Items.amount(Items.of(Material.CHEST, "<white>Stock: " + stock,
                 "<gray>Bought, not installed yet.", "<gray>Install: <white>/tower install <name>"), Math.max(1, stock)), e -> {
             click(p);
             plugin.manufacturerMenu().stock(p, c);
         });
         if (plugin.workforce().enabled()) {
-            int sites = plugin.workforce().facilitiesOf(c.id()).size();
-            m.set(41, Items.of(Material.RED_BED, "<white>Facilities: " + sites, "<gray>Stations, call centres, NOCs.", "<yellow>Click · open"), e -> {
+            m.set(40, Items.of(Material.IRON_PICKAXE, "<white>Field crews: "
+                            + dev.mccomm.cell.workforce.WorkforceService.pct(plugin.workforce().funding(c, dev.mccomm.cell.workforce.OpsPart.FIELD)),
+                    "<gray>They repair worn towers.", "<yellow>Click · Operations tab"), e -> {
                 click(p);
-                plugin.operationsMenu().facilities(p, c, 0);
-            });
-            var st = plugin.workforce().state(c.id());
-            m.set(43, Items.of(st.contractors() ? Material.LIME_DYE : Material.GRAY_DYE, "<white>Contractors: " + (st.contractors() ? "<green>allowed" : "<red>never"),
-                    "<gray>Repair towers no technician can reach,", "<gray>slowly and for about " + Math.round(plugin.workforce().w().contractorMultiplier()) + "× the cost.",
-                    "<yellow>Click · toggle"), e -> {
-                click(p);
-                st.contractors(!st.contractors());
-                plugin.store().markDirty();
-                network(p, c, pg);
+                operations(p, c);
             });
         }
-        Frame.help(m, "Network", "Towers, most worn first. Wear builds", "with traffic; technicians from your",
-                "maintenance stations repair it, or", "contractors if none can reach.", "",
+        Frame.help(m, "Network", "Towers, most worn first. Wear builds", "with traffic; your field crews repair",
+                "it (Operations), or contractors when", "crews aren't funded.", "",
                 "Total upkeep: " + money(plugin.billing().upkeepCost(c)) + " per " + BillingService.period(plugin.settings().upkeepPeriodHours));
         m.open(p);
     }
@@ -335,7 +321,7 @@ public final class CarrierMenu {
         } else bh = "<red>no backhaul";
         lore.add("<gray>" + (t.small() ? "<aqua>Small cell</aqua> · " : "") + Items.esc(plugin.towers().modelName(t)) + " · Gen " + t.generation() + " · " + bh);
         lore.add("<gray>Users: <white>" + plugin.signal().usersOn(t) + (plugin.signal().simOn(t) > 0 ? " <dark_gray>+ " + plugin.signal().simOn(t) + " customers" : ""));
-        if (plugin.workforce().enabled()) lore.add("<gray>Wear: " + OperationsMenu.wearBar(t.wear()) + " <white>" + Math.round(t.wear()) + "%");
+        if (plugin.workforce().enabled()) lore.add("<gray>Wear: " + OpsMenu.wearBar(t.wear()) + " <white>" + Math.round(t.wear()) + "%");
         var job = plugin.workforce().job(t);
         if (job != null) lore.add(job.started() ? "<aqua>⚒ Repair in progress" : "<yellow>Repair queued");
         String status = !t.online() ? "<red>Offline" : stage >= plugin.settings().silentStage() ? "<dark_red>Silent (upkeep unpaid)"
@@ -457,40 +443,20 @@ public final class CarrierMenu {
         return Math.round(v * 100) + "%";
     }
 
-    // =================================================================== staff
+    // ============================================================== operations
 
-    public void staff(Player p, Carrier c) {
-        Menu m = page(p, c, STAFF);
-        long now = System.currentTimeMillis();
-        if (plugin.workforce().enabled()) {
-            var st = plugin.workforce().state(c.id());
-            List<String> sum = new ArrayList<>();
-            sum.add("<gray>Wages, rent, transit: <red>" + money(plugin.workforce().dailyCost(c.id())) + "</red>/day");
-            sum.add("<gray>Next payday in <white>" + (st.nextPayday() == 0 ? "-" : BillingService.until(st.nextPayday() - now)));
-            if (st.wagesOwed() > 0) sum.add("<red>Owed " + money(st.wagesOwed()) + ": unpaid staff don't work");
-            m.set(13, Items.of(Material.CLOCK, "<white>" + plugin.workforce().staffOf(c.id()).size() + " <gray>employees", sum));
-            Employee.Role[] roles = Employee.Role.values();
-            int[] slots = {20, 22, 24};
-            for (int i = 0; i < roles.length; i++) {
-                Employee.Role r = roles[i];
-                if (c.mvno() && r != Employee.Role.SUPPORT) continue;
-                m.set(slots[i], plugin.operationsMenu().roleItem(c, r, now, true), e -> {
-                    click(p);
-                    plugin.operationsMenu().role(p, c, r, 0);
-                });
-            }
-        } else {
-            m.set(22, Frame.empty("Virtual staff are off", "workforce.enabled is false on this server."));
-        }
+    public void operations(Player p, Carrier c) {
+        Menu m = page(p, c, OPERATIONS);
+        plugin.opsMenu().fill(m, p, c, isOwner(p, c), () -> operations(p, c));
         List<String> team = new ArrayList<>();
         team.add("<gray>Owner: <white>" + name(c.owner()));
         for (UUID id : c.employees()) team.add("<gray>• <white>" + name(id));
         team.add("");
         team.add("<dark_gray>/carrier employee add|remove " + Items.esc(c.name()) + " <player>");
         m.set(40, Items.of(Material.PLAYER_HEAD, "<white>Players with access", team));
-        Frame.help(m, "Staff", "Technicians repair towers from stations.", "Support agents keep customers happy.",
-                "Engineers keep the network fast.", "", "Each works in its own facility:", "build it, then hire into it.",
-                "Hiring costs " + plugin.workforce().w().recruitDays() + " days of wage, firing " + plugin.workforce().w().severanceDays() + ".");
+        Frame.help(m, "Operations", "Field crews repair worn towers.", "Customer care keeps customers happy.",
+                "Network ops keep the network fast.", "", "Each has a full cost that grows with", "your network and customers; choose how",
+                "much to fund. Service follows a 3-day", "average of what was really paid.");
         m.open(p);
     }
 
@@ -510,7 +476,7 @@ public final class CarrierMenu {
         }
         if (hist.isEmpty()) hist.add("<dark_gray>Nothing yet");
         m.set(24, Items.of(Material.BOOK, "<white>Ledger", hist));
-        plugin.companyMenu().carrierItems(m, p, c, () -> money(p, c));
+        plugin.companyMenu().items(m, p, c, () -> money(p, c));
         Frame.help(m, "Money", "Deposit ores into the company wallet.", "Moving money between you and the",
                 "company costs " + plugin.settings().transferFeePercent + "%. Valuation is a guide for", "selling; liquidating closes it for good.");
         m.open(p);
@@ -599,9 +565,15 @@ public final class CarrierMenu {
             if (plan.financed() && plan.financePhone() == null && !st.phones.isEmpty()) plan.financePhone(st.phones.keySet().iterator().next());
             saved(p, c, plan, before);
         });
+        boolean onSale = plugin.sales().locked(plan.sale());
         m.set(12, Items.of(Material.GOLD_INGOT, "<white>" + (prepaid ? "Top-up price" : "Price") + ": <gold>" + st.money(plan.price()),
-                prepaid ? "<gray>Paid each time they top up." : "<gray>Charged every period.", "<yellow>Click to change"), e -> {
+                prepaid ? "<gray>Paid each time they top up." : "<gray>Charged every period.",
+                onSale ? "<red>Locked while the plan is on sale." : "<yellow>Click to change"), e -> {
             click(p);
+            if (plugin.sales().locked(plan.sale())) {
+                Msg.send(p, "<red>The price can't change during a sale. End the sale first.");
+                return;
+            }
             askLong(p, "<aqua>" + (prepaid ? "Top-up price" : "Price per period") + " in " + st.currencyName + ":", 0, 1_000_000, v -> {
                 plan.price(v);
                 saved(p, c, plan, before);
@@ -774,6 +746,9 @@ public final class CarrierMenu {
                         c.balance() < ph.price() ? "<gold>Your wallet can't cover a phone right now!" : "<green>Your wallet covers " + (c.balance() / Math.max(1, ph.price())) + " phone(s)"));
             }
         }
+
+        // ---- a temporary sale (next to the price)
+        SaleButton.set(plugin, m, 22, p, c, plan.name(), plan.price(), plan.sale(), isOwner(p, c), () -> editor(p, c, plan));
 
         // ---- order in the plan lists (here and on the phone)
         int pos = dev.mccomm.cell.util.Reorder.indexOf(c.plans(), plan.id());

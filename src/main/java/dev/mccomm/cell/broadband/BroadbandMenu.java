@@ -27,7 +27,8 @@ import java.util.UUID;
 
 /** The screens of home internet: the ISP management menu, the router, the computer and nodes. */
 public final class BroadbandMenu {
-    private static final String OVERVIEW = "overview", PLANS = "plans", NETWORK = "network", CUSTOMERS = "customers";
+    private static final String OVERVIEW = "overview", PLANS = "plans", NETWORK = "network", CUSTOMERS = "customers",
+            OPERATIONS = "operations", MONEY = "money";
     private static final String STATUS = "status", PROVIDERS = "providers";
     private static final int[] LIST3 = Frame.rows(1, 3);
     private static final int[] LIST4 = Frame.rows(1, 4);
@@ -113,11 +114,20 @@ public final class BroadbandMenu {
                 new Frame.Tab(OVERVIEW, Material.COMPARATOR, "Overview"),
                 new Frame.Tab(PLANS, Material.PAPER, "Plans"),
                 new Frame.Tab(NETWORK, Material.LIGHTNING_ROD, isp.carrierBacked() ? "Towers" : "Network"),
-                new Frame.Tab(CUSTOMERS, Material.PLAYER_HEAD, "Customers")), tab, k -> isp(p, isp, k, 0));
+                new Frame.Tab(CUSTOMERS, Material.PLAYER_HEAD, "Customers"),
+                new Frame.Tab(OPERATIONS, Material.IRON_PICKAXE, "Operations"),
+                new Frame.Tab(MONEY, Material.GOLD_INGOT, "Money")), tab, k -> isp(p, isp, k, 0));
         switch (tab) {
             case PLANS -> plansTab(m, p, isp, page);
             case NETWORK -> networkTab(m, p, isp, page);
             case CUSTOMERS -> customersTab(m, p, isp, page);
+            case OPERATIONS -> {
+                plugin.opsMenu().fill(m, p, isp, plugin.companies().isOwner(p, isp), () -> isp(p, isp, OPERATIONS, 0));
+                Frame.help(m, "Operations", "Field crews fix node faults.", "Customer care counts in your rating.",
+                        "Network ops keep your backbone working.", "", "Costs grow with nodes and customers;",
+                        "choose how much to fund. Service follows", "a 3-day average of what was paid.");
+            }
+            case MONEY -> moneyTab(m, p, isp);
             default -> overviewTab(m, p, isp);
         }
         m.open(p);
@@ -181,47 +191,30 @@ public final class BroadbandMenu {
         dl.add("<dark_gray>/isp peer ... · /isp bundle ...");
         m.set(22, Items.of(Material.LEAD, "<white>Peering and bundles", dl));
 
-        m.set(29, Items.of(Material.GOLD_INGOT, "<gold>Deposit", "<gray>Move credits from your wallet into the ISP.",
-                "<gray>It pays for nodes, upgrades and upkeep."), e -> {
+        m.set(31, Items.of(Material.GOLD_INGOT, "<gold>Money", "<gray>Balance: <white>" + money(isp.balance()),
+                "<gray>Deposit, withdraw, value, sell or", "<gray>liquidate in the Money tab.", "<yellow>Click · Money tab"), e -> {
             Frame.click(p);
-            askNumber(p, "<aqua>Deposit how many credits into <white>" + Items.esc(isp.name()) + "</white>?", 1, v -> {
-                bb().deposit(p, isp, (long) v);
-                isp(p, isp, OVERVIEW, 0);
-            });
+            isp(p, isp, MONEY, 0);
         });
-        boolean owner = isp.owner().equals(p.getUniqueId()) || admin(p);
-        m.set(31, Items.of(Material.EMERALD, owner ? "<green>Withdraw" : "<dark_gray>Withdraw",
-                owner ? List.of("<gray>Take profit out to your wallet.", "<gray>The next upkeep bill stays in.") : List.of("<gray>Only the owner can withdraw.")),
-                owner ? e -> {
-                    Frame.click(p);
-                    askNumber(p, "<aqua>Withdraw how many credits from <white>" + Items.esc(isp.name()) + "</white>?", 1, v -> {
-                        bb().withdraw(p, isp, (long) v);
-                        isp(p, isp, OVERVIEW, 0);
-                    });
-                } : null);
-        List<String> led = new ArrayList<>();
-        for (LedgerEntry le : isp.ledger().stream().limit(8).toList()) {
-            led.add((le.amount() >= 0 ? "<green>+" : "<red>") + money(le.amount()) + " <gray>" + Items.esc(le.note()));
-        }
-        if (led.isEmpty()) led.add("<dark_gray>No transactions yet.");
-        m.set(33, Items.of(Material.BOOK, "<white>Ledger", led));
-        if (owner) {
-            m.set(40, Items.of(Material.TNT, "<red>Shut down this ISP", "<gray>Takes every node down and cancels",
-                    "<gray>every customer's plan. No refunds."), e -> {
-                Frame.click(p);
-                confirm(p, "<red>Shut down " + Items.esc(isp.name()) + "?",
-                        List.of("<gray>Its " + nodes.size() + " node(s) come down and its " + bb().customers(isp) + " customer(s) lose service.",
-                                "<gray>The ISP's balance is lost."),
-                        () -> {
-                            bb().deleteIsp(isp);
-                            Msg.send(p, "<yellow>ISP <white><isp></white> shut down.", Msg.p("isp", isp.name()));
-                            p.closeInventory();
-                        }, () -> isp(p, isp, OVERVIEW, 0));
-            });
-        }
         Frame.help(m, "ISP", "Build nodes on wall signs with /isp node install,",
                 "sell plans, and keep the balance above the upkeep.", "Customers connect to your nearest healthy node of the plan's technology.",
                 "Better speed, uptime, value and coverage raise your rating.");
+    }
+
+    private void moneyTab(Menu m, Player p, Isp isp) {
+        long now = System.currentTimeMillis();
+        List<String> led = new ArrayList<>();
+        for (LedgerEntry le : isp.ledger()) {
+            if (led.size() >= 15) break;
+            led.add(plugin.phone().ledgerLine(le, now));
+        }
+        if (led.isEmpty()) led.add("<dark_gray>No transactions yet.");
+        m.set(24, Items.of(Material.BOOK, "<white>Ledger", led));
+        m.set(20, Items.of(Material.GOLD_NUGGET, "<white>Balance: <gold>" + money(isp.balance()),
+                "<gray>It pays for nodes, upgrades, upkeep", "<gray>and operations."));
+        plugin.companyMenu().items(m, p, isp, () -> isp(p, isp, MONEY, 0));
+        Frame.help(m, "Money", "Moving money between you and the ISP", "costs " + plugin.settings().transferFeePercent + "%. The next upkeep always stays in.",
+                "Liquidating scraps the nodes, cancels", "every customer and pays out what's left.");
     }
 
     private void plansTab(Menu m, Player p, Isp isp, int page) {
@@ -331,13 +324,22 @@ public final class BroadbandMenu {
             store().markDirty();
             again.run();
         });
+        boolean onSale = plugin.sales().locked(pl.sale());
         m.set(20, Items.of(Material.GOLD_INGOT, "<gold>Price", "<gray>Now: <white>" + money(pl.price()),
-                "<gray>Existing customers keep their old price", "<gray>until their next renewal.", "<yellow>Click to change"),
-                e -> askNumber(p, "<aqua>Price per period, in credits?", 0, v -> {
-                    pl.price((long) v);
-                    store().markDirty();
-                    again.run();
-                }));
+                "<gray>Existing customers keep their old price", "<gray>until their next renewal.",
+                onSale ? "<red>Locked while the plan is on sale." : "<yellow>Click to change"),
+                e -> {
+                    if (plugin.sales().locked(pl.sale())) {
+                        Msg.send(p, "<red>The price can't change during a sale. End the sale first.");
+                        return;
+                    }
+                    askNumber(p, "<aqua>Price per period, in credits?", 0, v -> {
+                        pl.price((long) v);
+                        store().markDirty();
+                        again.run();
+                    });
+                });
+        dev.mccomm.cell.gui.SaleButton.set(plugin, m, 21, p, isp, pl.name(), pl.price(), pl.sale(), bb().canManage(p, isp), again);
         m.set(22, Items.of(Material.CLOCK, "<aqua>Billing period", "<gray>Now: <white>" + BillingService.period(pl.periodHours()),
                 "<yellow>Click to change"), e -> askNumber(p, "<aqua>Hours per billing period (" + bb().cfg().minPeriodHours() + "-" + bb().cfg().maxPeriodHours() + ")?",
                 bb().cfg().minPeriodHours(), v -> {
@@ -476,7 +478,7 @@ public final class BroadbandMenu {
         if (n.faulted()) {
             m.set(22, Items.of(Material.IRON_PICKAXE, "<gold>Send a technician", "<gray>Fixes the fault now.",
                     "<gray>Cost: <white>" + (admin(p) ? "free (admin)" : money(s.repairCost())) + " <gray>from the ISP balance.",
-                    "<gray>Otherwise a crew arrives in " + bb().cfg().faults().autoRepairHours() + " h."), e -> {
+                    "<gray>Otherwise a crew arrives in " + bb().cfg().faults().autoRepairHours() + " in-game h", "<gray>(about " + Math.max(1, Math.round(bb().cfg().faults().autoRepairHours() * 50 / 60.0)) + " real minutes)."), e -> {
                 Frame.click(p);
                 bb().repairNode(p, n);
                 node(p, n);

@@ -38,12 +38,14 @@ public final class Plan {
     private boolean roaming = true;
     private long roamingPerGb;  // surcharge to the subscriber per GB while roaming, 0 = free
     private java.util.List<net.kyori.adventure.text.format.TextColor> colors = new java.util.ArrayList<>(); // empty = carrier style
+    private final Sale sale = new Sale(); // never copied into a subscriber's saved terms
 
     public Plan(String id, String name, long price, int periodHours) {
         this.id = id;
         this.name = name;
         this.price = price;
         this.periodHours = periodHours;
+        this.sale.priceSince(System.currentTimeMillis());
     }
 
     public String id() { return id; }
@@ -52,7 +54,12 @@ public final class Plan {
     public Type type() { return type; }
     public void type(Type t) { this.type = t; }
     public long price() { return price; }
-    public void price(long p) { this.price = p; }
+    public void price(long p) {
+        if (p != price) sale.priceSince(System.currentTimeMillis());
+        this.price = p;
+    }
+
+    public Sale sale() { return sale; }
     public int periodHours() { return periodHours; }
     public void periodHours(int h) { this.periodHours = h; }
     public Band maxBand() { return maxBand; }

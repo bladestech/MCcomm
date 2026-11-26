@@ -118,8 +118,8 @@ public final class CarrierCommand extends Cmd {
             return;
         }
         int max = plugin.settings().maxCarriersPerPlayer;
-        if (max >= 0 && !p.hasPermission("mccomm.admin") && plugin.store().carriersOwnedBy(p.getUniqueId()).size() >= max) {
-            Msg.send(p, "<red>You already own the maximum number of carriers (<n>).", Msg.p("n", "" + max));
+        if (max >= 0 && !p.hasPermission("mccomm.admin") && plugin.groups().ownedOutsideGroups(p.getUniqueId(), dev.mccomm.cell.model.Company.Kind.CARRIER) >= max) {
+            Msg.send(p, "<red>You already own the maximum number of carriers (<n>). Carriers inside a parent company (/company) don't count.", Msg.p("n", "" + max));
             return;
         }
         boolean mvno = args.length >= 3 && args[2].equalsIgnoreCase("mvno");
@@ -145,8 +145,12 @@ public final class CarrierCommand extends Cmd {
         if (c == null || !isOwner(s, c)) return;
         List<Tower> towers = plugin.store().towersOf(c.id());
         if (args.length < 3 || !args[2].equalsIgnoreCase("confirm")) {
-            Msg.send(s, "<yellow>This deletes <white><c></white>, its <n> tower(s) and every subscription. Run <white>/carrier delete <c> confirm</white>.",
+            Msg.send(s, "<yellow>This liquidates <white><c></white>: its <n> tower(s) are scrapped, every subscription ends, and what's left is paid out minus the fee. Run <white>/carrier delete <c> confirm</white>.",
                     Msg.p("c", c.name()), Msg.p("n", "" + towers.size()));
+            return;
+        }
+        if (s instanceof Player p) {
+            plugin.companies().liquidate(p, c); // nothing is lost: scrap, stock and wallet are paid out (minus the fee)
             return;
         }
         for (Tower t : towers) plugin.towers().remove(t, true);

@@ -15,6 +15,7 @@ public final class InternetPlan {
     private long installFee;
     private long dataMB = -1; // -1 = unlimited; past the allowance the line is throttled (fair use)
     private Segment segment = Segment.RESIDENTIAL; // who it is sold to
+    private final dev.mccomm.cell.model.Sale sale = new dev.mccomm.cell.model.Sale(); // never copied into a router's terms
 
     public InternetPlan(String id, String name, Technology tech, long price, int periodHours, double speedCapMbps, long installFee) {
         this.id = id;
@@ -24,6 +25,7 @@ public final class InternetPlan {
         this.periodHours = periodHours;
         this.speedCapMbps = speedCapMbps;
         this.installFee = installFee;
+        this.sale.priceSince(System.currentTimeMillis());
     }
 
     public String id() { return id; }
@@ -32,7 +34,12 @@ public final class InternetPlan {
     public Technology tech() { return tech; }
     public void tech(Technology t) { this.tech = t; }
     public long price() { return price; }
-    public void price(long p) { this.price = Math.max(0, p); }
+    public void price(long p) {
+        if (Math.max(0, p) != price) sale.priceSince(System.currentTimeMillis());
+        this.price = Math.max(0, p);
+    }
+
+    public dev.mccomm.cell.model.Sale sale() { return sale; }
     public int periodHours() { return periodHours; }
     public void periodHours(int h) { this.periodHours = Math.max(1, h); }
     public double speedCapMbps() { return speedCapMbps; }
