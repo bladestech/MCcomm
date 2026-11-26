@@ -654,25 +654,24 @@ public final class BroadbandMenu {
 
     /** The Providers tab: one "folder" per ISP. Click one to see its plans. */
     private void providersTab(Menu m, Player p, Router r, int page) {
+        // Only providers that can serve this address (plus your current one). Yours first, then by name.
         List<Isp> isps = new ArrayList<>();
-        for (Isp isp : store().isps()) if (!isp.plans().isEmpty()) isps.add(isp);
-        // Your current provider first, then providers that can serve this address, then by name.
-        Map<String, Boolean> serves = new HashMap<>();
-        for (Isp isp : isps) {
+        for (Isp isp : store().isps()) {
+            boolean mine = r.subscribed() && isp.id().equals(r.ispId());
             boolean any = false;
             for (InternetPlan pl : isp.plans().values()) if (bb().quote(isp, pl, r.key(), r).ok()) any = true;
-            serves.put(isp.id(), any);
+            if (mine || any) isps.add(isp);
         }
         isps.sort(Comparator.comparing((Isp i) -> !(r.subscribed() && i.id().equals(r.ispId())))
-                .thenComparing(i -> !serves.get(i.id())).thenComparing(i -> i.name().toLowerCase(Locale.ROOT)));
-        if (isps.isEmpty()) m.set(22, Frame.empty("No providers yet", "A player can start one with /isp create <name>."));
-        Frame.page(m, p, isps, page, LIST4, isp -> ispFolder(r, isp, serves.get(isp.id())), (isp, e) -> {
+                .thenComparing(i -> i.name().toLowerCase(Locale.ROOT)));
+        if (isps.isEmpty()) m.set(22, Frame.empty("No providers reach you", "Nobody serves this address yet.", "An ISP needs a node in range of it."));
+        Frame.page(m, p, isps, page, LIST4, isp -> ispFolder(r, isp), (isp, e) -> {
             Frame.click(p);
             providerPlans(p, r, isp, 0);
         }, pg -> router(p, r, PROVIDERS, pg));
     }
 
-    private ItemStack ispFolder(Router r, Isp isp, boolean serves) {
+    private ItemStack ispFolder(Router r, Isp isp) {
         boolean current = r.subscribed() && isp.id().equals(r.ispId());
         Set<String> techs = new LinkedHashSet<>();
         long cheapest = Long.MAX_VALUE;
@@ -689,12 +688,12 @@ public final class BroadbandMenu {
         List<String> lore = new ArrayList<>();
         lore.add("<gray>Rating: " + bb().ratingLore(isp));
         lore.add("<gray>Technologies: <white>" + String.join(", ", techs));
-        lore.add("<gray>Plans: <white>" + isp.plans().size() + (serves ? " <gray>(<green>" + ok + "<gray> available here)" : ""));
-        if (serves) {
+        lore.add("<gray>Plans here: <white>" + ok);
+        if (ok > 0) {
             lore.add("<gray>From: <white>" + money(cheapest));
             lore.add("<green>↓ <white>up to ~" + Msg.speed(fastest));
         } else {
-            lore.add("<red>Doesn't reach this address");
+            lore.add("<red>Your plan is no longer available here");
         }
         if (current) lore.add("<green>Your current provider");
         lore.add("<yellow>Click to open");
@@ -713,8 +712,12 @@ public final class BroadbandMenu {
                 new Frame.Tab(STATUS, Material.COMPARATOR, "Connection"),
                 new Frame.Tab(PROVIDERS, Material.COMPASS, "Providers")), PROVIDERS, k -> router(p, r, k, 0));
         List<Offer> offers = new ArrayList<>();
-        for (InternetPlan pl : isp.plans().values()) offers.add(new Offer(isp, pl, bb().quote(isp, pl, r.key(), r)));
-        if (offers.isEmpty()) m.set(22, Frame.empty("No plans", "This provider has no plans right now."));
+        for (InternetPlan pl : isp.plans().values()) {
+            Quote q = bb().quote(isp, pl, r.key(), r);
+            boolean current = r.subscribed() && isp.id().equals(r.ispId()) && pl.id().equals(r.planId());
+            if (q.ok() || current) offers.add(new Offer(isp, pl, q)); // plans that can't be ordered here stay hidden
+        }
+        if (offers.isEmpty()) m.set(22, Frame.empty("No plans here", "None of this provider's plans reach you."));
         Frame.page(m, p, offers, page, LIST4, o -> offerItem(r, o), (o, e) -> {
             Frame.click(p);
             if (!o.quote().ok()) {
