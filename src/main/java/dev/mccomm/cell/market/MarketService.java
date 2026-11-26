@@ -363,12 +363,21 @@ public final class MarketService {
         return (1 - m().rivalsWeight()) * ref + m().rivalsWeight() * median;
     }
 
-    /** Average daily price over the carrier's plans (simulated customers pick plans evenly). */
+    /** Average daily price over the carrier's personal plans (simulated customers pick plans evenly). Business plans are priced apart from this. */
     public double averagePrice(Carrier c) {
         if (c.plans().isEmpty()) return 0;
         double sum = 0;
-        for (Plan p : c.plans().values()) sum += p.periodHours() <= 0 ? 0 : p.price() * 24.0 / p.periodHours();
-        return sum / c.plans().size();
+        int n = 0;
+        for (Plan p : c.plans().values()) {
+            if (p.business()) continue;
+            sum += p.periodHours() <= 0 ? 0 : p.price() * 24.0 / p.periodHours();
+            n++;
+        }
+        if (n == 0) { // only business plans: compare those
+            for (Plan p : c.plans().values()) sum += p.periodHours() <= 0 ? 0 : p.price() * 24.0 / p.periodHours();
+            n = c.plans().size();
+        }
+        return sum / n;
     }
 
     /** The towers a carrier's customers use: its own, or its host's for an MVNO. */

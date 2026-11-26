@@ -66,6 +66,10 @@ In the management screen, turn on the **Trade-in program** and set a **rate** (d
 
 Plans show to subscribers in the order they appear in your list. In the Plans list, **right-click** a plan to move it later or **shift-left-click** to move it earlier. Or open a plan and use **Move earlier** and **Move later** (shift-click to jump to the top or bottom). The order is saved.
 
+## Personal and business plans
+
+Every plan is for either **personal** or **business** accounts, and players only see plans that match their account. Right-click **New plan** to make a business plan (it starts at 3× the default price), or use the **For** button in the plan editor. That can't change while the plan has subscribers. Business lines get priority on a congested band, and a share of your simulated customers (10% by default) take your business plans if you have any. Price and speed are up to you. Business plans are left out of the going-rate price comparison, so a high business price doesn't hurt your customer rating.
+
 ## Deleting a plan
 
 Shift-right-click it twice. Its subscribers drop to "no plan" (no service, **no debt**) and are told to choose another.

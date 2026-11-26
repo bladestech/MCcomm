@@ -23,6 +23,7 @@ public final class PlayerProfile {
     /** Newest first. */
     private final List<SmsMessage> inbox = new ArrayList<>();
     private Boolean hud; // null = server default
+    private boolean business; // a business account: sees and takes business plans instead of personal ones
     private boolean dnd;
     private String dataSim; // carrierId, null = automatic (first SIM with service)
     private String phone; // phone model id in use, null = no phone
@@ -55,6 +56,8 @@ public final class PlayerProfile {
     public List<SmsMessage> inbox() { return inbox; }
     public Boolean hud() { return hud; }
     public void hud(Boolean hud) { this.hud = hud; }
+    public boolean business() { return business; }
+    public void business(boolean b) { this.business = b; }
     public boolean dnd() { return dnd; }
     public void dnd(boolean dnd) { this.dnd = dnd; }
     public String phone() { return phone; }
@@ -113,7 +116,7 @@ public final class PlayerProfile {
     }
 
     public boolean isEmpty() {
-        return active.isEmpty() && inactive.isEmpty() && hud == null && !dnd && dataSim == null && contacts.isEmpty() && inbox.isEmpty()
+        return active.isEmpty() && inactive.isEmpty() && hud == null && !business && !dnd && dataSim == null && contacts.isEmpty() && inbox.isEmpty()
                 && phone == null && ownedPhones.isEmpty() && balance == 0 && overdue.isEmpty() && notices.isEmpty() && ledger.isEmpty() && phoneLocks.isEmpty() && blacklist.isEmpty() && giftedPhones.isEmpty() && !starterGiven;
     }
 }

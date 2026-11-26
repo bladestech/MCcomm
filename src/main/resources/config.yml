@@ -559,6 +559,12 @@ simulation:
   # market section); fixed = admins set each carrier's simulated users by hand.
   mode: market
 
+# Business plans for carriers: a carrier makes one by right-clicking New plan (or the For button in
+# the plan editor). Accounts are personal or business (/cell account) and only see plans of their kind.
+business-plans:
+  priority: 2          # on a congested band a business line keeps this many times the share a personal line does
+  customer-share: 0.1  # share of a carrier's simulated users that are businesses (if it sells business plans)
+
 # The simulated customer market (simulation.mode: market). Every hour each carrier
 # gets a satisfaction score; customers leave unhappy or overpriced carriers, and
 # customers without a carrier sign up with the most attractive ones.

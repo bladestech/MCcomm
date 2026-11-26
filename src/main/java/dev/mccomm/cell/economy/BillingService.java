@@ -469,9 +469,32 @@ public final class BillingService implements Listener {
     }
 
     /** First payment for a new subscription. Returns false (and tells the player) if they can't. */
+    /** True, after telling the player, if this plan is for the other kind of account (personal or business). */
+    private boolean wrongAccount(Player p, PlayerProfile prof, Plan plan) {
+        if (plan.business() == prof.business()) return false;
+        Msg.send(p, plan.business() ? "<red>That's a business plan. Switch to a business account first: <white>/cell account business</white> (or in Settings)."
+                : "<red>That's a personal plan. Your account is a business one: <white>/cell account personal</white> switches it.");
+        return true;
+    }
+
+    /** Switches the player's account between personal and business. Only possible with no SIMs, since plans are for one or the other. */
+    public boolean setAccount(Player p, boolean business) {
+        PlayerProfile prof = prof(p.getUniqueId());
+        if (prof.business() == business) return true;
+        if (!prof.subs().isEmpty()) {
+            Msg.send(p, "<red>Unsubscribe from all your SIMs first: personal and business plans can't be swapped on a live line.");
+            return false;
+        }
+        prof.business(business);
+        plugin.store().markDirty();
+        Msg.send(p, "<green>Your account is now a <t> one.", Msg.p("t", business ? "business" : "personal"));
+        return true;
+    }
+
     public boolean startPlan(Player p, Carrier c, Plan plan) {
         if (blockIfOverdue(p)) return false;
         PlayerProfile prof = prof(p.getUniqueId());
+        if (wrongAccount(p, prof, plan)) return false;
         PhoneModel phone = null;
         long cost = plan.price();
         if (plan.financed()) {
@@ -509,6 +532,7 @@ public final class BillingService implements Listener {
             }
             return;
         }
+        if (wrongAccount(p, prof, plan)) return;
         if (blockIfOverdue(p)) return;
         Plan current = planOf(prof, c.id());
         long now = System.currentTimeMillis();

@@ -438,9 +438,20 @@ public final class SignalService {
         return downloadMbps(l) * s().spec(l.band()).uploadRatio();
     }
 
+    /** Business plans keep more of their speed on a congested band: the factor to multiply by (1 = no priority). */
+    private double priority(SimStatus sim) {
+        if (sim.plan() == null || !sim.plan().business()) return 1;
+        Link l = sim.link();
+        double users = Math.max(1, load(l.tower(), l.band()));
+        double cap = capacity(l.tower());
+        if (users <= cap) return 1; // not busy: everyone gets full speed
+        double share = cap / users;
+        return Math.min(1 / share, s().businessPriority);
+    }
+
     /** Download for a SIM, after its plan's speed cap. */
     public double downloadMbps(SimStatus sim) {
-        double d = downloadMbps(sim.link());
+        double d = downloadMbps(sim.link()) * priority(sim);
         if (sim.plan() != null && sim.plan().speedCapMbps() > 0) d = Math.min(d, sim.plan().speedCapMbps());
         if (sim.throttled()) d = Math.min(d, s().throttleMbps);
         if (sim.deprioritized() && load(sim.link().tower(), sim.link().band()) > s().capacity(sim.link().tower().generation())) d *= s().deprioritizedSpeed;
@@ -449,7 +460,7 @@ public final class SignalService {
 
     public double uploadMbps(SimStatus sim) {
         double ratio = s().spec(sim.link().band()).uploadRatio();
-        double u = uploadMbps(sim.link());
+        double u = uploadMbps(sim.link()) * priority(sim);
         if (sim.plan() != null && sim.plan().speedCapMbps() > 0) u = Math.min(u, sim.plan().speedCapMbps() * ratio);
         if (sim.throttled()) u = Math.min(u, s().throttleMbps * ratio);
         if (sim.deprioritized() && load(sim.link().tower(), sim.link().band()) > s().capacity(sim.link().tower().generation())) u *= s().deprioritizedSpeed;

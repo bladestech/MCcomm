@@ -33,7 +33,7 @@ public enum Segment {
     public static Segment fromKey(String s) {
         if (s == null) return null;
         return switch (s.toLowerCase(Locale.ROOT)) {
-            case "residential", "home", "house", "res" -> RESIDENTIAL;
+            case "residential", "home", "house", "res", "personal" -> RESIDENTIAL;
             case "business", "biz", "commercial" -> BUSINESS;
             default -> null;
         };

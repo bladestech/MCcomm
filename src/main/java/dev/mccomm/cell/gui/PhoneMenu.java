@@ -152,7 +152,7 @@ public final class PhoneMenu {
             click(p);
             wallet(p);
         });
-        m.set(34, Items.of(Material.COMPARATOR, "<gray>Settings", "<dark_gray>Sidebar, Do Not Disturb."), e -> {
+        m.set(34, Items.of(Material.COMPARATOR, "<gray>Settings", "<dark_gray>Sidebar, account type, Do Not Disturb."), e -> {
             click(p);
             settings(p);
         });
@@ -688,7 +688,12 @@ public final class PhoneMenu {
         Frame.title(m, Items.of(Material.BEACON, "<b>" + c.styled(), plugin.market().ratingLore(c)));
         Plan current = plugin.billing().planOf(prof, c.id());
         int slot = 9;
+        int hiddenPlans = 0;
         for (Plan plan : c.plans().values()) {
+            if (plan.business() != prof.business() && !(current != null && current.id().equals(plan.id()))) {
+                hiddenPlans++; // the other kind of account's plans
+                continue;
+            }
             if (slot > 35) break;
             boolean mine = current != null && current.id().equals(plan.id());
             List<String> lore = new ArrayList<>(planLore(plan));
@@ -709,6 +714,13 @@ public final class PhoneMenu {
             });
         }
         if (c.plans().isEmpty()) m.set(22, Frame.empty("This carrier has no plans yet"));
+        else if (slot == 9) m.set(22, Frame.empty("No " + (prof.business() ? "business" : "personal") + " plans", hiddenPlans + " plan(s) are for the other kind of account.", "/cell account " + (prof.business() ? "personal" : "business") + " switches."));
+        m.set(38, Items.of(prof.business() ? Material.GOLD_BLOCK : Material.OAK_DOOR, "<white>Account: " + (prof.business() ? "<gold>Business" : "<green>Personal"),
+                "<gray>Shows " + (prof.business() ? "business" : "personal") + " plans.", "<gray>Switch it in Settings.", ""), e -> {
+            click(p);
+            settings(p);
+        });
+        if (c.plans().isEmpty()) m.set(22, Frame.empty("This carrier has no plans yet"));
         Frame.back(m, p, "SIMs and plans", () -> sims(p, 0));
         m.set(40, Items.of(Material.GOLD_INGOT, "<gold>Balance: <white>" + plugin.settings().money(prof.balance()),
                 prof.totalOverdue() > 0 ? "<red>Overdue: " + plugin.settings().money(prof.totalOverdue()) : "<gray>Click to open your wallet"), e -> {
@@ -727,6 +739,7 @@ public final class PhoneMenu {
             case PREPAID -> "<green>Prepaid";
         };
         lore.add(type);
+        if (plan.business()) lore.add("<gold>Business plan <dark_gray>(priority on a busy band)");
         if (plan.prepaid()) {
             lore.add("<gray>Top-up: <white>" + st.money(plan.price()) + " <gray>· lasts " + BillingService.period(plan.periodHours()));
         } else {
@@ -1054,6 +1067,17 @@ public final class PhoneMenu {
             plugin.store().markDirty();
             if (hud) plugin.hud().clear(p);
             else plugin.hud().update(p, plugin.signal().compute(p));
+            settings(p);
+        });
+        m.set(22, Items.of(prof.business() ? Material.GOLD_BLOCK : Material.OAK_DOOR, "<white>Account: " + (prof.business() ? "<gold>Business" : "<green>Personal"),
+                "<gray>Business accounts take business plans,", "<gray>personal accounts take personal plans.",
+                prof.subs().isEmpty() ? "<yellow>Click to switch" : "<dark_gray>Unsubscribe from all SIMs to switch."), e -> {
+            click(p);
+            if (!prof.subs().isEmpty()) {
+                Msg.send(p, "<red>Unsubscribe from all your SIMs first.");
+                return;
+            }
+            plugin.billing().setAccount(p, !prof.business());
             settings(p);
         });
         boolean dnd = prof.dnd();

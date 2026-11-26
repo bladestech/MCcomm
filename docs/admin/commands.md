@@ -26,6 +26,7 @@
 | `/cell sims` · `/cell number` · `/cell towers` · `/cell carriers` | Info |
 | `/cell contacts` · `/cell messages` | Open those apps |
 | `/cell pay <player> <amount>` | Send credits (free) |
+| `/cell account [personal|business]` | Which kind of plans you see and take (needs no SIMs to switch) |
 | `/cell hud` | Toggle the signal sidebar |
 | `/text <number\|contact\|player> <message>` (`/sms`) | Send a text |
 | `/call start <number\|contact\|player\|909>` | Call |

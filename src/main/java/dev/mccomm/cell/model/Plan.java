@@ -34,6 +34,7 @@ public final class Plan {
     private int installments = 6;
     private double interestPercent = 10;
     private long downPayment;
+    private dev.mccomm.cell.broadband.Segment segment = dev.mccomm.cell.broadband.Segment.RESIDENTIAL; // personal or business plan
     private boolean roaming = true;
     private long roamingPerGb;  // surcharge to the subscriber per GB while roaming, 0 = free
     private java.util.List<net.kyori.adventure.text.format.TextColor> colors = new java.util.ArrayList<>(); // empty = carrier style
@@ -90,6 +91,10 @@ public final class Plan {
         return dev.mccomm.cell.util.Style.mm(colors.isEmpty() && carrier != null ? carrier.colors() : colors, name);
     }
 
+    public dev.mccomm.cell.broadband.Segment segment() { return segment; }
+    public void segment(dev.mccomm.cell.broadband.Segment s) { this.segment = s == null ? dev.mccomm.cell.broadband.Segment.RESIDENTIAL : s; }
+    public boolean business() { return segment == dev.mccomm.cell.broadband.Segment.BUSINESS; }
+
     public boolean roaming() { return roaming; }
     public void roaming(boolean v) { this.roaming = v; }
     public long roamingPerGb() { return roamingPerGb; }
@@ -114,6 +119,7 @@ public final class Plan {
         p.downPayment = downPayment;
         p.roaming = roaming;
         p.roamingPerGb = roamingPerGb;
+        p.segment = segment;
         p.colors = new java.util.ArrayList<>(colors);
         return p;
     }
