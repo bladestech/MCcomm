@@ -15,7 +15,7 @@ Put a router in your house, pick an internet provider, and every computer and ph
 
     The sign becomes a **router**. You can have up to 3.
 
-2. **Right-click the router** and open the **Providers** tab. Each ISP is a **folder** (your current provider first). Providers and plans that can't be ordered at your spot are hidden, so you only see what reaches you. Each folder shows its rating, technologies, cheapest price and top speed here. Click one to open its plans, in the order the ISP set, each with a quote for *this exact spot*:
+2. **Right-click the router** and open the **Providers** tab. Each ISP is a **folder** (your current provider first). Providers and plans that can't be ordered at your spot are hidden, so you only see what reaches you. Inside a folder, the **Hidden plans** book (bottom right) lists the plans left out and why (no node in range, no clear sky, and so on). Each folder shows its rating, technologies, cheapest price and top speed here. Click one to open its plans, in the order the ISP set, each with a quote for *this exact spot*:
 
     | The plans show | Meaning |
     |---|---|

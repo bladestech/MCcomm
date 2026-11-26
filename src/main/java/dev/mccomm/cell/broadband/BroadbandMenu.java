@@ -689,6 +689,8 @@ public final class BroadbandMenu {
         lore.add("<gray>Rating: " + bb().ratingLore(isp));
         lore.add("<gray>Technologies: <white>" + String.join(", ", techs));
         lore.add("<gray>Plans here: <white>" + ok);
+        int hidden = isp.plans().size() - ok;
+        if (hidden > 0) lore.add("<dark_gray>" + hidden + " more not available at this spot (open to see why)");
         if (ok > 0) {
             lore.add("<gray>From: <white>" + money(cheapest));
             lore.add("<green>↓ <white>up to ~" + Msg.speed(fastest));
@@ -712,10 +714,12 @@ public final class BroadbandMenu {
                 new Frame.Tab(STATUS, Material.COMPARATOR, "Connection"),
                 new Frame.Tab(PROVIDERS, Material.COMPASS, "Providers")), PROVIDERS, k -> router(p, r, k, 0));
         List<Offer> offers = new ArrayList<>();
+        List<String> hiddenInfo = new ArrayList<>();
         for (InternetPlan pl : isp.plans().values()) {
             Quote q = bb().quote(isp, pl, r.key(), r);
             boolean current = r.subscribed() && isp.id().equals(r.ispId()) && pl.id().equals(r.planId());
             if (q.ok() || current) offers.add(new Offer(isp, pl, q)); // plans that can't be ordered here stay hidden
+            else hiddenInfo.add("<gray>• <white>" + Items.esc(pl.name()) + " <gray>(" + spec(pl.tech()).name() + "): <red>" + Items.esc(q.problem()));
         }
         if (offers.isEmpty()) m.set(22, Frame.empty("No plans here", "None of this provider's plans reach you."));
         Frame.page(m, p, offers, page, LIST4, o -> offerItem(r, o), (o, e) -> {
@@ -739,6 +743,13 @@ public final class BroadbandMenu {
                         router(p, r, STATUS, 0);
                     }, () -> providerPlans(p, r, isp, page));
         }, pg -> providerPlans(p, r, isp, pg));
+        if (hiddenInfo.isEmpty()) Frame.help(m, "Plans", "Only plans that reach this router are listed.");
+        else {
+            List<String> lines = new ArrayList<>();
+            lines.add("Not shown (can't be ordered here):");
+            lines.addAll(hiddenInfo);
+            Frame.help(m, "Hidden plans", lines.toArray(new String[0]));
+        }
         Frame.back(m, p, "Providers", () -> router(p, r, PROVIDERS, 0));
         m.open(p);
     }
