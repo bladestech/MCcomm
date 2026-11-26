@@ -1,6 +1,6 @@
 # Design spec: Workforce, facilities and network wear
 
-Status: **phases 1 and 3 implemented** (stations, wear, technicians, contractors; customer market, support, engineers, call centres, NOCs, transit). Phase 2 and later are still drafts; the market details live in docs/carriers/market.md. Every number is a starting
+Status: **partly superseded.** Wear and repair jobs (section 4) are built and stay. Employees, facilities, wages and phase 2 (satisfaction, quitting, poaching) are replaced by the virtual operations budget in [operations.md](operations.md); headquarters and mergers continue in [groups.md](groups.md). The market details live in docs/carriers/market.md. Every number is a starting value that goes in `config.yml`.
 value that goes in `config.yml`; this spec is where they get tuned before code.
 
 ## 1. Why
